@@ -11,7 +11,13 @@ pydantic==2.8.2          # For data validation, settings management, and definin
 
 # --- Operating Memory Layer (Redis) ---
 redis==5.0.7             # The official Python client for Redis.
-asyncpg==0.29.0          # Async PostgreSQL client for Python.
+
+# PostgreSQL Async Driver
+# Note: asyncpg requires compilation. If you encounter build errors:
+# Option 1 (Recommended): Use psycopg[binary] instead
+# Option 2: Ensure build tools are installed: apt-get install build-essential python3-dev
+# For Python 3.13, we use psycopg with binary wheels (works with Python 3.13)
+psycopg[binary]>=3.2.0  # PostgreSQL adapter with binary wheels (works with Python 3.13)
 
 # --- Persistent Knowledge Layer (Specialized Databases) ---
 

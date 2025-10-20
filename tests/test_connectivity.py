@@ -38,6 +38,11 @@ except ImportError:
     asyncpg = None
 
 try:
+    import psycopg
+except ImportError:
+    psycopg = None
+
+try:
     from qdrant_client import QdrantClient
 except ImportError:
     QdrantClient = None
@@ -105,59 +110,122 @@ def config():
 # PostgreSQL Tests
 # ============================================================================
 
-@pytest.mark.skipif(asyncpg is None, reason="asyncpg not installed")
+@pytest.mark.skipif(
+    asyncpg is None and psycopg is None, 
+    reason="asyncpg or psycopg not installed"
+)
 @pytest.mark.asyncio
 async def test_postgres_connection(config):
     """Test PostgreSQL connection"""
-    conn = None
-    try:
-        conn = await asyncpg.connect(
-            host=config['postgres_host'],
-            port=config['postgres_port'],
-            user=config['postgres_user'],
-            password=config['postgres_password'],
-            database=config['postgres_db'],
-            timeout=5
-        )
-        
-        # Verify we're connected to the right database
-        db_name = await conn.fetchval('SELECT current_database()')
-        assert db_name == 'mas_memory', f"Expected 'mas_memory' database, got '{db_name}'"
-        
-        print(f"✓ PostgreSQL connected: {config['postgres_host']}:{config['postgres_port']}/{db_name}")
-        
-    finally:
-        if conn:
-            await conn.close()
+    if asyncpg is not None:
+        # Use asyncpg if available
+        conn = None
+        try:
+            conn = await asyncpg.connect(
+                host=config['postgres_host'],
+                port=config['postgres_port'],
+                user=config['postgres_user'],
+                password=config['postgres_password'],
+                database=config['postgres_db'],
+                timeout=5
+            )
+            
+            # Verify we're connected to the right database
+            db_name = await conn.fetchval('SELECT current_database()')
+            assert db_name == 'mas_memory', f"Expected 'mas_memory' database, got '{db_name}'"
+            
+            print(f"✓ PostgreSQL connected (asyncpg): {config['postgres_host']}:{config['postgres_port']}/{db_name}")
+            
+        finally:
+            if conn:
+                await conn.close()
+    else:
+        # Use psycopg[binary]
+        import psycopg
+        conn = None
+        try:
+            conn = psycopg.connect(
+                host=config['postgres_host'],
+                port=config['postgres_port'],
+                user=config['postgres_user'],
+                password=config['postgres_password'],
+                dbname=config['postgres_db'],
+                connect_timeout=5
+            )
+            
+            # Verify we're connected to the right database
+            with conn.cursor() as cur:
+                cur.execute('SELECT current_database()')
+                db_name = cur.fetchone()[0]
+                assert db_name == 'mas_memory', f"Expected 'mas_memory' database, got '{db_name}'"
+            
+            print(f"✓ PostgreSQL connected (psycopg): {config['postgres_host']}:{config['postgres_port']}/{db_name}")
+            
+        finally:
+            if conn:
+                conn.close()
 
 
-@pytest.mark.skipif(asyncpg is None, reason="asyncpg not installed")
+@pytest.mark.skipif(
+    asyncpg is None and psycopg is None,
+    reason="asyncpg or psycopg not installed"
+)
 @pytest.mark.asyncio
 async def test_postgres_version(config):
     """Test PostgreSQL version and basic query"""
-    conn = None
-    try:
-        conn = await asyncpg.connect(
-            host=config['postgres_host'],
-            port=config['postgres_port'],
-            user=config['postgres_user'],
-            password=config['postgres_password'],
-            database=config['postgres_db'],
-            timeout=5
-        )
-        
-        version = await conn.fetchval('SELECT version()')
-        assert 'PostgreSQL' in version
-        
-        # Test basic query
-        result = await conn.fetchval('SELECT 1 + 1')
-        assert result == 2
-        
-        print(f"✓ PostgreSQL version: {version.split(',')[0]}")
-        
-    finally:
-        if conn:
-            await conn.close()
+    if asyncpg is not None:
+        # Use asyncpg if available
+        conn = None
+        try:
+            conn = await asyncpg.connect(
+                host=config['postgres_host'],
+                port=config['postgres_port'],
+                user=config['postgres_user'],
+                password=config['postgres_password'],
+                database=config['postgres_db'],
+                timeout=5
+            )
+            
+            version = await conn.fetchval('SELECT version()')
+            assert 'PostgreSQL' in version
+            
+            # Test basic query
+            result = await conn.fetchval('SELECT 1 + 1')
+            assert result == 2
+            
+            print(f"✓ PostgreSQL version (asyncpg): {version.split(',')[0]}")
+            
+        finally:
+            if conn:
+                await conn.close()
+    else:
+        # Use psycopg[binary]
+        import psycopg
+        conn = None
+        try:
+            conn = psycopg.connect(
+                host=config['postgres_host'],
+                port=config['postgres_port'],
+                user=config['postgres_user'],
+                password=config['postgres_password'],
+                dbname=config['postgres_db'],
+                connect_timeout=5
+            )
+            
+            with conn.cursor() as cur:
+                cur.execute('SELECT version()')
+                version = cur.fetchone()[0]
+                assert 'PostgreSQL' in version
+                
+                cur.execute('SELECT 1 + 1')
+                result = cur.fetchone()[0]
+                assert result == 2
+            
+            print(f"✓ PostgreSQL version (psycopg): {version.split(',')[0]}")
+            
+        finally:
+            if conn:
+                conn.close()
 
 
 # ============================================================================

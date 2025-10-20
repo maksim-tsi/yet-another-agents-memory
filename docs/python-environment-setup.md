@@ -44,14 +44,14 @@ which python
 ### 3. Install Dependencies
 
 ```bash
-# Upgrade pip first
-pip install --upgrade pip
-
 # Install production dependencies
 pip install -r requirements.txt
 
 # Install test dependencies (optional, for running tests)
 pip install -r requirements-test.txt
+
+# If you encounter build errors on Python 3.13:
+# See docs/python-3.13-compatibility.md
 ```
 
 ### 4. Verify Installation
