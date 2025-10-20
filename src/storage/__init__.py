@@ -25,9 +25,9 @@ from .postgres_adapter import PostgresAdapter
 
 # Future adapters will be imported after their implementation
 from .redis_adapter import RedisAdapter
-# from .qdrant_adapter import QdrantAdapter
-# from .neo4j_adapter import Neo4jAdapter
-# from .typesense_adapter import TypesenseAdapter
+from .qdrant_adapter import QdrantAdapter
+from .neo4j_adapter import Neo4jAdapter
+from .typesense_adapter import TypesenseAdapter
 
 __all__ = [
     "StorageAdapter",
@@ -41,7 +41,7 @@ __all__ = [
     "validate_field_types",
     "PostgresAdapter",
     "RedisAdapter",
-    # "QdrantAdapter",
-    # "Neo4jAdapter",
-    # "TypesenseAdapter",
+    "QdrantAdapter",
+    "Neo4jAdapter",
+    "TypesenseAdapter",
 ]

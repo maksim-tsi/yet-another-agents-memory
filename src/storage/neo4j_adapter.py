@@ -1,0 +1,283 @@
+"""
+Neo4j graph database adapter for episodic memory (L4).
+
+This adapter provides graph storage for entities, relationships,
+and temporal sequences.
+
+Features:
+- Entity and relationship storage
+- Relationship management
+- Cypher query execution
+- Graph traversal operations
+"""
+
+from neo4j import AsyncGraphDatabase, AsyncDriver
+from typing import Dict, Any, List, Optional
+import logging
+import uuid
+
+from .base import (
+    StorageAdapter,
+    StorageConnectionError,
+    StorageQueryError,
+    StorageDataError,
+    validate_required_fields,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class Neo4jAdapter(StorageAdapter):
+    """
+    Neo4j adapter for entity and relationship storage (L4).
+    
+    Configuration:
+        {
+            'uri': 'bolt://host:port',
+            'user': 'neo4j',
+            'password': 'password',
+            'database': 'neo4j'  # Optional, default DB
+        }
+    
+    Example:
+        ```python
+        config = {
+            'uri': 'bolt://192.168.107.187:7687',
+            'user': 'neo4j',
+            'password': 'your_password'
+        }
+        
+        adapter = Neo4jAdapter(config)
+        await adapter.connect()
+        
+        # Store entity
+        await adapter.store({
+            'type': 'entity',
+            'label': 'Person',
+            'properties': {'name': 'Alice', 'age': 30}
+        })
+        
+        # Store relationship
+        await adapter.store({
+            'type': 'relationship',
+            'from': 'Alice',
+            'to': 'Bob',
+            'relationship': 'KNOWS',
+            'properties': {'since': '2020'}
+        })
+        
+        # Query relationships
+        results = await adapter.search({
+            'cypher': 'MATCH (p:Person)-[r:KNOWS]->(f) RETURN p, r, f',
+            'params': {}
+        })
+        ```
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.uri: str = config.get('uri', '')
+        self.user: str = config.get('user', 'neo4j')
+        self.password: str = config.get('password', '')
+        self.database: str = config.get('database', 'neo4j')
+        self.driver: Optional[AsyncDriver] = None
+        
+        if not self.uri or not self.password:
+            raise StorageDataError("Neo4j URI and password required")
+        
+        logger.info(f"Neo4jAdapter initialized (uri: {self.uri})")
+    
+    async def connect(self) -> None:
+        """Connect to Neo4j database"""
+        if not self.uri or not self.password:
+            raise StorageDataError("Neo4j URI and password required")
+            
+        try:
+            self.driver = AsyncGraphDatabase.driver(
+                self.uri,
+                auth=(self.user, self.password)
+            )
+            
+            # Verify connection
+            if self.driver is not None:
+                async with self.driver.session(database=self.database) as session:
+                    result = await session.run("RETURN 1 AS test")
+                    await result.single()
+            
+            self._connected = True
+            logger.info(f"Connected to Neo4j at {self.uri}")
+            
+        except Exception as e:
+            logger.error(f"Neo4j connection failed: {e}", exc_info=True)
+            raise StorageConnectionError(f"Failed to connect: {e}") from e
+    
+    async def disconnect(self) -> None:
+        """Close Neo4j connection"""
+        if self.driver:
+            await self.driver.close()
+            self.driver = None
+            self._connected = False
+            logger.info("Disconnected from Neo4j")
+    
+    async def store(self, data: Dict[str, Any]) -> str:
+        """
+        Store entity or relationship.
+        
+        For entities:
+            - type: 'entity'
+            - label: Node label
+            - properties: Dict of properties
+        
+        For relationships:
+            - type: 'relationship'
+            - from: Source node identifier
+            - to: Target node identifier
+            - relationship: Relationship type
+            - properties: Dict of properties
+        """
+        if not self._connected or not self.driver:
+            raise StorageConnectionError("Not connected to Neo4j")
+        
+        validate_required_fields(data, ['type'])
+        
+        try:
+            if data['type'] == 'entity':
+                return await self._store_entity(data)
+            elif data['type'] == 'relationship':
+                return await self._store_relationship(data)
+            else:
+                raise StorageDataError(f"Unknown type: {data['type']}")
+                
+        except Exception as e:
+            logger.error(f"Neo4j store failed: {e}", exc_info=True)
+            raise StorageQueryError(f"Store failed: {e}") from e
+    
+    async def _store_entity(self, data: Dict[str, Any]) -> str:
+        """Store entity node"""
+        if self.driver is None:
+            raise StorageConnectionError("Not connected to Neo4j")
+            
+        validate_required_fields(data, ['label', 'properties'])
+        
+        label = data['label']
+        props = data['properties']
+        
+        # Generate ID from name or use UUID
+        node_id = props.get('name', str(uuid.uuid4()))
+        props['id'] = node_id
+        
+        cypher = """
+            MERGE (n:%s {id: $id})
+            SET n += $props
+            RETURN n.id AS id
+        """ % label
+        
+        async with self.driver.session(database=self.database) as session:
+            result = await session.run(cypher, id=node_id, props=props)
+            record = await result.single()
+            if record is None:
+                raise StorageQueryError("Failed to store entity")
+            return record['id']
+    
+    async def _store_relationship(self, data: Dict[str, Any]) -> str:
+        """Store relationship between nodes"""
+        if self.driver is None:
+            raise StorageConnectionError("Not connected to Neo4j")
+            
+        validate_required_fields(data, ['from', 'to', 'relationship'])
+        
+        from_id = data['from']
+        to_id = data['to']
+        rel_type = data['relationship']
+        props = data.get('properties', {})
+        
+        cypher = """
+            MATCH (from {id: $from_id})
+            MATCH (to {id: $to_id})
+            MERGE (from)-[r:%s]->(to)
+            SET r += $props
+            RETURN id(r) AS id
+        """ % rel_type
+        
+        async with self.driver.session(database=self.database) as session:
+            result = await session.run(
+                cypher,
+                from_id=from_id,
+                to_id=to_id,
+                props=props
+            )
+            record = await result.single()
+            if record is None:
+                raise StorageQueryError("Failed to store relationship")
+            return str(record['id'])
+    
+    async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve entity by ID"""
+        if not self._connected or not self.driver:
+            raise StorageConnectionError("Not connected to Neo4j")
+        
+        try:
+            cypher = "MATCH (n {id: $id}) RETURN n"
+            
+            if self.driver is not None:
+                async with self.driver.session(database=self.database) as session:
+                    result = await session.run(cypher, id=id)
+                    record = await result.single()
+                    
+                    if not record:
+                        return None
+                    
+                    node = record['n']
+                    return dict(node)
+            return None
+                
+        except Exception as e:
+            logger.error(f"Neo4j retrieve failed: {e}", exc_info=True)
+            raise StorageQueryError(f"Retrieve failed: {e}") from e
+    
+    async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Execute Cypher query.
+        
+        Query params:
+            - cypher: Cypher query string
+            - params: Query parameters (optional)
+        """
+        if not self._connected or not self.driver:
+            raise StorageConnectionError("Not connected to Neo4j")
+        
+        validate_required_fields(query, ['cypher'])
+        
+        try:
+            cypher = query['cypher']
+            params = query.get('params', {})
+            
+            if self.driver is not None:
+                async with self.driver.session(database=self.database) as session:
+                    result = await session.run(cypher, **params)
+                    records = await result.data()
+                    return records
+            return []
+                
+        except Exception as e:
+            logger.error(f"Neo4j search failed: {e}", exc_info=True)
+            raise StorageQueryError(f"Search failed: {e}") from e
+    
+    async def delete(self, id: str) -> bool:
+        """Delete entity by ID"""
+        if not self._connected or not self.driver:
+            raise StorageConnectionError("Not connected to Neo4j")
+        
+        try:
+            cypher = "MATCH (n {id: $id}) DETACH DELETE n"
+            
+            if self.driver is not None:
+                async with self.driver.session(database=self.database) as session:
+                    result = await session.run(cypher, id=id)
+                    summary = await result.consume()
+                    return summary.counters.nodes_deleted > 0
+            return False
+                
+        except Exception as e:
+            logger.error(f"Neo4j delete failed: {e}", exc_info=True)
+            return False
