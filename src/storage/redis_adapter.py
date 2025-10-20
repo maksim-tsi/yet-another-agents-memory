@@ -211,7 +211,7 @@ class RedisAdapter(StorageAdapter):
             return
         
         try:
-            await self.client.close()
+            await self.client.aclose()
             self.client = None
             self._connected = False
             logger.info("Disconnected from Redis")
