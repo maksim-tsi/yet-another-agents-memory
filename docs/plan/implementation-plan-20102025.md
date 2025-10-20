@@ -341,6 +341,8 @@ CREATE INDEX idx_working_expires ON working_memory(ttl_expires_at) WHERE ttl_exp
 **Execute migration:**
 
 ```bash
+# Note: POSTGRES_URL should point to the dedicated 'mas_memory' database
+# See docs/IAC/database-setup.md for database creation
 psql "$POSTGRES_URL" -f migrations/001_active_context.sql
 ```
 
@@ -1116,7 +1118,27 @@ mkdir -p src/{storage,memory,agents,evaluation,utils}
 mkdir -p tests/{storage,memory,agents,evaluation}
 mkdir -p migrations
 mkdir -p results
+mkdir -p scripts
 touch src/{storage,memory,agents,evaluation,utils}/__init__.py
+```
+
+### Database Setup (IMPORTANT - Do This First!)
+
+**This project uses a dedicated PostgreSQL database named `mas_memory` for complete isolation.**
+
+See [`docs/IAC/database-setup.md`](../IAC/database-setup.md) for detailed documentation.
+
+```bash
+# Quick setup (creates the mas_memory database)
+./scripts/setup_database.sh
+
+# Or manually:
+psql "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DEV_IP}:${POSTGRES_PORT}/postgres" \
+  -c "CREATE DATABASE mas_memory;"
+
+# Verify your POSTGRES_URL points to mas_memory database:
+echo $POSTGRES_URL
+# Should be: postgresql://user:pass@host:5432/mas_memory
 ```
 
 ---

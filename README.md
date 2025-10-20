@@ -137,28 +137,59 @@ The repository is organized into a modular and decoupled structure:
 
 ### Prerequisites
 
-*   Python 3.9+
-*   Docker and Docker Compose
-*   An active Python virtual environment
+*   Python 3.11+ (recommended)
+*   Access to infrastructure services (PostgreSQL, Redis, Qdrant, Neo4j, Typesense)
+*   Python virtual environment (venv recommended - see [`docs/python-environment-setup.md`](docs/python-environment-setup.md))
 
 ### 1. Set Up Backend Services
 
-This project requires Redis, Qdrant, Neo4j, and Meilisearch. A `docker-compose.yml` file is provided for a one-command setup.
+This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch. 
+
+**Important:** This project uses a dedicated PostgreSQL database named `mas_memory` to ensure complete isolation from other projects. See [`docs/IAC/database-setup.md`](docs/IAC/database-setup.md) for detailed setup instructions.
 
 ```bash
-# This will start all required database services in the background
+# Create the dedicated PostgreSQL database
+./scripts/setup_database.sh
+
+# Start all required database services (if using Docker)
 docker-compose up -d
 ```
 
-### 2. Install Dependencies
+### 2. Create Python Virtual Environment
+
+```bash
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate it
+source .venv/bin/activate  # Linux/macOS
+# or: .venv\Scripts\activate  # Windows
+
+# Upgrade pip
+pip install --upgrade pip
+```
+
+See [`docs/python-environment-setup.md`](docs/python-environment-setup.md) for detailed setup instructions.
+
+### 3. Install Dependencies
 
 Install the required Python packages from `requirements.txt`.
 
 ```bash
 pip install -r requirements.txt
+
+# Optional: Install test dependencies
+pip install -r requirements-test.txt
 ```
 
-### 3. Run the Demonstration
+### 4. Verify Infrastructure Connectivity
+
+```bash
+# Run smoke tests to verify all services are accessible
+./scripts/run_smoke_tests.sh --summary
+```
+
+### 5. Run the Demonstration
 
 The `examples/logistics_simulation.py` script provides a concrete demonstration of the memory system in action, simulating the collaborative resolution of a supply chain disruption.
 
@@ -194,7 +225,37 @@ vessel_info = memory.query_knowledge(
 )
 ```
 
-## 8. Future Work & Contributions
+## 8. Development Guidelines
+
+### Contributing to this Project
+
+All development happens on the `dev` branch. When contributing:
+
+1. **Track Your Work**: Update [`DEVLOG.md`](DEVLOG.md) before committing significant changes
+   - Include date, summary, files changed, and status
+   - Reference the commit hash after pushing
+   - Follow the entry template in DEVLOG.md
+
+2. **Commit Convention**: Use conventional commit messages:
+   - `feat:` - New feature
+   - `fix:` - Bug fix
+   - `docs:` - Documentation
+   - `test:` - Tests
+   - `refactor:` - Code refactoring
+
+3. **Branch Strategy**:
+   - Work on `dev` branch
+   - Keep `main` stable
+   - Create feature branches from `dev` for larger features
+
+4. **Documentation**: Keep docs in sync with code changes
+   - Update relevant ADRs if architecture changes
+   - Update implementation plan if timeline shifts
+   - Add entries to DEVLOG.md for tracking progress
+
+See [`DEVLOG.md`](DEVLOG.md) for complete development history and progress tracking.
+
+## 9. Future Work
 
 This architecture provides a robust foundation for building highly capable multi-agent systems. Future research will focus on:
 
