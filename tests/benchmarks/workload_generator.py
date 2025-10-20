@@ -187,11 +187,9 @@ class WorkloadGenerator:
         data = {
             'id': doc_id,
             'vector': [random.random() for _ in range(384)],  # 384-dim embedding
-            'payload': {
-                'session_id': random.choice(self.session_ids),
-                'content': self._random_text(100, 500),
-                'timestamp': datetime.now(timezone.utc).isoformat()
-            }
+            'content': self._random_text(100, 500),  # Required field at top level
+            'session_id': random.choice(self.session_ids),
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
         
         self.stored_ids['qdrant'].append(doc_id)
