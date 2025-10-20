@@ -321,8 +321,8 @@ def test_qdrant_health(config):
             timeout=5
         )
         
-        # Get health status (will raise exception if unhealthy)
-        health = client.http.health_api.healthz()
+        # Test that we can get collections (indicates service is healthy)
+        collections = client.get_collections()
         
         print(f"✓ Qdrant health check passed")
         

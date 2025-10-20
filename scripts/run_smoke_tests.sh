@@ -77,13 +77,13 @@ fi
 # Determine which tests to run
 if [ -n "$SERVICE" ]; then
     echo -e "${YELLOW}Testing service: ${SERVICE}${NC}"
-    TEST_PATTERN="tests/test_connectivity.py::test_${SERVICE}_*"
+    TEST_ARGS="-k test_${SERVICE} tests/test_connectivity.py"
 elif [ -n "$SUMMARY_ONLY" ]; then
     echo -e "${YELLOW}Running summary only${NC}"
-    TEST_PATTERN="tests/test_connectivity.py::test_all_services_summary"
+    TEST_ARGS="tests/test_connectivity.py::test_all_services_summary"
 else
     echo -e "${YELLOW}Testing all services${NC}"
-    TEST_PATTERN="tests/test_connectivity.py"
+    TEST_ARGS="tests/test_connectivity.py"
 fi
 
 echo ""
@@ -92,7 +92,7 @@ echo ""
 echo -e "${BLUE}Running tests...${NC}"
 echo ""
 
-if pytest $TEST_PATTERN $VERBOSE --tb=short; then
+if pytest $TEST_ARGS $VERBOSE --tb=short; then
     echo ""
     echo -e "${GREEN}======================================"
     echo "✓ All connectivity tests passed!"
