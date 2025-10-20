@@ -8,21 +8,21 @@ This document summarizes the key connectivity details for the main components in
 
 ## Hosts
 
-- Orchestrator Node: `skz-dev-lv` — ${DEV_IP}
-- Data Node: `skz-stg-lv` — ${STG_IP}
+- Orchestrator Node: `skz-dev-lv` — 192.168.107.172
+- Data Node: `skz-stg-lv` — 192.168.107.187
 
 ## Services on Orchestrator Node (skz-dev-lv)
 
-- PostgreSQL: ${DEV_IP}:${POSTGRES_PORT} (psql)
-- Redis: ${DEV_IP}:${REDIS_PORT} (redis-cli)
-- n8n: http://${DEV_IP}:${N8N_PORT} (Web UI)
-- Arize Phoenix: http://${DEV_IP}:${PHOENIX_PORT} (Web UI)
+- PostgreSQL: 192.168.107.172:5432 (psql) - **Database:** `mas_memory`
+- Redis: 192.168.107.172:6379 (redis-cli)
+- n8n: http://192.168.107.172:5678 (Web UI)
+- Arize Phoenix: http://192.168.107.172:6006 (Web UI)
 
 ## Services on Data Node (skz-stg-lv)
 
-- Qdrant: ${QDRANT_URL} (REST API, dashboard at /dashboard)
-- Neo4j (Bolt): ${NEO4J_BOLT} (UI at ${NEO4J_HTTP})
-- Typesense: ${TYPESENSE_URL} (REST API)
+- Qdrant: http://192.168.107.187:6333 (REST API, dashboard at /dashboard)
+- Neo4j (Bolt): bolt://192.168.107.187:7687 (UI at http://192.168.107.187:7474)
+- Typesense: http://192.168.107.187:8108 (REST API)
 
 ## Usage & Verification
 
@@ -43,10 +43,12 @@ psql "$POSTGRES_URL" -c "SELECT 1;"
 
 ## Credentials
 
-- Managed via per-service `.env` files. Request keys/passwords as needed:
-  - POSTGRES_PASSWORD
-  - NEO4J_PASSWORD
-  - TYPESENSE_API_KEY
+- **Managed via `.env` file in repository root (NOT committed to public repo)**
+- Required environment variables:
+  - `POSTGRES_USER` and `POSTGRES_PASSWORD`
+  - `NEO4J_USER` and `NEO4J_PASSWORD`
+  - `TYPESENSE_API_KEY`
+- See `.env.example` for template
 
 ## Notes
 

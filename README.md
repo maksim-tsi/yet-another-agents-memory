@@ -143,10 +143,15 @@ The repository is organized into a modular and decoupled structure:
 
 ### 1. Set Up Backend Services
 
-This project requires Redis, Qdrant, Neo4j, and Meilisearch. A `docker-compose.yml` file is provided for a one-command setup.
+This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch. 
+
+**Important:** This project uses a dedicated PostgreSQL database named `mas_memory` to ensure complete isolation from other projects. See [`docs/IAC/database-setup.md`](docs/IAC/database-setup.md) for detailed setup instructions.
 
 ```bash
-# This will start all required database services in the background
+# Create the dedicated PostgreSQL database
+./scripts/setup_database.sh
+
+# Start all required database services (if using Docker)
 docker-compose up -d
 ```
 
