@@ -20,8 +20,10 @@ from .base import (
     validate_field_types,
 )
 
-# Concrete adapters will be imported after their implementation
-# from .postgres_adapter import PostgresAdapter
+# Concrete adapters
+from .postgres_adapter import PostgresAdapter
+
+# Future adapters will be imported after their implementation
 # from .redis_adapter import RedisAdapter
 # from .qdrant_adapter import QdrantAdapter
 # from .neo4j_adapter import Neo4jAdapter
@@ -37,7 +39,7 @@ __all__ = [
     "StorageNotFoundError",
     "validate_required_fields",
     "validate_field_types",
-    # "PostgresAdapter",
+    "PostgresAdapter",
     # "RedisAdapter",
     # "QdrantAdapter",
     # "Neo4jAdapter",
