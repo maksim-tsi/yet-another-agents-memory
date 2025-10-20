@@ -23,6 +23,7 @@ from .base import (
     StorageDataError,
     validate_required_fields,
 )
+from .metrics import OperationTimer
 
 logger = logging.getLogger(__name__)
 
@@ -88,95 +89,99 @@ class TypesenseAdapter(StorageAdapter):
     
     async def connect(self) -> None:
         """Connect to Typesense and ensure collection exists"""
-        if not self.api_key:
-            raise StorageDataError("Typesense API key required")
-            
-        try:
-            self.client = httpx.AsyncClient(
-                headers={'X-TYPESENSE-API-KEY': str(self.api_key)},
-                timeout=10.0
-            )
-            
-            # Check if collection exists
-            response = await self.client.get(
-                f"{self.url}/collections/{self.collection_name}"
-            )
-            
-            if response.status_code == 404 and self.schema:
-                # Create collection
-                response = await self.client.post(
-                    f"{self.url}/collections",
-                    json=self.schema
+        async with OperationTimer(self.metrics, 'connect'):
+            if not self.api_key:
+                raise StorageDataError("Typesense API key required")
+                
+            try:
+                self.client = httpx.AsyncClient(
+                    headers={'X-TYPESENSE-API-KEY': str(self.api_key)},
+                    timeout=10.0
                 )
-                response.raise_for_status()
-                logger.info(f"Created collection: {self.collection_name}")
-            
-            self._connected = True
-            logger.info(f"Connected to Typesense at {self.url}")
-            
-        except Exception as e:
-            logger.error(f"Typesense connection failed: {e}", exc_info=True)
-            raise StorageConnectionError(f"Failed to connect: {e}") from e
+                
+                # Check if collection exists
+                response = await self.client.get(
+                    f"{self.url}/collections/{self.collection_name}"
+                )
+                
+                if response.status_code == 404 and self.schema:
+                    # Create collection
+                    response = await self.client.post(
+                        f"{self.url}/collections",
+                        json=self.schema
+                    )
+                    response.raise_for_status()
+                    logger.info(f"Created collection: {self.collection_name}")
+                
+                self._connected = True
+                logger.info(f"Connected to Typesense at {self.url}")
+                
+            except Exception as e:
+                logger.error(f"Typesense connection failed: {e}", exc_info=True)
+                raise StorageConnectionError(f"Failed to connect: {e}") from e
     
     async def disconnect(self) -> None:
         """Close Typesense connection"""
-        if self.client:
-            await self.client.aclose()
-            self.client = None
-            self._connected = False
-            logger.info("Disconnected from Typesense")
+        async with OperationTimer(self.metrics, 'disconnect'):
+            if self.client:
+                await self.client.aclose()
+                self.client = None
+                self._connected = False
+                logger.info("Disconnected from Typesense")
     
     async def store(self, data: Dict[str, Any]) -> str:
         """Index document in Typesense"""
-        if not self._connected or not self.client:
-            raise StorageConnectionError("Not connected to Typesense")
-        
-        try:
-            # Add auto-generated ID if not present
-            if 'id' not in data:
-                data['id'] = str(uuid.uuid4())
+        async with OperationTimer(self.metrics, 'store'):
+            if not self._connected or not self.client:
+                raise StorageConnectionError("Not connected to Typesense")
             
-            response = await self.client.post(
-                f"{self.url}/collections/{self.collection_name}/documents",
-                json=data
-            )
-            response.raise_for_status()
-            
-            result = response.json()
-            logger.debug(f"Indexed document: {result['id']}")
-            return result['id']
-            
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Typesense store failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Store failed: {e}") from e
-        except Exception as e:
-            logger.error(f"Typesense store failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Store failed: {e}") from e
+            try:
+                # Add auto-generated ID if not present
+                if 'id' not in data:
+                    data['id'] = str(uuid.uuid4())
+                
+                response = await self.client.post(
+                    f"{self.url}/collections/{self.collection_name}/documents",
+                    json=data
+                )
+                response.raise_for_status()
+                
+                result = response.json()
+                logger.debug(f"Indexed document: {result['id']}")
+                return result['id']
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Typesense store failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Store failed: {e}") from e
+            except Exception as e:
+                logger.error(f"Typesense store failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Store failed: {e}") from e
     
     async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
         """Retrieve document by ID"""
-        if not self._connected or not self.client:
-            raise StorageConnectionError("Not connected to Typesense")
-        
-        try:
-            response = await self.client.get(
-                f"{self.url}/collections/{self.collection_name}/documents/{id}"
-            )
+        async with OperationTimer(self.metrics, 'retrieve'):
+            if not self._connected or not self.client:
+                raise StorageConnectionError("Not connected to Typesense")
             
-            if response.status_code == 404:
-                return None
-            
-            response.raise_for_status()
-            return response.json()
-            
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                return None
-            logger.error(f"Typesense retrieve failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Retrieve failed: {e}") from e
-        except Exception as e:
-            logger.error(f"Typesense retrieve failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Retrieve failed: {e}") from e
+            try:
+                response = await self.client.get(
+                    f"{self.url}/collections/{self.collection_name}/documents/{id}"
+                )
+                
+                if response.status_code == 404:
+                    return None
+                
+                response.raise_for_status()
+                return response.json()
+                
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    return None
+                logger.error(f"Typesense retrieve failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Retrieve failed: {e}") from e
+            except Exception as e:
+                logger.error(f"Typesense retrieve failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Retrieve failed: {e}") from e
     
     async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -188,51 +193,53 @@ class TypesenseAdapter(StorageAdapter):
             - filter_by: Optional filters
             - limit: Max results (default: 10)
         """
-        if not self._connected or not self.client:
-            raise StorageConnectionError("Not connected to Typesense")
-        
-        validate_required_fields(query, ['q', 'query_by'])
-        
-        try:
-            params = {
-                'q': query['q'],
-                'query_by': query['query_by'],
-                'per_page': query.get('limit', 10),
-            }
+        async with OperationTimer(self.metrics, 'search'):
+            if not self._connected or not self.client:
+                raise StorageConnectionError("Not connected to Typesense")
             
-            if 'filter_by' in query:
-                params['filter_by'] = query['filter_by']
+            validate_required_fields(query, ['q', 'query_by'])
             
-            response = await self.client.get(
-                f"{self.url}/collections/{self.collection_name}/documents/search",
-                params=params
-            )
-            response.raise_for_status()
-            
-            result = response.json()
-            return [hit['document'] for hit in result.get('hits', [])]
-            
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Typesense search failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Search failed: {e}") from e
-        except Exception as e:
-            logger.error(f"Typesense search failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Search failed: {e}") from e
+            try:
+                params = {
+                    'q': query['q'],
+                    'query_by': query['query_by'],
+                    'per_page': query.get('limit', 10),
+                }
+                
+                if 'filter_by' in query:
+                    params['filter_by'] = query['filter_by']
+                
+                response = await self.client.get(
+                    f"{self.url}/collections/{self.collection_name}/documents/search",
+                    params=params
+                )
+                response.raise_for_status()
+                
+                result = response.json()
+                return [hit['document'] for hit in result.get('hits', [])]
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Typesense search failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Search failed: {e}") from e
+            except Exception as e:
+                logger.error(f"Typesense search failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Search failed: {e}") from e
     
     async def delete(self, id: str) -> bool:
         """Delete document by ID"""
-        if not self._connected or not self.client:
-            raise StorageConnectionError("Not connected to Typesense")
-        
-        try:
-            response = await self.client.delete(
-                f"{self.url}/collections/{self.collection_name}/documents/{id}"
-            )
-            return response.status_code == 200
-        except Exception as e:
-            logger.error(f"Typesense delete failed: {e}", exc_info=True)
-            return False
-            return False
+        async with OperationTimer(self.metrics, 'delete'):
+            if not self._connected or not self.client:
+                raise StorageConnectionError("Not connected to Typesense")
+            
+            try:
+                response = await self.client.delete(
+                    f"{self.url}/collections/{self.collection_name}/documents/{id}"
+                )
+                return response.status_code == 200
+            except Exception as e:
+                logger.error(f"Typesense delete failed: {e}", exc_info=True)
+                return False
+                return False
     
     # Batch operations (optimized for Typesense)
     
@@ -457,3 +464,23 @@ class TypesenseAdapter(StorageAdapter):
                 'error': str(e),
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
+    
+    async def _get_backend_metrics(self) -> Optional[Dict[str, Any]]:
+        """Get Typesense-specific metrics."""
+        if not self._connected or not self.client:
+            return None
+        
+        try:
+            response = await self.client.get(
+                f"{self.url}/collections/{self.collection_name}"
+            )
+            response.raise_for_status()
+            collection = response.json()
+            return {
+                'document_count': collection.get('num_documents', 0),
+                'collection_name': self.collection_name,
+                'schema_fields': len(collection.get('fields', []))
+            }
+        except Exception as e:
+            logger.error(f"Failed to get backend metrics: {e}")
+            return {'error': str(e)}

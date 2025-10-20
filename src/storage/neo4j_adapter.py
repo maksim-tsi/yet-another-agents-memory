@@ -90,35 +90,37 @@ class Neo4jAdapter(StorageAdapter):
     
     async def connect(self) -> None:
         """Connect to Neo4j database"""
-        if not self.uri or not self.password:
-            raise StorageDataError("Neo4j URI and password required")
-            
-        try:
-            self.driver = AsyncGraphDatabase.driver(
-                self.uri,
-                auth=(self.user, self.password)
-            )
-            
-            # Verify connection
-            if self.driver is not None:
-                async with self.driver.session(database=self.database) as session:
-                    result = await session.run("RETURN 1 AS test")
-                    await result.single()
-            
-            self._connected = True
-            logger.info(f"Connected to Neo4j at {self.uri}")
-            
-        except Exception as e:
-            logger.error(f"Neo4j connection failed: {e}", exc_info=True)
-            raise StorageConnectionError(f"Failed to connect: {e}") from e
+        async with OperationTimer(self.metrics, 'connect'):
+            if not self.uri or not self.password:
+                raise StorageDataError("Neo4j URI and password required")
+                
+            try:
+                self.driver = AsyncGraphDatabase.driver(
+                    self.uri,
+                    auth=(self.user, self.password)
+                )
+                
+                # Verify connection
+                if self.driver is not None:
+                    async with self.driver.session(database=self.database) as session:
+                        result = await session.run("RETURN 1 AS test")
+                        await result.single()
+                
+                self._connected = True
+                logger.info(f"Connected to Neo4j at {self.uri}")
+                
+            except Exception as e:
+                logger.error(f"Neo4j connection failed: {e}", exc_info=True)
+                raise StorageConnectionError(f"Failed to connect: {e}") from e
     
     async def disconnect(self) -> None:
         """Close Neo4j connection"""
-        if self.driver:
-            await self.driver.close()
-            self.driver = None
-            self._connected = False
-            logger.info("Disconnected from Neo4j")
+        async with OperationTimer(self.metrics, 'disconnect'):
+            if self.driver:
+                await self.driver.close()
+                self.driver = None
+                self._connected = False
+                logger.info("Disconnected from Neo4j")
     
     async def store(self, data: Dict[str, Any]) -> str:
         """
@@ -136,22 +138,23 @@ class Neo4jAdapter(StorageAdapter):
             - relationship: Relationship type
             - properties: Dict of properties
         """
-        if not self._connected or not self.driver:
-            raise StorageConnectionError("Not connected to Neo4j")
-        
-        validate_required_fields(data, ['type'])
-        
-        try:
-            if data['type'] == 'entity':
-                return await self._store_entity(data)
-            elif data['type'] == 'relationship':
-                return await self._store_relationship(data)
-            else:
-                raise StorageDataError(f"Unknown type: {data['type']}")
-                
-        except Exception as e:
-            logger.error(f"Neo4j store failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Store failed: {e}") from e
+        async with OperationTimer(self.metrics, 'store'):
+            if not self._connected or not self.driver:
+                raise StorageConnectionError("Not connected to Neo4j")
+            
+            validate_required_fields(data, ['type'])
+            
+            try:
+                if data['type'] == 'entity':
+                    return await self._store_entity(data)
+                elif data['type'] == 'relationship':
+                    return await self._store_relationship(data)
+                else:
+                    raise StorageDataError(f"Unknown type: {data['type']}")
+                    
+            except Exception as e:
+                logger.error(f"Neo4j store failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Store failed: {e}") from e
     
     async def _store_entity(self, data: Dict[str, Any]) -> str:
         """Store entity node"""
@@ -214,27 +217,28 @@ class Neo4jAdapter(StorageAdapter):
     
     async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
         """Retrieve entity by ID"""
-        if not self._connected or not self.driver:
-            raise StorageConnectionError("Not connected to Neo4j")
-        
-        try:
-            cypher = "MATCH (n {id: $id}) RETURN n"
+        async with OperationTimer(self.metrics, 'retrieve'):
+            if not self._connected or not self.driver:
+                raise StorageConnectionError("Not connected to Neo4j")
             
-            if self.driver is not None:
-                async with self.driver.session(database=self.database) as session:
-                    result = await session.run(cypher, id=id)
-                    record = await result.single()
-                    
-                    if not record:
-                        return None
-                    
-                    node = record['n']
-                    return dict(node)
-            return None
+            try:
+                cypher = "MATCH (n {id: $id}) RETURN n"
                 
-        except Exception as e:
-            logger.error(f"Neo4j retrieve failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Retrieve failed: {e}") from e
+                if self.driver is not None:
+                    async with self.driver.session(database=self.database) as session:
+                        result = await session.run(cypher, id=id)
+                        record = await result.single()
+                        
+                        if not record:
+                            return None
+                        
+                        node = record['n']
+                        return dict(node)
+                return None
+                    
+            except Exception as e:
+                logger.error(f"Neo4j retrieve failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Retrieve failed: {e}") from e
     
     async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -244,45 +248,47 @@ class Neo4jAdapter(StorageAdapter):
             - cypher: Cypher query string
             - params: Query parameters (optional)
         """
-        if not self._connected or not self.driver:
-            raise StorageConnectionError("Not connected to Neo4j")
-        
-        validate_required_fields(query, ['cypher'])
-        
-        try:
-            cypher = query['cypher']
-            params = query.get('params', {})
+        async with OperationTimer(self.metrics, 'search'):
+            if not self._connected or not self.driver:
+                raise StorageConnectionError("Not connected to Neo4j")
             
-            if self.driver is not None:
-                async with self.driver.session(database=self.database) as session:
-                    result = await session.run(cypher, **params)
-                    records = await result.data()
-                    return records
-            return []
+            validate_required_fields(query, ['cypher'])
+            
+            try:
+                cypher = query['cypher']
+                params = query.get('params', {})
                 
-        except Exception as e:
-            logger.error(f"Neo4j search failed: {e}", exc_info=True)
-            raise StorageQueryError(f"Search failed: {e}") from e
+                if self.driver is not None:
+                    async with self.driver.session(database=self.database) as session:
+                        result = await session.run(cypher, **params)
+                        records = await result.data()
+                        return records
+                return []
+                    
+            except Exception as e:
+                logger.error(f"Neo4j search failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Search failed: {e}") from e
     
     async def delete(self, id: str) -> bool:
         """Delete entity by ID"""
-        if not self._connected or not self.driver:
-            raise StorageConnectionError("Not connected to Neo4j")
-        
-        try:
-            cypher = "MATCH (n {id: $id}) DETACH DELETE n"
+        async with OperationTimer(self.metrics, 'delete'):
+            if not self._connected or not self.driver:
+                raise StorageConnectionError("Not connected to Neo4j")
             
-            if self.driver is not None:
-                async with self.driver.session(database=self.database) as session:
-                    result = await session.run(cypher, id=id)
-                    summary = await result.consume()
-                    return summary.counters.nodes_deleted > 0
-            return False
+            try:
+                cypher = "MATCH (n {id: $id}) DETACH DELETE n"
                 
-        except Exception as e:
-            logger.error(f"Neo4j delete failed: {e}", exc_info=True)
-            return False
-            return False
+                if self.driver is not None:
+                    async with self.driver.session(database=self.database) as session:
+                        result = await session.run(cypher, id=id)
+                        summary = await result.consume()
+                        return summary.counters.nodes_deleted > 0
+                return False
+                    
+            except Exception as e:
+                logger.error(f"Neo4j delete failed: {e}", exc_info=True)
+                return False
+                return False
     
     # Batch operations (optimized for Neo4j)
     
@@ -547,3 +553,24 @@ class Neo4jAdapter(StorageAdapter):
                 'error': str(e),
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
+    
+    async def _get_backend_metrics(self) -> Optional[Dict[str, Any]]:
+        """Get Neo4j-specific metrics."""
+        if not self._connected or not self.driver:
+            return None
+        
+        try:
+            async with self.driver.session(database=self.database) as session:
+                result = await session.run("""
+                    MATCH (n)
+                    RETURN count(n) AS node_count
+                """)
+                record = await result.single()
+                
+                return {
+                    'node_count': record['node_count'] if record else 0,
+                    'database_name': self.database
+                }
+        except Exception as e:
+            logger.error(f"Failed to get backend metrics: {e}")
+            return {'error': str(e)}
