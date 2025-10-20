@@ -137,9 +137,9 @@ The repository is organized into a modular and decoupled structure:
 
 ### Prerequisites
 
-*   Python 3.9+
-*   Docker and Docker Compose
-*   An active Python virtual environment
+*   Python 3.11+ (recommended)
+*   Access to infrastructure services (PostgreSQL, Redis, Qdrant, Neo4j, Typesense)
+*   Python virtual environment (venv recommended - see [`docs/python-environment-setup.md`](docs/python-environment-setup.md))
 
 ### 1. Set Up Backend Services
 
@@ -155,15 +155,41 @@ This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch.
 docker-compose up -d
 ```
 
-### 2. Install Dependencies
+### 2. Create Python Virtual Environment
+
+```bash
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate it
+source .venv/bin/activate  # Linux/macOS
+# or: .venv\Scripts\activate  # Windows
+
+# Upgrade pip
+pip install --upgrade pip
+```
+
+See [`docs/python-environment-setup.md`](docs/python-environment-setup.md) for detailed setup instructions.
+
+### 3. Install Dependencies
 
 Install the required Python packages from `requirements.txt`.
 
 ```bash
 pip install -r requirements.txt
+
+# Optional: Install test dependencies
+pip install -r requirements-test.txt
 ```
 
-### 3. Run the Demonstration
+### 4. Verify Infrastructure Connectivity
+
+```bash
+# Run smoke tests to verify all services are accessible
+./scripts/run_smoke_tests.sh --summary
+```
+
+### 5. Run the Demonstration
 
 The `examples/logistics_simulation.py` script provides a concrete demonstration of the memory system in action, simulating the collaborative resolution of a supply chain disruption.
 

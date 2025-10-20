@@ -11,6 +11,7 @@ pydantic==2.8.2          # For data validation, settings management, and definin
 
 # --- Operating Memory Layer (Redis) ---
 redis==5.0.7             # The official Python client for Redis.
+asyncpg==0.29.0          # Async PostgreSQL client for Python.
 
 # --- Persistent Knowledge Layer (Specialized Databases) ---
 
