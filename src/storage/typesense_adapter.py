@@ -374,3 +374,86 @@ class TypesenseAdapter(StorageAdapter):
         except Exception as e:
             logger.error(f"Typesense batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch delete failed: {e}") from e
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """
+        Check Typesense backend health and performance.
+        
+        Performs connectivity test and retrieves collection statistics.
+        
+        Returns:
+            Dictionary with health status including:
+            - status: 'healthy', 'degraded', or 'unhealthy'
+            - connected: Connection status
+            - latency_ms: Response time in milliseconds
+            - collection_exists: Whether collection is available
+            - document_count: Number of documents in collection (if available)
+            - details: Additional information
+            - timestamp: ISO timestamp
+        """
+        import time
+        from datetime import datetime, timezone
+        
+        start_time = time.perf_counter()
+        
+        try:
+            if not self._connected or not self.client:
+                return {
+                    'status': 'unhealthy',
+                    'connected': False,
+                    'details': 'Not connected to Typesense',
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+            
+            # Get collection info to verify connectivity
+            response = await self.client.get(
+                f"{self.url}/collections/{self.collection_name}"
+            )
+            response.raise_for_status()
+            
+            collection_info = response.json()
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            
+            # Determine health status based on latency
+            if latency_ms < 100:
+                status = 'healthy'
+            elif latency_ms < 500:
+                status = 'degraded'
+            else:
+                status = 'unhealthy'
+            
+            return {
+                'status': status,
+                'connected': True,
+                'latency_ms': round(latency_ms, 2),
+                'collection_exists': True,
+                'collection_name': self.collection_name,
+                'document_count': collection_info.get('num_documents', 0),
+                'details': f'Typesense collection "{self.collection_name}" is accessible',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            
+        except httpx.HTTPStatusError as e:
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            logger.error(f"Typesense health check failed: {e}", exc_info=True)
+            
+            return {
+                'status': 'unhealthy',
+                'connected': self._connected,
+                'latency_ms': round(latency_ms, 2),
+                'details': f'Health check failed: {str(e)}',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        except Exception as e:
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            logger.error(f"Typesense health check failed: {e}", exc_info=True)
+            
+            return {
+                'status': 'unhealthy',
+                'connected': self._connected,
+                'latency_ms': round(latency_ms, 2),
+                'details': f'Health check failed: {str(e)}',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }

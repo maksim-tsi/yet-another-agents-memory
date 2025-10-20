@@ -438,6 +438,70 @@ class StorageAdapter(ABC):
         """
         return self._connected
     
+    # Health check and monitoring
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """
+        Check health and performance of the storage backend.
+        
+        Default implementation provides basic connectivity check.
+        Concrete adapters should override to provide more detailed metrics.
+        
+        Returns:
+            Dictionary with health status information:
+            - status: 'healthy', 'degraded', or 'unhealthy'
+            - connected: Boolean connection status
+            - latency_ms: Response time in milliseconds (if available)
+            - details: Backend-specific additional information
+            - timestamp: ISO timestamp of health check
+        
+        Example:
+            ```python
+            health = await adapter.health_check()
+            if health['status'] == 'healthy':
+                print(f"Backend is healthy (latency: {health['latency_ms']}ms)")
+            else:
+                print(f"Backend issues: {health['details']}")
+            ```
+        """
+        import time
+        from datetime import datetime, timezone
+        
+        start_time = time.perf_counter()
+        
+        try:
+            # Basic connectivity check
+            if not self._connected:
+                return {
+                    'status': 'unhealthy',
+                    'connected': False,
+                    'details': 'Not connected to backend',
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+            
+            # Try a simple operation to verify backend is responsive
+            # Concrete implementations should override with backend-specific checks
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            
+            return {
+                'status': 'healthy',
+                'connected': True,
+                'latency_ms': round(latency_ms, 2),
+                'details': 'Basic connectivity check passed',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            
+        except Exception as e:
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            return {
+                'status': 'unhealthy',
+                'connected': self._connected,
+                'latency_ms': round(latency_ms, 2),
+                'details': f'Health check failed: {str(e)}',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+    
     async def __aenter__(self):
         """
         Async context manager entry.

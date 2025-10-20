@@ -553,3 +553,73 @@ class QdrantAdapter(StorageAdapter):
         except Exception as e:
             logger.error(f"Qdrant batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to batch delete from Qdrant: {e}") from e
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """
+        Check Qdrant backend health and performance.
+        
+        Performs actual connectivity test and measures latency.
+        
+        Returns:
+            Dictionary with health status including:
+            - status: 'healthy', 'degraded', or 'unhealthy'
+            - connected: Connection status
+            - latency_ms: Response time in milliseconds
+            - collection_exists: Whether collection is available
+            - vector_count: Number of vectors in collection (if available)
+            - details: Additional information
+            - timestamp: ISO timestamp
+        """
+        import time
+        from datetime import datetime, timezone
+        
+        start_time = time.perf_counter()
+        
+        try:
+            if not self._connected or not self.client:
+                return {
+                    'status': 'unhealthy',
+                    'connected': False,
+                    'details': 'Not connected to Qdrant',
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+            
+            # Check collection exists and get info
+            collection_info = await self.client.get_collection(
+                collection_name=self.collection_name
+            )
+            
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            
+            # Determine health status based on latency
+            if latency_ms < 100:
+                status = 'healthy'
+            elif latency_ms < 500:
+                status = 'degraded'
+            else:
+                status = 'unhealthy'
+            
+            return {
+                'status': status,
+                'connected': True,
+                'latency_ms': round(latency_ms, 2),
+                'collection_exists': True,
+                'collection_name': self.collection_name,
+                'vector_count': collection_info.points_count,
+                'vector_size': collection_info.config.params.vectors.size,
+                'details': f'Qdrant collection "{self.collection_name}" is accessible',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            
+        except Exception as e:
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            logger.error(f"Qdrant health check failed: {e}", exc_info=True)
+            
+            return {
+                'status': 'unhealthy',
+                'connected': self._connected,
+                'latency_ms': round(latency_ms, 2),
+                'details': f'Health check failed: {str(e)}',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }

@@ -466,3 +466,83 @@ class Neo4jAdapter(StorageAdapter):
         except Exception as e:
             logger.error(f"Neo4j batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch delete failed: {e}") from e
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """
+        Check Neo4j backend health and performance.
+        
+        Performs connectivity test and measures query latency.
+        
+        Returns:
+            Dictionary with health status including:
+            - status: 'healthy', 'degraded', or 'unhealthy'
+            - connected: Connection status
+            - latency_ms: Response time in milliseconds
+            - node_count: Total number of nodes (if available)
+            - relationship_count: Total number of relationships (if available)
+            - database: Active database name
+            - details: Additional information
+            - timestamp: ISO timestamp
+        """
+        import time
+        from datetime import datetime, timezone
+        
+        start_time = time.perf_counter()
+        
+        try:
+            if not self._connected or not self.driver:
+                return {
+                    'status': 'unhealthy',
+                    'connected': False,
+                    'details': 'Not connected to Neo4j',
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+            
+            # Execute simple query to check connectivity and get stats
+            async with self.driver.session(database=self.database) as session:
+                # Get node and relationship counts
+                result = await session.run(
+                    "MATCH (n) RETURN count(n) as node_count"
+                )
+                record = await result.single()
+                node_count = record['node_count'] if record else 0
+                
+                result = await session.run(
+                    "MATCH ()-[r]->() RETURN count(r) as rel_count"
+                )
+                record = await result.single()
+                rel_count = record['rel_count'] if record else 0
+            
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            
+            # Determine health status based on latency
+            if latency_ms < 100:
+                status = 'healthy'
+            elif latency_ms < 500:
+                status = 'degraded'
+            else:
+                status = 'unhealthy'
+            
+            return {
+                'status': status,
+                'connected': True,
+                'latency_ms': round(latency_ms, 2),
+                'database': self.database,
+                'node_count': node_count,
+                'relationship_count': rel_count,
+                'details': f'Neo4j database "{self.database}" is accessible',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            
+        except Exception as e:
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            logger.error(f"Neo4j health check failed: {e}", exc_info=True)
+            
+            return {
+                'status': 'unhealthy',
+                'connected': self._connected,
+                'latency_ms': round(latency_ms, 2),
+                'details': f'Health check failed: {str(e)}',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
