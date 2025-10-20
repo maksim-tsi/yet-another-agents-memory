@@ -2,6 +2,7 @@
 Unit and integration tests for TypesenseAdapter.
 """
 import pytest
+import pytest_asyncio
 import os
 import uuid
 from unittest.mock import AsyncMock, Mock, patch
@@ -401,28 +402,43 @@ class TestTypesenseAdapterUnit:
 class TestTypesenseAdapterIntegration:
     """Integration tests for TypesenseAdapter (real Typesense)."""
     
-    @pytest.fixture
-    def typesense_config(self):
+    @pytest_asyncio.fixture
+    async def typesense_config(self):
         """Typesense configuration for integration tests."""
-        return {
-            'url': os.getenv('TYPESENSE_URL', 'http://localhost:8108'),
+        collection_name = f'test_collection_{uuid.uuid4().hex[:8]}'
+        config = {
+            'url': os.getenv('TYPESENSE_URL', 'http://192.168.107.187:8108'),
             'api_key': os.getenv('TYPESENSE_API_KEY', 'xyz'),
-            'collection_name': f'test_collection_{uuid.uuid4().hex[:8]}',
+            'collection_name': collection_name,
             'schema': {
-                'name': f'test_collection_{uuid.uuid4().hex[:8]}',
+                'name': collection_name,  # Schema name must match collection name
+                'enable_nested_fields': True,  # Required for object type fields
                 'fields': [
+                    {'name': 'id', 'type': 'string'},  # Explicit ID field
                     {'name': 'content', 'type': 'string'},
-                    {'name': 'session_id', 'type': 'string', 'facet': True},
-                    {'name': 'created_at', 'type': 'int64'}
+                    {'name': 'session_id', 'type': 'string', 'facet': True, 'optional': True},
+                    {'name': 'created_at', 'type': 'int64', 'optional': True},
+                    {'name': 'metadata', 'type': 'object', 'optional': True}  # Object type requires enable_nested_fields
                 ]
             }
         }
+        
+        yield config
+        
+        # Cleanup: Delete test collection after test completes
+        try:
+            async with httpx.AsyncClient(
+                headers={'X-TYPESENSE-API-KEY': config['api_key']},
+                timeout=10.0
+            ) as client:
+                await client.delete(
+                    f"{config['url']}/collections/{collection_name}"
+                )
+        except Exception:
+            pass  # Collection might not exist if test failed early
     
     async def test_full_workflow(self, typesense_config):
         """Test complete CRUD workflow."""
-        # Update schema name to match collection name
-        typesense_config['schema']['name'] = typesense_config['collection_name']
-        
         adapter = TypesenseAdapter(typesense_config)
         await adapter.connect()
         
@@ -470,9 +486,6 @@ class TestTypesenseAdapterIntegration:
     
     async def test_context_manager(self, typesense_config):
         """Test context manager protocol."""
-        # Update schema name to match collection name
-        typesense_config['schema']['name'] = typesense_config['collection_name']
-        
         async with TypesenseAdapter(typesense_config) as adapter:
             assert adapter.is_connected is True
             
