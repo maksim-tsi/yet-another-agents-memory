@@ -86,6 +86,7 @@ class WorkloadGenerator:
             }
         
         operations = []
+        neo4j_relationship_ops = []  # Separate queue for Neo4j relationships
         
         for i in range(size):
             # Select adapter based on distribution
@@ -95,7 +96,14 @@ class WorkloadGenerator:
             op_rand = random.random()
             
             if op_rand < 0.25:  # 25% writes
-                operations.append(self._generate_store_op(adapter))
+                op = self._generate_store_op(adapter)
+                
+                # Defer ALL Neo4j relationship operations until the end
+                # This ensures all entity nodes exist before creating relationships
+                if adapter == 'neo4j' and op.data and 'relationship' in op.data:
+                    neo4j_relationship_ops.append(op)
+                else:
+                    operations.append(op)
             elif op_rand < 0.90:  # 65% reads (70% - 5%)
                 # Mix of retrieve and search
                 if random.random() < 0.5 and self.stored_ids[adapter]:
@@ -108,6 +116,10 @@ class WorkloadGenerator:
                 else:
                     # If nothing to delete, do a read instead
                     operations.append(self._generate_search_op(adapter))
+        
+        # Insert all Neo4j relationship operations at the end
+        # This guarantees all entity nodes are created before relationships
+        operations.extend(neo4j_relationship_ops)
         
         return operations
     
