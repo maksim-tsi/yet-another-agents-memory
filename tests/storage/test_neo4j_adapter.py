@@ -4,6 +4,7 @@ Unit and integration tests for Neo4jAdapter.
 import pytest
 import os
 import uuid
+import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 from src.storage.neo4j_adapter import Neo4jAdapter
 from src.storage.base import StorageConnectionError, StorageDataError, StorageQueryError
@@ -682,6 +683,370 @@ class TestNeo4jAdapterHealthCheck:
 
 
 @pytest.mark.asyncio
+class TestNeo4jRelationshipOperations:
+    """Test relationship CRUD operations."""
+    
+    @pytest.fixture
+    def mock_neo4j_driver(self):
+        """Mock Neo4j driver for unit tests."""
+        mock_driver = Mock()
+        mock_session = AsyncMock()
+        mock_session_context = AsyncMock()
+        mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_context.__aexit__ = AsyncMock(return_value=None)
+        mock_driver.session.return_value = mock_session_context
+        mock_driver.close = AsyncMock()
+        return mock_driver, mock_session
+    
+    async def test_create_relationship_basic(self, mock_neo4j_driver):
+        """Test creating a basic relationship between nodes."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock relationship creation result
+        mock_result = AsyncMock()
+        mock_record = Mock()
+        mock_record.__getitem__ = Mock(return_value=12345)
+        mock_result.single = AsyncMock(return_value=mock_record)
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Create relationship
+            rel_id = await adapter._store_relationship({
+                'from': 'node1',
+                'to': 'node2',
+                'relationship': 'KNOWS',
+                'properties': {'since': 2020}
+            })
+            
+            assert rel_id == '12345'
+            await adapter.disconnect()
+    
+    async def test_get_relationships_by_node(self, mock_neo4j_driver):
+        """Test retrieving all relationships for a node."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock relationship retrieval result
+        mock_result = AsyncMock()
+        mock_result.data = AsyncMock(return_value=[
+            {'id': 'rel1', 'type': 'KNOWS'},
+            {'id': 'rel2', 'type': 'WORKS_WITH'}
+        ])
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # This would be called through the search method
+            query = {
+                'cypher': 'MATCH (n {id: $id})-[r]->() RETURN r',
+                'params': {'id': 'test-node-123'}
+            }
+            relationships = await adapter.search(query)
+            
+            assert isinstance(relationships, list)
+            assert len(relationships) == 2
+            await adapter.disconnect()
+    
+    async def test_delete_relationship(self, mock_neo4j_driver):
+        """Test deleting a relationship."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock relationship deletion result
+        mock_result = AsyncMock()
+        mock_summary = Mock()
+        mock_summary.counters.relationships_deleted = 1
+        mock_result.consume = AsyncMock(return_value=mock_summary)
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Delete relationship would be done through a Cypher query
+            query = {
+                'cypher': 'MATCH ()-[r {id: $id}]->() DELETE r',
+                'params': {'id': 'test-rel-123'}
+            }
+            result = await adapter.search(query)  # Using search for deletion
+            
+            # Since we're using search, we check that the call was made
+            assert mock_session.run.call_count == 2
+            await adapter.disconnect()
+    
+    async def test_update_relationship_properties(self, mock_neo4j_driver):
+        """Test updating relationship properties."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock relationship update result
+        mock_result = AsyncMock()
+        mock_result.data = AsyncMock(return_value=[{'updated': True}])
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Update relationship would be done through a Cypher query
+            query = {
+                'cypher': 'MATCH ()-[r {id: $id}]->() SET r += $props RETURN r',
+                'params': {
+                    'id': 'test-rel-123',
+                    'props': {'weight': 0.8, 'updated': '2025-10-21'}
+                }
+            }
+            result = await adapter.search(query)
+            
+            assert isinstance(result, list)
+            await adapter.disconnect()
+
+
+@pytest.mark.asyncio
+class TestNeo4jQueryBuilder:
+    """Test Cypher query construction helpers."""
+    
+    @pytest.fixture
+    def mock_neo4j_driver(self):
+        """Mock Neo4j driver for unit tests."""
+        mock_driver = Mock()
+        mock_session = AsyncMock()
+        mock_session_context = AsyncMock()
+        mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_context.__aexit__ = AsyncMock(return_value=None)
+        mock_driver.session.return_value = mock_session_context
+        mock_driver.close = AsyncMock()
+        return mock_driver, mock_session
+    
+    async def test_query_with_multiple_filters(self, mock_neo4j_driver):
+        """Test complex query with multiple filter conditions."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock query result
+        mock_result = AsyncMock()
+        mock_result.data = AsyncMock(return_value=[
+            {'name': 'Alice', 'age': 30, 'city': 'NYC'},
+            {'name': 'Bob', 'age': 28, 'city': 'NYC'}
+        ])
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Execute a complex query with multiple filters
+            query = {
+                'cypher': 'MATCH (p:Person) WHERE p.age > $age AND p.city = $city RETURN p',
+                'params': {'age': 25, 'city': 'NYC'}
+            }
+            results = await adapter.search(query)
+            
+            assert isinstance(results, list)
+            assert len(results) == 2
+            await adapter.disconnect()
+    
+    async def test_query_with_sorting(self, mock_neo4j_driver):
+        """Test query with ORDER BY clause."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock query result
+        mock_result = AsyncMock()
+        mock_result.data = AsyncMock(return_value=[
+            {'name': 'Alice', 'age': 30},
+            {'name': 'Bob', 'age': 25}
+        ])
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Execute a query with sorting
+            query = {
+                'cypher': 'MATCH (p:Person) RETURN p ORDER BY p.name ASC',
+                'params': {}
+            }
+            results = await adapter.search(query)
+            
+            assert isinstance(results, list)
+            assert len(results) == 2
+            await adapter.disconnect()
+    
+    async def test_query_with_aggregation(self, mock_neo4j_driver):
+        """Test COUNT/SUM/AVG aggregation queries."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock aggregation result
+        mock_result = AsyncMock()
+        mock_result.data = AsyncMock(return_value=[{'total': 42}])
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Execute an aggregation query
+            query = {
+                'cypher': 'MATCH (p:Person) RETURN count(p) AS total',
+                'params': {}
+            }
+            result = await adapter.search(query)
+            
+            assert isinstance(result, list)
+            assert len(result) == 1
+            assert result[0]['total'] == 42
+            await adapter.disconnect()
+
+
+@pytest.mark.asyncio
+class TestNeo4jErrorHandling:
+    """Test error handling and recovery."""
+    
+    @pytest.fixture
+    def mock_neo4j_driver(self):
+        """Mock Neo4j driver for unit tests."""
+        mock_driver = Mock()
+        mock_session = AsyncMock()
+        mock_session_context = AsyncMock()
+        mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_context.__aexit__ = AsyncMock(return_value=None)
+        mock_driver.session.return_value = mock_session_context
+        mock_driver.close = AsyncMock()
+        return mock_driver, mock_session
+    
+    async def test_query_timeout_handling(self, mock_neo4j_driver):
+        """Test handling of query timeouts."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock timeout error
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, asyncio.TimeoutError()])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'cypher': 'MATCH (n) RETURN n',
+                'params': {}
+            }
+            
+            with pytest.raises(StorageQueryError):
+                await adapter.search(query)
+            
+            await adapter.disconnect()
+    
+    async def test_invalid_cypher_syntax(self, mock_neo4j_driver):
+        """Test handling of invalid Cypher queries."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock syntax error
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, Exception("Invalid syntax")])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'cypher': 'INVALID CYPHER QUERY',
+                'params': {}
+            }
+            
+            with pytest.raises(StorageQueryError):
+                await adapter.search(query)
+            
+            await adapter.disconnect()
+
+@pytest.mark.asyncio
 class TestNeo4jAdapterEdgeCases:
     """Tests for edge cases and error scenarios."""
     
@@ -869,3 +1234,471 @@ class TestNeo4jAdapterEdgeCases:
             # Adapter should not be connected
             assert adapter.is_connected is False
             # Note: The driver may still be set but not connected
+
+@pytest.mark.asyncio
+class TestNeo4jAdvancedOperations:
+    """Test advanced Neo4j operations."""
+    
+    @pytest.fixture
+    def mock_neo4j_driver(self):
+        """Mock Neo4j driver for unit tests."""
+        mock_driver = Mock()
+        mock_session = AsyncMock()
+        mock_session_context = AsyncMock()
+        mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_context.__aexit__ = AsyncMock(return_value=None)
+        mock_driver.session.return_value = mock_session_context
+        mock_driver.close = AsyncMock()
+        return mock_driver, mock_session
+    
+    async def test_store_entity_with_generated_id(self, mock_neo4j_driver):
+        """Test storing entity with auto-generated ID."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock entity storage result
+        mock_result = AsyncMock()
+        mock_record = Mock()
+        mock_record.__getitem__ = Mock(return_value='generated-id-123')
+        mock_result.single = AsyncMock(return_value=mock_record)
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Store entity without name (will generate ID)
+            data = {
+                'type': 'entity',
+                'label': 'Person',
+                'properties': {
+                    'age': 30
+                }
+            }
+            
+            result_id = await adapter.store(data)
+            assert result_id == 'generated-id-123'
+            await adapter.disconnect()
+    
+    async def test_store_batch_relationships(self, mock_neo4j_driver):
+        """Test batch storage of relationships."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock the execute_write method which is called by store_batch
+        async def mock_batch_store(tx):
+            return ['rel-id-1', 'rel-id-2']
+        
+        mock_session.execute_write = AsyncMock(side_effect=mock_batch_store)
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            batch_data = [
+                {
+                    'type': 'relationship',
+                    'from': 'Alice',
+                    'to': 'Bob',
+                    'relationship': 'KNOWS',
+                    'properties': {'since': '2020'}
+                },
+                {
+                    'type': 'relationship',
+                    'from': 'Bob',
+                    'to': 'Charlie',
+                    'relationship': 'WORKS_WITH',
+                    'properties': {'since': '2021'}
+                }
+            ]
+            
+            ids = await adapter.store_batch(batch_data)
+            assert len(ids) == 2
+            assert ids[0] == 'rel-id-1'
+            assert ids[1] == 'rel-id-2'
+            await adapter.disconnect()
+    
+    async def test_retrieve_batch_partial_results(self, mock_neo4j_driver):
+        """Test batch retrieval with some missing entities."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock partial retrieval result
+        mock_result = AsyncMock()
+        mock_records = [
+            {'id': 'id1', 'n': {'name': 'Alice', 'age': 30}},
+            # id2 is missing
+            {'id': 'id3', 'n': {'name': 'Charlie', 'age': 35}}
+        ]
+        mock_result.data = AsyncMock(return_value=mock_records)
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            ids = ['id1', 'id2', 'id3']
+            results = await adapter.retrieve_batch(ids)
+            assert len(results) == 3
+            assert results[0] is not None
+            assert results[0]['name'] == 'Alice'
+            assert results[1] is None  # Missing entity
+            assert results[2] is not None
+            assert results[2]['name'] == 'Charlie'
+            await adapter.disconnect()
+    
+    async def test_delete_batch_with_all_missing(self, mock_neo4j_driver):
+        """Test batch deletion where all entities are missing."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock deletion result with no records found
+        mock_result = AsyncMock()
+        mock_records = []  # No records found
+        mock_result.data = AsyncMock(return_value=mock_records)
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            ids = ['nonexistent1', 'nonexistent2']
+            result = await adapter.delete_batch(ids)
+            assert isinstance(result, dict)
+            assert len(result) == 2
+            assert result['nonexistent1'] is False
+            assert result['nonexistent2'] is False
+            await adapter.disconnect()
+
+
+@pytest.mark.asyncio
+class TestNeo4jQueryConstruction:
+    """Test advanced query construction."""
+    
+    @pytest.fixture
+    def mock_neo4j_driver(self):
+        """Mock Neo4j driver for unit tests."""
+        mock_driver = Mock()
+        mock_session = AsyncMock()
+        mock_session_context = AsyncMock()
+        mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_context.__aexit__ = AsyncMock(return_value=None)
+        mock_driver.session.return_value = mock_session_context
+        mock_driver.close = AsyncMock()
+        return mock_driver, mock_session
+    
+    async def test_complex_query_with_multiple_matches(self, mock_neo4j_driver):
+        """Test complex query with multiple MATCH clauses."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock query result
+        mock_result = AsyncMock()
+        mock_result.data = AsyncMock(return_value=[
+            {'p1': {'name': 'Alice'}, 'p2': {'name': 'Bob'}, 'r': {'since': '2020'}},
+        ])
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Complex query with multiple matches
+            query = {
+                'cypher': '''
+                    MATCH (p1:Person {name: $name1})
+                    MATCH (p2:Person {name: $name2})
+                    MATCH (p1)-[r:KNOWS]->(p2)
+                    RETURN p1, p2, r
+                ''',
+                'params': {'name1': 'Alice', 'name2': 'Bob'}
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            assert len(results) == 1
+            await adapter.disconnect()
+    
+    async def test_query_with_path_traversal(self, mock_neo4j_driver):
+        """Test query with path traversal."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock query result
+        mock_result = AsyncMock()
+        mock_result.data = AsyncMock(return_value=[
+            {'path': 'path-data'}
+        ])
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Query with path traversal
+            query = {
+                'cypher': 'MATCH p = (a:Person {name: $name})-[:KNOWS*1..3]->(b:Person) RETURN p',
+                'params': {'name': 'Alice'}
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            assert len(results) == 1
+            await adapter.disconnect()
+
+@pytest.mark.asyncio
+class TestNeo4jConnectionHandling:
+    """Test connection handling scenarios."""
+    
+    @pytest.fixture
+    def mock_neo4j_driver(self):
+        """Mock Neo4j driver for unit tests."""
+        mock_driver = Mock()
+        mock_session = AsyncMock()
+        mock_session_context = AsyncMock()
+        mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_context.__aexit__ = AsyncMock(return_value=None)
+        mock_driver.session.return_value = mock_session_context
+        mock_driver.close = AsyncMock()
+        return mock_driver, mock_session
+    
+    async def test_connect_with_database_parameter(self, mock_neo4j_driver):
+        """Test connection with specific database parameter."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock connection verification
+        mock_result = AsyncMock()
+        mock_result.single = AsyncMock()
+        mock_session.run = AsyncMock(return_value=mock_result)
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password',
+                'database': 'testdb'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            assert adapter.database == 'testdb'
+            assert adapter.is_connected is True
+            await adapter.disconnect()
+    
+    async def test_disconnect_when_not_connected(self):
+        """Test disconnect when already disconnected."""
+        config = {
+            'uri': 'bolt://localhost:7687',
+            'user': 'neo4j',
+            'password': 'password'
+        }
+        adapter = Neo4jAdapter(config)
+        # Should not raise an exception
+        await adapter.disconnect()
+        assert adapter.driver is None
+        assert adapter.is_connected is False
+
+@pytest.mark.asyncio
+class TestNeo4jSpecificFunctionality:
+    """Test specific Neo4j functionality based on missing coverage."""
+    
+    @pytest.fixture
+    def mock_neo4j_driver(self):
+        """Mock Neo4j driver for unit tests."""
+        mock_driver = Mock()
+        mock_session = AsyncMock()
+        mock_session_context = AsyncMock()
+        mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_context.__aexit__ = AsyncMock(return_value=None)
+        mock_driver.session.return_value = mock_session_context
+        mock_driver.close = AsyncMock()
+        return mock_driver, mock_session
+    
+    async def test_store_entity_with_empty_properties(self, mock_neo4j_driver):
+        """Test storing entity with empty properties."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock entity storage result
+        mock_result = AsyncMock()
+        mock_record = Mock()
+        mock_record.__getitem__ = Mock(return_value='entity-id-456')
+        mock_result.single = AsyncMock(return_value=mock_record)
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Store entity with empty properties
+            data = {
+                'type': 'entity',
+                'label': 'EmptyNode',
+                'properties': {}
+            }
+            
+            result_id = await adapter.store(data)
+            assert result_id == 'entity-id-456'
+            await adapter.disconnect()
+    
+    async def test_store_relationship_without_properties(self, mock_neo4j_driver):
+        """Test storing relationship without properties."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock relationship creation result
+        mock_result = AsyncMock()
+        mock_record = Mock()
+        mock_record.__getitem__ = Mock(return_value=789)
+        mock_result.single = AsyncMock(return_value=mock_record)
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Store relationship without properties
+            data = {
+                'type': 'relationship',
+                'from': 'node1',
+                'to': 'node2',
+                'relationship': 'CONNECTS'
+            }
+            
+            result_id = await adapter.store(data)
+            assert result_id == '789'
+            await adapter.disconnect()
+    
+    async def test_search_with_empty_params(self, mock_neo4j_driver):
+        """Test search with empty parameters."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock search result
+        mock_result = AsyncMock()
+        mock_result.data = AsyncMock(return_value=[{'name': 'TestNode'}])
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            # Search with empty params
+            query = {
+                'cypher': 'MATCH (n:TestNode) RETURN n',
+                'params': {}
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            assert len(results) == 1
+            await adapter.disconnect()
+    
+    async def test_delete_with_nonexistent_node(self, mock_neo4j_driver):
+        """Test deleting a node that doesn't exist."""
+        mock_driver, mock_session = mock_neo4j_driver
+        
+        # Mock successful connection
+        mock_connect_result = AsyncMock()
+        mock_connect_result.single = AsyncMock()
+        
+        # Mock deletion result with no nodes deleted
+        mock_result = AsyncMock()
+        mock_summary = Mock()
+        mock_summary.counters.nodes_deleted = 0
+        mock_result.consume = AsyncMock(return_value=mock_summary)
+        
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, mock_result])
+        
+        with patch('src.storage.neo4j_adapter.AsyncGraphDatabase.driver', return_value=mock_driver):
+            config = {
+                'uri': 'bolt://localhost:7687',
+                'user': 'neo4j',
+                'password': 'password'
+            }
+            adapter = Neo4jAdapter(config)
+            await adapter.connect()
+            
+            result = await adapter.delete('nonexistent-node')
+            assert result is False
+            await adapter.disconnect()
