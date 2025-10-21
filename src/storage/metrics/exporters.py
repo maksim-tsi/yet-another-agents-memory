@@ -64,12 +64,30 @@ def _to_prometheus(metrics: Dict[str, Any]) -> str:
 
 def _to_csv(metrics: Dict[str, Any]) -> str:
     """Convert metrics to CSV format."""
-    lines = ["timestamp,operation,total_count,success_count,avg_latency_ms"]
+    lines = ["timestamp,operation,total_count,success_count,error_count,avg_latency_ms"]
     
     for operation, stats in metrics.get('operations', {}).items():
         if isinstance(stats, dict) and 'total_count' in stats:
             avg_latency = stats.get('latency_ms', {}).get('avg', 0) if isinstance(stats.get('latency_ms'), dict) else 0
-            lines.append(f"{metrics.get('timestamp', '')},{operation},{stats.get('total_count', 0)},{stats.get('success_count', 0)},{avg_latency}")
+            lines.append(f"{metrics.get('timestamp', '')},{operation},{stats.get('total_count', 0)},{stats.get('success_count', 0)},{stats.get('error_count', 0)},{avg_latency}")
+    
+    # Add errors section
+    errors = metrics.get('errors', {})
+    if errors and (errors.get('by_type') or errors.get('recent_errors')):
+        lines.append("")  # Empty line separator
+        lines.append("error_type,count")
+        for error_type, count in errors.get('by_type', {}).items():
+            lines.append(f"{error_type},{count}")
+        
+        if errors.get('recent_errors'):
+            lines.append("")  # Empty line separator
+            lines.append("recent_errors_timestamp,error_type,operation,message")
+            for error in errors.get('recent_errors', [])[:10]:  # Last 10 errors
+                timestamp = error.get('timestamp', '')
+                error_type = error.get('type', '')
+                operation = error.get('operation', '')
+                message = error.get('message', '').replace(',', ';')  # Replace commas to avoid CSV issues
+                lines.append(f"{timestamp},{error_type},{operation},{message}")
     
     return "\n".join(lines)
 

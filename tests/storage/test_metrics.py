@@ -291,3 +291,24 @@ class TestOperationTimer:
         assert metrics['operations']['test_op']['total_count'] == 1
         assert metrics['operations']['test_op']['success_count'] == 0
         assert metrics['operations']['test_op']['error_count'] == 1
+    
+    async def test_concurrent_operations(self):
+        """Test metrics collection under concurrent load."""
+        collector = MetricsCollector()
+        
+        async def worker(worker_id: int):
+            for i in range(100):
+                async with OperationTimer(collector, f'op_{worker_id}'):
+                    # Simulate some work
+                    await asyncio.sleep(0.001)
+        
+        # Run 10 workers concurrently
+        await asyncio.gather(*[worker(i) for i in range(10)])
+        
+        # Verify all operations recorded
+        metrics = await collector.get_metrics()
+        total_ops = sum(
+            stats['total_count'] 
+            for stats in metrics['operations'].values()
+        )
+        assert total_ops == 1000  # 10 workers * 100 ops each
