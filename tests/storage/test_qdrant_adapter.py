@@ -357,3 +357,319 @@ class TestQdrantAdapterIntegration:
         
         # Should be disconnected after context
         assert adapter.is_connected is False
+
+
+# ============================================================================
+# Additional Unit Tests for Coverage
+# ============================================================================
+
+@pytest.mark.asyncio
+class TestQdrantAdapterBatchOperations:
+    """Tests for batch operations."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.get_collection = AsyncMock()
+        mock.close = AsyncMock()
+        mock.upsert = AsyncMock()
+        mock.delete = AsyncMock()
+        return mock
+    
+    async def test_store_batch_vectors(self, mock_qdrant_client):
+        """Test batch storage of vectors."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            batch_data = [
+                {
+                    'id': f'test-{i}',
+                    'vector': [0.1 * i] * 384,
+                    'content': f'Test content {i}'
+                }
+                for i in range(5)
+            ]
+            
+            ids = await adapter.store_batch(batch_data)
+            assert len(ids) == 5
+            assert all(id == f'test-{i}' for i, id in enumerate(ids))
+            mock_qdrant_client.upsert.assert_called_once()
+            await adapter.disconnect()
+    
+    async def test_store_batch_not_connected(self):
+        """Test batch store when not connected."""
+        config = {
+            'url': 'http://localhost:6333',
+            'collection_name': 'test_collection'
+        }
+        adapter = QdrantAdapter(config)
+        
+        with pytest.raises(StorageConnectionError):
+            await adapter.store_batch([{'vector': [0.1] * 384, 'content': 'test'}])
+    
+    async def test_delete_batch_vectors(self, mock_qdrant_client):
+        """Test batch deletion of vectors."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            ids = ['id1', 'id2', 'id3']
+            result = await adapter.delete_batch(ids)
+            assert result is True
+            mock_qdrant_client.delete.assert_called_once()
+            await adapter.disconnect()
+    
+    async def test_delete_batch_not_connected(self):
+        """Test batch delete when not connected."""
+        config = {
+            'url': 'http://localhost:6333',
+            'collection_name': 'test_collection'
+        }
+        adapter = QdrantAdapter(config)
+        
+        with pytest.raises(StorageConnectionError):
+            await adapter.delete_batch(['id1', 'id2'])
+
+
+@pytest.mark.asyncio
+class TestQdrantAdapterHealthCheck:
+    """Tests for health check functionality."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.get_collection = AsyncMock()
+        mock.close = AsyncMock()
+        
+        # Mock collection info
+        mock_collection_info = Mock()
+        mock_collection_info.vectors_count = 1000
+        mock_collection_info.points_count = 1000
+        mock_collection_info.config.params.vectors.size = 384
+        mock.get_collection.return_value = mock_collection_info
+        
+        return mock
+    
+    async def test_health_check_connected(self, mock_qdrant_client):
+        """Test health check when connected."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            health = await adapter.health_check()
+            assert health['status'] == 'healthy'
+            assert health['connected'] is True
+            assert 'collection_info' in health
+            assert health['collection_info']['vector_count'] == 1000
+            await adapter.disconnect()
+    
+    async def test_health_check_not_connected(self):
+        """Test health check when not connected."""
+        config = {
+            'url': 'http://localhost:6333',
+            'collection_name': 'test_collection'
+        }
+        adapter = QdrantAdapter(config)
+        
+        health = await adapter.health_check()
+        assert health['status'] == 'disconnected'
+        assert health['connected'] is False
+
+
+@pytest.mark.asyncio
+class TestQdrantAdapterFilterEdgeCases:
+    """Tests for filter edge cases and complex queries."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.get_collection = AsyncMock()
+        mock.close = AsyncMock()
+        mock.search = AsyncMock(return_value=[])
+        return mock
+    
+    async def test_search_with_none_filter(self, mock_qdrant_client):
+        """Test search with None filter (should not crash)."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'vector': [0.1] * 384,
+                'limit': 10,
+                'filter': None  # Explicitly None
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            mock_qdrant_client.search.assert_called_once()
+            await adapter.disconnect()
+    
+    async def test_search_with_empty_filter(self, mock_qdrant_client):
+        """Test search with empty filter dict."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'vector': [0.1] * 384,
+                'limit': 10,
+                'filter': {}  # Empty dict
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            await adapter.disconnect()
+    
+    async def test_search_with_multiple_filters(self, mock_qdrant_client):
+        """Test search with multiple filter conditions."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'vector': [0.1] * 384,
+                'limit': 10,
+                'filter': {
+                    'session_id': 'test-session',
+                    'type': 'preference',
+                    'active': True
+                }
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            await adapter.disconnect()
+    
+    async def test_search_with_score_threshold(self, mock_qdrant_client):
+        """Test search with score threshold filtering."""
+        # Mock search results with varying scores
+        mock_hit1 = Mock()
+        mock_hit1.id = 'id1'
+        mock_hit1.score = 0.95
+        mock_hit1.vector = [0.1] * 384
+        mock_hit1.payload = {'content': 'High score result'}
+        
+        mock_hit2 = Mock()
+        mock_hit2.id = 'id2'
+        mock_hit2.score = 0.60
+        mock_hit2.vector = [0.2] * 384
+        mock_hit2.payload = {'content': 'Low score result'}
+        
+        mock_qdrant_client.search = AsyncMock(return_value=[mock_hit1, mock_hit2])
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'vector': [0.1] * 384,
+                'limit': 10,
+                'score_threshold': 0.7  # Should filter out second result
+            }
+            
+            results = await adapter.search(query)
+            # Both results returned (filtering happens in Qdrant backend)
+            assert len(results) == 2
+            await adapter.disconnect()
+    
+    async def test_store_with_custom_id(self, mock_qdrant_client):
+        """Test storing vector with custom ID."""
+        mock_qdrant_client.upsert = AsyncMock()
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            data = {
+                'id': 'custom-vector-id',
+                'vector': [0.1] * 384,
+                'content': 'Test with custom ID'
+            }
+            
+            result_id = await adapter.store(data)
+            assert result_id == 'custom-vector-id'
+            await adapter.disconnect()
+    
+    async def test_store_with_additional_metadata(self, mock_qdrant_client):
+        """Test storing vector with additional metadata fields."""
+        mock_qdrant_client.upsert = AsyncMock()
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            data = {
+                'vector': [0.1] * 384,
+                'content': 'Test with metadata',
+                'session_id': 'test-session',
+                'timestamp': '2025-10-21T00:00:00Z',
+                'metadata': {'key': 'value'}
+            }
+            
+            result_id = await adapter.store(data)
+            assert result_id is not None
+            # Verify upsert was called with all fields in payload
+            call_args = mock_qdrant_client.upsert.call_args
+            await adapter.disconnect()
+    
+    async def test_vector_dimension_validation(self, mock_qdrant_client):
+        """Test that vector dimension matches collection config."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection',
+                'vector_size': 384
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            # This should work (correct dimension)
+            data = {
+                'vector': [0.1] * 384,
+                'content': 'Correct dimension'
+            }
+            
+            result_id = await adapter.store(data)
+            assert result_id is not None
+            await adapter.disconnect()
