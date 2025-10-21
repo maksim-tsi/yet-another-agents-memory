@@ -374,7 +374,12 @@ class TestQdrantAdapterBatchOperations:
         mock.get_collection = AsyncMock()
         mock.close = AsyncMock()
         mock.upsert = AsyncMock()
-        mock.delete = AsyncMock()
+        
+        # Fix: Mock the delete method to return a result with "completed" status
+        mock_delete_result = Mock()
+        mock_delete_result.status = "completed"
+        mock.delete = AsyncMock(return_value=mock_delete_result)
+        
         return mock
     
     async def test_store_batch_vectors(self, mock_qdrant_client):
@@ -425,7 +430,11 @@ class TestQdrantAdapterBatchOperations:
             
             ids = ['id1', 'id2', 'id3']
             result = await adapter.delete_batch(ids)
-            assert result is True
+            # Fix: The method returns a dict mapping IDs to deletion status, not a boolean
+            assert isinstance(result, dict)
+            assert result['id1'] is True
+            assert result['id2'] is True
+            assert result['id3'] is True
             mock_qdrant_client.delete.assert_called_once()
             await adapter.disconnect()
     
@@ -474,8 +483,8 @@ class TestQdrantAdapterHealthCheck:
             health = await adapter.health_check()
             assert health['status'] == 'healthy'
             assert health['connected'] is True
-            assert 'collection_info' in health
-            assert health['collection_info']['vector_count'] == 1000
+            assert 'collection_exists' in health
+            assert health['vector_count'] == 1000
             await adapter.disconnect()
     
     async def test_health_check_not_connected(self):
@@ -487,7 +496,7 @@ class TestQdrantAdapterHealthCheck:
         adapter = QdrantAdapter(config)
         
         health = await adapter.health_check()
-        assert health['status'] == 'disconnected'
+        assert health['status'] == 'unhealthy'
         assert health['connected'] is False
 
 

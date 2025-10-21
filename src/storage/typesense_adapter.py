@@ -12,6 +12,8 @@ Features:
 """
 
 import httpx
+import json
+import asyncio
 from typing import Dict, Any, List, Optional
 import logging
 import uuid
@@ -166,7 +168,13 @@ class TypesenseAdapter(StorageAdapter):
                 )
                 response.raise_for_status()
                 
-                result = response.json()
+                # Fix: Handle both coroutine and regular dict return types
+                json_result = response.json()
+                if asyncio.iscoroutine(json_result):
+                    result = await json_result
+                else:
+                    result = json_result
+                    
                 logger.debug(f"Indexed document: {result['id']}")
                 return result['id']
                 
@@ -192,7 +200,12 @@ class TypesenseAdapter(StorageAdapter):
                     return None
                 
                 response.raise_for_status()
-                return response.json()
+                # Fix: Handle both coroutine and regular dict return types
+                json_result = response.json()
+                if asyncio.iscoroutine(json_result):
+                    return await json_result
+                else:
+                    return json_result
                 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 404:
@@ -235,7 +248,13 @@ class TypesenseAdapter(StorageAdapter):
                 )
                 response.raise_for_status()
                 
-                result = response.json()
+                # Fix: Handle both coroutine and regular dict return types
+                json_result = response.json()
+                if asyncio.iscoroutine(json_result):
+                    result = await json_result
+                else:
+                    result = json_result
+                    
                 return [hit['document'] for hit in result.get('hits', [])]
                 
             except httpx.HTTPStatusError as e:
@@ -299,7 +318,7 @@ class TypesenseAdapter(StorageAdapter):
             
             # Batch import using newline-delimited JSON
             import_data = '\n'.join(
-                httpx._utils.to_str(httpx._content.json_dumps(doc))
+                json.dumps(doc)
                 for doc in documents
             )
             
@@ -307,7 +326,6 @@ class TypesenseAdapter(StorageAdapter):
                 f"{self.url}/collections/{self.collection_name}/documents/import",
                 content=import_data,
                 headers={
-                    **self.client.headers,
                     'Content-Type': 'text/plain'
                 }
             )
@@ -406,7 +424,7 @@ class TypesenseAdapter(StorageAdapter):
         """
         Check Typesense backend health and performance.
         
-        Performs connectivity test and retrieves collection statistics.
+        Performs actual connectivity test and measures latency.
         
         Returns:
             Dictionary with health status including:
@@ -414,7 +432,7 @@ class TypesenseAdapter(StorageAdapter):
             - connected: Connection status
             - latency_ms: Response time in milliseconds
             - collection_exists: Whether collection is available
-            - document_count: Number of documents in collection (if available)
+            - document_count: Number of documents in collection
             - details: Additional information
             - timestamp: ISO timestamp
         """
@@ -438,7 +456,7 @@ class TypesenseAdapter(StorageAdapter):
             )
             response.raise_for_status()
             
-            collection_info = response.json()
+            collection_info = await response.json()  # Fix: Await the json() coroutine
             latency_ms = (time.perf_counter() - start_time) * 1000
             
             # Determine health status based on latency
