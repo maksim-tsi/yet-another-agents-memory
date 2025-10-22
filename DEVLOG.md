@@ -135,13 +135,114 @@ The 9 remaining uncovered lines are minor edge cases and unreachable code paths:
 - **Maintainability**: ✅ Well-structured test classes for future additions
 
 **Next Steps:**
-- Phase 7: Integration tests (6% → 25% coverage)
+- Phase 7: Integration tests (0 → 18-25 tests, see plan document)
 - Document testing patterns and best practices
 - Consider additional edge case coverage for remaining 4% Typesense lines
 
 **Branch:** dev-tests  
 **Session Date:** October 22, 2025  
 **Completed by:** AI Assistant with user guidance
+
+---
+
+### 2025-10-22 - Phase 7: Integration Testing Plan Created
+
+**Status:** 📋 Plan Complete, Ready for Implementation
+
+**Summary:**
+Created comprehensive plan document for Phase 7 integration testing with detailed API analysis for all 5 storage adapters. The plan addresses the complexity discovered during initial implementation attempts and provides a structured approach to building robust multi-adapter integration tests.
+
+**Key Findings:**
+
+1. **API Complexity Identified:**
+   - Each adapter has unique data format requirements
+   - Redis: Requires `session_id`, `turn_id`, `content` fields
+   - Postgres: Requires `url` format (not separate host/port/db)
+   - Qdrant: Requires `vector`, `content`, `payload` fields
+   - Neo4j: Supports both structured and Cypher query formats
+   - Typesense: Schema-dependent field requirements
+
+2. **Integration Challenges:**
+   - Different configuration formats across adapters
+   - Varying data models (conversation turns vs documents vs vectors)
+   - Complex cleanup requirements for test isolation
+   - Need for deterministic test embeddings
+   - Service dependency management
+
+**Plan Document Created:**
+- **File:** `docs/plan/phase-7-integration-tests-plan.md`
+- **Sections:**
+  - Detailed API reference for all 5 adapters
+  - 4 test categories with 18-25 tests total
+  - Implementation plan with time estimates
+  - Sample code and data generators
+  - Success criteria and known challenges
+
+**Test Categories Planned:**
+
+1. **Multi-Adapter Workflows (6 tests, ~3 hours):**
+   - Cache-write-through patterns (Redis + Postgres)
+   - Vector search with metadata enrichment (Qdrant + Postgres)
+   - Full-text search with graph relations (Typesense + Neo4j)
+   - Multi-layer memory retrieval
+   - Batch operations coordination
+   - Cascade delete coordination
+
+2. **Error Recovery (5 tests, ~2.5 hours):**
+   - Connection failure recovery
+   - Graceful degradation
+   - Timeout handling
+   - Concurrent operations isolation
+   - Partial batch failure handling
+
+3. **Data Consistency (4 tests, ~2.5 hours):**
+   - Cache coherence and invalidation
+   - Cross-adapter data integrity
+   - Transaction-like behavior
+   - Idempotency verification
+
+4. **Performance & Stress (3 tests, ~2 hours, optional):**
+   - Concurrent read/write load
+   - Large batch processing
+   - Memory usage monitoring
+
+**Total Estimated Effort:** 6-11 hours (core: 6-8 hours)
+
+**Infrastructure Requirements:**
+- Shared test fixtures with proper adapter configs
+- Helper utilities for embedding generation
+- Data consistency checkers
+- Performance measurement tools
+- Comprehensive cleanup mechanisms
+
+**Next Actions:**
+1. Review plan with development team
+2. Set up test infrastructure (fixtures, helpers)
+3. Implement Category 1 (Multi-Adapter Workflows) - highest priority
+4. Implement Categories 2 & 3 (Error Recovery, Consistency)
+5. Optional: Category 4 (Performance)
+
+**Rationale for Deferring Implementation:**
+- API complexity requires careful analysis (completed in plan)
+- Each adapter's unique requirements documented
+- Test infrastructure needs proper design
+- Proper implementation better than rushed broken tests
+- Plan provides clear roadmap for future work
+
+**Documentation Quality:**
+- ✅ Complete API reference for all adapters
+- ✅ Sample code for each test scenario
+- ✅ Data generators and helpers documented
+- ✅ Known challenges with solutions
+- ✅ Quick reference guide
+- ✅ Environment setup instructions
+
+**Files Created:**
+- `docs/plan/phase-7-integration-tests-plan.md` (comprehensive 450+ line plan)
+
+**Branch:** dev-tests  
+**Session Date:** October 22, 2025  
+**Plan Author:** AI Assistant with user guidance
 
 ---
 
