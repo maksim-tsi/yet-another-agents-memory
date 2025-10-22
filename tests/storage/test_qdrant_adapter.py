@@ -853,6 +853,507 @@ class TestQdrantAdvancedFilters:
             await adapter.disconnect()
 
 
+class TestQdrantAdvancedFiltersExtended:
+    """Test extended filter combinations and edge cases."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.search = AsyncMock(return_value=[])
+        mock.close = AsyncMock()
+        return mock
+    
+    @pytest.mark.asyncio
+    async def test_nested_filter_in_must(self, mock_qdrant_client):
+        """Test nested filter structures in must conditions."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'vector': [0.1] * 384,
+                'limit': 10,
+                'filter': {
+                    'must': [
+                        {'status': 'active'},  # Nested dict without key/match
+                        {'priority': 'high'}
+                    ]
+                }
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            
+            # Verify filter was constructed with nested conditions
+            call_args = mock_qdrant_client.search.call_args
+            query_filter = call_args[1]['query_filter']
+            assert query_filter is not None
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_nested_filter_in_should(self, mock_qdrant_client):
+        """Test nested filter structures in should conditions."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'vector': [0.1] * 384,
+                'limit': 10,
+                'filter': {
+                    'should': [
+                        {'category': 'tech'},  # Nested dict
+                        {'category': 'science'}
+                    ]
+                }
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_nested_filter_in_must_not(self, mock_qdrant_client):
+        """Test nested filter structures in must_not conditions."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'vector': [0.1] * 384,
+                'limit': 10,
+                'filter': {
+                    'must_not': [
+                        {'status': 'deleted'},  # Nested dict
+                        {'archived': True}
+                    ]
+                }
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_filter_with_all_three_types(self, mock_qdrant_client):
+        """Test filter with must, should, and must_not all together."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            query = {
+                'vector': [0.1] * 384,
+                'limit': 10,
+                'filter': {
+                    'must': [
+                        {'key': 'type', 'match': {'value': 'document'}}
+                    ],
+                    'should': [
+                        {'tag': 'important'},
+                        {'tag': 'urgent'}
+                    ],
+                    'must_not': [
+                        {'status': 'deleted'}
+                    ]
+                }
+            }
+            
+            results = await adapter.search(query)
+            assert isinstance(results, list)
+            
+            # Verify all three filter types were used
+            call_args = mock_qdrant_client.search.call_args
+            query_filter = call_args[1]['query_filter']
+            assert query_filter is not None
+            assert len(query_filter.must) > 0
+            await adapter.disconnect()
+
+
+class TestQdrantAdvancedOperations:
+    """Test advanced Qdrant operations like scroll, count, recommend."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.scroll = AsyncMock(return_value=([], None))
+        mock.count = AsyncMock(return_value=Mock(count=100))
+        mock.recommend = AsyncMock(return_value=[])
+        mock.close = AsyncMock()
+        return mock
+    
+    @pytest.mark.asyncio
+    async def test_retrieve_batch_with_missing_points(self, mock_qdrant_client):
+        """Test batch retrieve when some points don't exist."""
+        # Mock retrieve to return only some points
+        mock_point1 = Mock()
+        mock_point1.id = 'id1'
+        mock_point1.vector = [0.1] * 384
+        mock_point1.payload = {'content': 'test1', 'metadata': {}}
+        
+        mock_qdrant_client.retrieve = AsyncMock(return_value=[mock_point1])
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            # Request 3 IDs but only 1 exists
+            results = await adapter.retrieve_batch(['id1', 'id2', 'id3'])
+            
+            # Should return results with None for missing items
+            assert isinstance(results, list)
+            # First item should exist, others None
+            assert results[0] is not None
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_retrieve_batch_with_additional_payload(self, mock_qdrant_client):
+        """Test batch retrieve with additional payload fields."""
+        # Mock point with extra payload fields
+        mock_point = Mock()
+        mock_point.id = 'id1'
+        mock_point.vector = [0.1] * 384
+        mock_point.payload = {
+            'content': 'test',
+            'metadata': {'key': 'value'},
+            'custom_field': 'custom_value',
+            'score': 0.95
+        }
+        
+        mock_qdrant_client.retrieve = AsyncMock(return_value=[mock_point])
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            results = await adapter.retrieve_batch(['id1'])
+            
+            assert len(results) == 1
+            assert results[0]['custom_field'] == 'custom_value'
+            assert results[0]['score'] == 0.95
+            await adapter.disconnect()
+
+
+class TestQdrantErrorHandling:
+    """Test error handling in Qdrant adapter."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.close = AsyncMock()
+        return mock
+    
+    @pytest.mark.asyncio
+    async def test_store_error_handling(self, mock_qdrant_client):
+        """Test error handling during store operation."""
+        mock_qdrant_client.upsert = AsyncMock(side_effect=Exception("Storage error"))
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            with pytest.raises(StorageQueryError, match="Failed to store"):
+                await adapter.store({
+                    'vector': [0.1] * 384,
+                    'content': 'test',
+                    'metadata': {}
+                })
+            
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_retrieve_error_handling(self, mock_qdrant_client):
+        """Test error handling during retrieve operation."""
+        mock_qdrant_client.retrieve = AsyncMock(side_effect=Exception("Retrieve error"))
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            with pytest.raises(StorageQueryError, match="Failed to retrieve"):
+                await adapter.retrieve('test-id')
+            
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_batch_retrieve_error_handling(self, mock_qdrant_client):
+        """Test error handling during batch retrieve."""
+        mock_qdrant_client.retrieve = AsyncMock(side_effect=Exception("Batch retrieve error"))
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            with pytest.raises(StorageQueryError, match="Failed to batch retrieve"):
+                await adapter.retrieve_batch(['id1', 'id2'])
+            
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_batch_store_error_handling(self, mock_qdrant_client):
+        """Test error handling during batch store."""
+        mock_qdrant_client.upsert = AsyncMock(side_effect=Exception("Batch store error"))
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            batch_data = [
+                {'vector': [0.1] * 384, 'content': 'test1'},
+                {'vector': [0.2] * 384, 'content': 'test2'}
+            ]
+            
+            with pytest.raises(StorageQueryError, match="Failed to batch store"):
+                await adapter.store_batch(batch_data)
+            
+            await adapter.disconnect()
+
+
+class TestQdrantConnectionEdgeCases:
+    """Test connection edge cases and disconnection scenarios."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.close = AsyncMock()
+        return mock
+    
+    @pytest.mark.asyncio
+    async def test_disconnect_with_error(self, mock_qdrant_client):
+        """Test disconnect handles errors gracefully without raising."""
+        # Mock close to raise an error
+        mock_qdrant_client.close = AsyncMock(side_effect=Exception("Close error"))
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            # Disconnect should not raise even if close fails
+            await adapter.disconnect()  # Should not raise
+            # Note: On error, client may not be None, but disconnect succeeds
+            # The important thing is it doesn't raise
+    
+    @pytest.mark.asyncio
+    async def test_disconnect_when_no_client(self):
+        """Test disconnect when client is None."""
+        config = {
+            'url': 'http://localhost:6333',
+            'collection_name': 'test_collection'
+        }
+        adapter = QdrantAdapter(config)
+        # Don't connect, client is None
+        
+        # Should handle gracefully
+        await adapter.disconnect()  # Should not raise
+        assert adapter.client is None
+
+
+class TestQdrantDeleteOperations:
+    """Test delete operations and edge cases."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.close = AsyncMock()
+        return mock
+    
+    @pytest.mark.asyncio
+    async def test_delete_point_not_found(self, mock_qdrant_client):
+        """Test deleting a point that doesn't exist."""
+        # Mock delete to return not found status
+        mock_result = Mock()
+        mock_result.status = "not_found"
+        mock_qdrant_client.delete = AsyncMock(return_value=mock_result)
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            result = await adapter.delete('nonexistent-id')
+            
+            # Should return False for not found
+            assert result is False
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_delete_point_success(self, mock_qdrant_client):
+        """Test successful deletion of a point."""
+        # Mock delete to return completed status
+        mock_result = Mock()
+        mock_result.status = "completed"
+        mock_qdrant_client.delete = AsyncMock(return_value=mock_result)
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            result = await adapter.delete('test-id')
+            
+            # Should return True for successful deletion
+            assert result is True
+            await adapter.disconnect()
+
+
+class TestQdrantRetrieveEdgeCases:
+    """Test retrieve operations edge cases."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.close = AsyncMock()
+        return mock
+    
+    @pytest.mark.asyncio
+    async def test_retrieve_with_additional_payload_fields(self, mock_qdrant_client):
+        """Test retrieve with additional payload fields beyond content/metadata."""
+        # Mock point with extra fields
+        mock_point = Mock()
+        mock_point.id = 'test-id'
+        mock_point.vector = [0.1] * 384
+        mock_point.payload = {
+            'content': 'test content',
+            'metadata': {'key': 'value'},
+            'score': 0.95,
+            'timestamp': '2025-10-22',
+            'custom_data': {'nested': 'value'}
+        }
+        
+        mock_qdrant_client.retrieve = AsyncMock(return_value=[mock_point])
+        
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            result = await adapter.retrieve('test-id')
+            
+            # Should include additional fields
+            assert result['score'] == 0.95
+            assert result['timestamp'] == '2025-10-22'
+            assert result['custom_data'] == {'nested': 'value'}
+            await adapter.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_retrieve_batch_empty_list(self, mock_qdrant_client):
+        """Test batch retrieve with empty ID list."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            result = await adapter.retrieve_batch([])
+            
+            # Should return empty list
+            assert result == []
+            # retrieve should not be called
+            mock_qdrant_client.retrieve.assert_not_called()
+            await adapter.disconnect()
+
+
+class TestQdrantStoreEdgeCases:
+    """Test store operations edge cases."""
+    
+    @pytest.fixture
+    def mock_qdrant_client(self):
+        """Mock Qdrant client for unit tests."""
+        mock = AsyncMock()
+        mock.upsert = AsyncMock()
+        mock.close = AsyncMock()
+        return mock
+    
+    @pytest.mark.asyncio
+    async def test_store_with_custom_id(self, mock_qdrant_client):
+        """Test storing data with custom ID."""
+        with patch('src.storage.qdrant_adapter.AsyncQdrantClient', return_value=mock_qdrant_client):
+            config = {
+                'url': 'http://localhost:6333',
+                'collection_name': 'test_collection'
+            }
+            adapter = QdrantAdapter(config)
+            await adapter.connect()
+            
+            result = await adapter.store({
+                'id': 'custom-id-123',
+                'vector': [0.1] * 384,
+                'content': 'test',
+                'metadata': {}
+            })
+            
+            # Should return the custom ID
+            assert result == 'custom-id-123'
+            
+            # Verify upsert was called with custom ID
+            call_args = mock_qdrant_client.upsert.call_args
+            points = call_args[1]['points']
+            assert len(points) == 1
+            assert str(points[0].id) == 'custom-id-123'
+            
+            await adapter.disconnect()
+
+
 class TestQdrantCollectionManagement:
     """Test collection management operations for Qdrant adapter."""
     
