@@ -11,11 +11,12 @@ class MetricsStorage:
     Thread-safe in-memory metrics storage with history limits.
     """
     
-    def __init__(self, max_history: int = 1000):
+    def __init__(self, max_history: int = 1000, max_errors: int = 100):
         self.max_history = max_history
+        self.max_errors = max_errors
         self._operations = defaultdict(lambda: deque(maxlen=max_history))
         self._counters = defaultdict(int)
-        self._errors = deque(maxlen=100)
+        self._errors = deque(maxlen=max_errors)
         self._lock = asyncio.Lock()
     
     async def add_operation(

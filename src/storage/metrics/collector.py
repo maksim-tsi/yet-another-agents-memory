@@ -27,6 +27,7 @@ class MetricsCollector:
             config: Optional configuration
                 - enabled: Enable/disable metrics (default: True)
                 - max_history: Max operations to store (default: 1000)
+                - max_errors: Max errors to store (default: 100)
                 - track_errors: Track error details (default: True)
                 - track_data_volume: Track bytes in/out (default: True)
                 - percentiles: Latency percentiles (default: [50, 95, 99])
@@ -37,6 +38,7 @@ class MetricsCollector:
         config = config or {}
         self.enabled = config.get('enabled', True)
         self.max_history = config.get('max_history', 1000)
+        self.max_errors = config.get('max_errors', 100)
         self.track_errors = config.get('track_errors', True)
         self.track_data_volume = config.get('track_data_volume', True)
         self.percentiles = config.get('percentiles', [50, 95, 99])
@@ -45,7 +47,7 @@ class MetricsCollector:
         self.always_sample_errors = config.get('always_sample_errors', True)
         
         # Internal storage
-        self._storage = MetricsStorage(max_history=self.max_history)
+        self._storage = MetricsStorage(max_history=self.max_history, max_errors=self.max_errors)
         self._lock = asyncio.Lock()
         self._start_time = time.time()
     
