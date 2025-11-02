@@ -3513,6 +3513,8 @@ l4_semantic_memory:
 
 #### Week 4: CIAR Scoring System
 
+> **📋 Architectural Decision:** The CIAR formula is formally specified in **[ADR-004: CIAR Scoring Formula](../ADR/004-ciar-scoring-formula.md)**. This document defines the authoritative formula, parameters, and mathematical justification. Reference ADR-004 for all formula details.
+
 **Goal:** Implement the CIAR (Certainty × Impact × Age_Decay × Recency_Boost) scoring formula as the significance filter that determines which facts from L1 get promoted to L2.
 
 **Context:** CIAR is the key differentiator from systems like Mem0. It's an interpretable, cost-saving filter ensuring only high-value information proceeds to expensive downstream processing.
@@ -3529,9 +3531,19 @@ l4_semantic_memory:
 
 **1. CIAR Formula Implementation**
 
-**Core Formula:** `CIAR = (Certainty × Impact) × Age_Decay × Recency_Boost`
+**Core Formula:** See **[ADR-004](../ADR/004-ciar-scoring-formula.md)** for complete mathematical specification.
 
-**Key Decisions:**
+**Quick Reference:**
+```
+CIAR = (Certainty × Impact) × exp(-λ×days_since_creation) × (1 + α×access_count)
+```
+
+**Official Parameters (from ADR-004):**
+- **λ (lambda):** 0.0231 - exponential decay rate (30-day half-life)
+- **α (alpha):** 0.1 - reinforcement factor per access (10% boost)
+- **Promotion Threshold:** 0.6 (configurable)
+
+**Component Guidelines:**
 - **Certainty (0.0-1.0):** Extract from LLM metadata or use fact-type heuristics
   - High certainty: "User explicitly stated preference" → 0.9
   - Medium certainty: "User mentioned in passing" → 0.6
@@ -3542,34 +3554,25 @@ l4_semantic_memory:
   - Constraint: 0.8 (business-critical)
   - Entity: 0.6 (moderate utility)
   - Mention: 0.3 (low utility)
-  
-- **Age Decay:** Exponential decay `exp(-λ × age_days)`
-  - Lambda (λ): 0.1 (default) - controls decay rate
-  - Day 0: decay = 1.0
-  - Day 7: decay ≈ 0.5
-  - Day 14: decay ≈ 0.25
-  
-- **Recency Boost:** Linear boost from access patterns
-  - Formula: `1.0 + (α × access_count)`
-  - Alpha (α): 0.05 (default) - boost per access
-  - Increases with retrieval frequency
 
 **2. Component Architecture**
 
-Create `CIARScorer` class with:
+Create `CIARScorer` class following ADR-004 reference implementation with:
 - Separate methods for each component calculation
-- Configurable parameters (avoid hardcoding)
+- Configurable parameters (lambda, alpha, threshold)
 - Support for both LLM-derived and rule-based scoring
 - Validation of score ranges (0.0-1.0)
+- Component breakdown for debugging (see ADR-004 `CIARComponents` class)
 
 **3. Configuration Strategy**
 
-Design `ciar_config.yaml` with:
-- Threshold value (default: 0.6 for L2 promotion)
-- Component parameters (lambda, alpha)
+Design `ciar_config.yaml` following ADR-004 parameter specifications:
+- Threshold value (default: 0.6 as per ADR-004)
+- Lambda decay rate (default: 0.0231 for 30-day half-life)
+- Alpha reinforcement (default: 0.1 for 10% boost per access)
 - Impact weights by fact type
 - Certainty defaults by source type
-- Easy tuning during evaluation phase
+- See ADR-004 "Parameter Tuning Guide" for domain-specific presets
 
 **4. Testing Strategy**
 
@@ -3629,9 +3632,9 @@ Achieve 100% coverage (critical component) with:
 - **Future:** Can be made dynamic based on user feedback (Phase 4)
 
 **Decision 3: Decay Function Choice**
-- **Approach:** Exponential decay for age
-- **Rationale:** Common pattern in IR, interpretable lambda parameter
-- **Alternative considered:** Logarithmic decay (rejected: less intuitive)
+- **Approach:** Exponential decay for age (formalized in ADR-004)
+- **Rationale:** Based on Ebbinghaus forgetting curve, mathematically sound
+- **See:** ADR-004 Section 3 for complete analysis of 4 alternative formulas
 
 **Decision 4: Threshold Placement**
 - **Approach:** Threshold enforced at L2 tier, not in scorer
@@ -3644,18 +3647,19 @@ Achieve 100% coverage (critical component) with:
 
 ```yaml
 # config/ciar_config.yaml
+# NOTE: Parameters based on ADR-004 specification
 ciar:
   # Promotion threshold (facts must exceed this to enter L2)
-  threshold: 0.6
+  threshold: 0.6  # ADR-004 default
   
-  # Age decay parameters
+  # Age decay parameters (ADR-004 Section 4)
   age_decay:
-    lambda: 0.1  # Decay rate (higher = faster decay)
+    lambda: 0.0231  # 30-day half-life (ADR-004 recommended)
     unit: "days"  # Time unit for age calculation
   
-  # Recency boost parameters
+  # Recency boost parameters (ADR-004 Section 4)
   recency_boost:
-    alpha: 0.05  # Boost factor per access
+    alpha: 0.1  # 10% boost per access (ADR-004 recommended)
     max_boost: 2.0  # Cap to prevent unbounded growth
   
   # Impact weights by fact type
@@ -3710,13 +3714,13 @@ ciar:
 **Create:** `docs/memory/ciar-scoring-guide.md`
 
 **Include:**
-- Formula explanation with mathematical notation
-- Component descriptions with examples
+- Reference to ADR-004 as authoritative formula source
+- Implementation guide for `CIARScorer` class
 - Configuration parameter guide with tuning advice
 - Decision flowchart for certainty/impact assignment
 - Example calculations with step-by-step breakdown
 - Troubleshooting guide for unexpected scores
-- References to ADR-003 sections
+- References to ADR-003 and ADR-004
 
 ---
 
@@ -3757,10 +3761,11 @@ ciar:
 
 **Validation:**
 - [ ] Scores always in range [0.0, 1.0]
-- [ ] Age decay decreases over time
-- [ ] Recency boost increases with access
+- [ ] Age decay decreases over time (30-day half-life per ADR-004)
+- [ ] Recency boost increases with access (10% per access per ADR-004)
 - [ ] High-impact facts score higher than low-impact
 - [ ] Configuration validation prevents invalid parameters
+- [ ] Implementation matches ADR-004 reference code
 
 **Documentation:**
 - [ ] Guide with formula explanation
@@ -3778,7 +3783,7 @@ ciar:
 ##### Risk Mitigation
 
 **Risk 1: Parameter Tuning Difficulty**
-- **Mitigation:** Start with literature-based defaults, document tuning process
+- **Mitigation:** Use ADR-004 defaults (30-day half-life, 10% boost), reference domain presets
 - **Validation:** Test with representative dataset during evaluation (Phase 4)
 
 **Risk 2: Component Interdependencies**
@@ -3842,6 +3847,8 @@ ciar:
 ---
 
 #### Week 5: Fact Extraction & Promotion Engine
+
+> **📋 CIAR Reference:** Uses CIAR threshold (0.6) from **[ADR-004: CIAR Scoring Formula](../ADR/004-ciar-scoring-formula.md)** to filter facts for L2 promotion. Circuit breaker pattern documented in specification Priority 6.
 
 **Goal:** Implement the autonomous L1→L2 promotion pipeline: extract facts from raw turns, score with CIAR, and promote significant facts to L2 Working Memory.
 
@@ -3983,9 +3990,9 @@ WHILE engine.running:
     1. Get active sessions from L1 (sessions with recent activity)
     2. FOR EACH session:
         a. Fetch recent turns from L1 (last N turns)
-        b. Extract facts using FactExtractor
-        c. Score each fact with CIARScorer
-        d. Filter facts by CIAR threshold
+        b. Extract facts using FactExtractor (hybrid LLM+fallback)
+        c. Score each fact with CIARScorer (Week 4)
+        d. Filter facts by CIAR threshold (0.6 per ADR-004)
         e. Store significant facts in L2
         f. Mark turns as processed
     3. Sleep for interval (e.g., 30 seconds)

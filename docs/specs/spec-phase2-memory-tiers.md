@@ -36,23 +36,30 @@ This specification presents a **four-tier hierarchical memory architecture** for
 
 ### CIAR Scoring: A Significance Metric for Memory Promotion
 
+> **📋 Authoritative Reference**: Complete CIAR formula specification, mathematical justification, and implementation guide in **[ADR-004: CIAR Scoring Formula](../ADR/004-ciar-scoring-formula.md)**.
+
 **Research Challenge**: Determining which conversation elements warrant long-term retention without human annotation.
 
 **Our Solution**: The **CIAR (Certainty, Impact, Age, Recency)** scoring framework quantifies memory significance:
 
 ```
-CIAR = (Certainty × Impact) × Age_Decay × Recency_Boost
+CIAR = (Certainty × Impact) × exp(-λ×days_since_creation) × (1 + α×access_count)
 ```
+
+**Parameters** (from ADR-004):
+- **λ (lambda)**: 0.0231 - exponential decay rate (30-day half-life)
+- **α (alpha)**: 0.1 - linear reinforcement factor (10% boost per access)
+- **Promotion Threshold**: 0.6 (configurable)
 
 **Components**:
 - **Certainty** (0.0-1.0): LLM-assessed confidence in extracted information
 - **Impact** (0.0-1.0): Predicted utility for future interactions (user preferences > casual mentions)
-- **Age_Decay**: Temporal discount favoring recent information
-- **Recency_Boost**: Amplification for information accessed/reinforced multiple times
+- **Age_Decay**: `exp(-λ×days)` - exponential temporal discount following Ebbinghaus forgetting curve
+- **Recency_Boost**: `1 + α×access_count` - linear amplification for accessed/reinforced information
 
 **Key Insight**: CIAR enables **autonomous memory management** without manual curation, with threshold-based promotion (default: 0.6) balancing retention and storage costs. Empirical evaluation shows 85% precision in retaining user-relevant information while filtering transient conversational artifacts.
 
-**Research Implication**: CIAR provides a trainable, interpretable alternative to end-to-end learned memory systems, allowing domain-specific tuning of significance criteria.
+**Research Implication**: CIAR provides a trainable, interpretable alternative to end-to-end learned memory systems, allowing domain-specific tuning of significance criteria. ADR-004 documents the decision to use exponential decay over additive/multiplicative alternatives based on cognitive psychology research.
 
 ---
 
@@ -1144,26 +1151,31 @@ Significance = (Certainty × 0.3) + (Impact × 0.3) + (Age_Factor × 0.2) + (Rec
 **Lifecycle Decision Logic:**
 
 ```python
+# Note: CIAR thresholds from ADR-004
 async def should_promote_to_l2(turn_data: Dict) -> bool:
     """Determine if a turn should be promoted from L1 to L2"""
-    ciar = calculate_ciar_score(turn_data)
+    ciar = calculate_ciar_score(turn_data)  # Uses ADR-004 formula
     has_entities = detect_entities(turn_data.content)
     is_preference = is_user_preference(turn_data.content)
     
     return (
-        ciar >= 0.70 or
+        ciar >= 0.6 or  # ADR-004 default threshold (configurable)
         len(has_entities) > 0 or
         is_preference
     )
 
 async def should_consolidate_to_l3(fact: Dict) -> bool:
-    """Determine if a fact should be consolidated from L2 to L3"""
-    ciar = calculate_ciar_score(fact)
+    """Determine if a fact should be consolidated from L2 to L3
+    
+    Note: L2→L3 uses higher threshold (0.80) than L1→L2 (0.6) to ensure
+    only highly significant facts reach permanent storage.
+    """
+    ciar = calculate_ciar_score(fact)  # Uses ADR-004 formula
     age_days = (datetime.now() - fact.created_at).days
     cross_session = fact.mentioned_in_sessions > 1
     
     return (
-        ciar >= 0.80 and
+        ciar >= 0.80 and  # Higher threshold for permanent storage (configurable)
         age_days >= 1 and
         cross_session
     )
@@ -9412,6 +9424,8 @@ async def test_reinforce_knowledge(l4_tier):
 
 ## Priority 6: Promotion Logic (L1 → L2)
 
+> **📋 CIAR Formula Reference**: This section implements the formula specified in **[ADR-004: CIAR Scoring Formula](../ADR/004-ciar-scoring-formula.md)**. All CIAR calculations must follow ADR-004's exponential decay model.
+
 **Estimated Time**: 3-4 hours  
 **Status**: Not Started  
 **Dependencies**: Priorities 2, 3
@@ -9421,7 +9435,7 @@ async def test_reinforce_knowledge(l4_tier):
 Implement the **Promotion Engine** that moves conversation turns from L1 (Active Context) to L2 (Working Memory) by extracting structured facts. This engine serves as:
 
 1. **Turn-to-Fact Extractor**: Converts conversation turns into structured facts (LLM-based with rule-based fallback)
-2. **CIAR Scorer**: Calculates significance scores for promotion decisions
+2. **CIAR Scorer**: Calculates significance scores per ADR-004 specification
 3. **Fact Type Classifier**: Identifies fact types (entity, preference, constraint, goal, metric)
 4. **Entity Extractor**: Recognizes named entities from conversation
 5. **Promotion Orchestrator**: Manages promotion workflow and timing
@@ -9429,7 +9443,7 @@ Implement the **Promotion Engine** that moves conversation turns from L1 (Active
 
 **Key Design Goals**:
 - **Hybrid extraction strategy**: LLM-first with rule-based fallback for reliability
-- Automated promotion based on CIAR scores
+- Automated promotion based on CIAR scores (ADR-004 threshold: 0.6)
 - Multi-turn fact extraction
 - Entity recognition and linking
 - Confidence scoring for extracted facts
@@ -9455,17 +9469,25 @@ A conversation turn is promoted to L2 when it contains **actionable structured i
 
 **Note:** CIAR threshold is configurable (default: 0.6). Can be tuned during evaluation phase based on precision/recall metrics.
 
-**CIAR Score Calculation**:
+**CIAR Score Calculation** (from ADR-004):
 
 ```
-CIAR = (Certainty × Impact × Age_Factor × Recency_Factor)
+CIAR = (Certainty × Impact) × exp(-λ×days_since_creation) × (1 + α×access_count)
 
 Where:
-- Certainty (0.0-1.0): Confidence in fact extraction
-- Impact (0.0-1.0): Importance/relevance of information
-- Age_Factor (0.5-1.0): Time decay (newer = higher)
-- Recency_Factor (0.5-1.0): Last access recency
+- Certainty (0.0-1.0): Confidence in fact extraction (LLM-provided or heuristic)
+- Impact (0.0-1.0): Importance/relevance of information (fact-type based)
+- λ (lambda) = 0.0231: Exponential decay rate (30-day half-life)
+- α (alpha) = 0.1: Linear reinforcement (10% boost per access)
+- days_since_creation: Age of fact in days
+- access_count: Number of times fact has been retrieved
 ```
+
+**See ADR-004 for**:
+- Complete mathematical justification (Ebbinghaus forgetting curve)
+- Analysis of alternative formulas (additive, multiplicative, weighted)
+- Parameter tuning guide with domain-specific presets
+- Reference Python implementation (`CIARScorer` class)
 
 **Example CIAR Calculations**:
 
