@@ -2,29 +2,41 @@
 
 This directory contains documentation for Large Language Model (LLM) integrations in the Multi-Layered Memory System project.
 
-## ⚠️ Provider Status
+## ✅ Provider Status
 
-**AgentRouter Integration: ABANDONED**
+**Google Gemini: SELECTED**
 
-AgentRouter was initially selected (see ADR-005) but encountered persistent authentication issues during setup. Integration attempt abandoned on 2025-11-02. See **[ADR-006](../ADR/006-agentrouter-not-accessible.md)** for details.
+Google Gemini free tier selected as LLM provider following AgentRouter abandonment. Offers generous rate limits (10-15 RPM, 250k-1M TPM) with 1M token context windows across 3 model variants optimized for quality, volume, and speed.
 
-**Current Status:** Selecting alternative LLM provider for Phase 2 implementation.
+**Implementation Status:** Ready for Phase 2 integration (Week 4-11)
 
 ## Architecture Decision Records
 
 See related ADRs for LLM provider strategy:
-- **[ADR-006: AgentRouter Not Accessible - Alternative Strategy Required](../ADR/006-agentrouter-not-accessible.md)** - Why AgentRouter was abandoned, alternative options
-- **[ADR-005: Multi-Tier LLM Provider Strategy](../ADR/005-multi-tier-llm-provider-strategy.md)** - ~~Superseded~~ Original AgentRouter evaluation
+- **[ADR-006: Free-Tier LLM Provider Strategy](../ADR/006-free-tier-llm-strategy.md)** ✅ **CURRENT** - Google Gemini multi-model strategy
+- **[ADR-005: Multi-Tier LLM Provider Strategy](../ADR/005-multi-tier-llm-provider-strategy.md)** - ~~Superseded~~ (AgentRouter not accessible)
 
-## Next Steps
+## Quick Start
 
-LLM provider selection in progress. Options being evaluated:
-1. **Direct OpenAI** - Immediate availability, higher cost
-2. **LiteLLM** - Multi-provider proxy, requires setup
-3. **Multiple Direct Providers** - Maximum flexibility, more complexity
-4. **Local Models (Ollama)** - Development only, zero cost
+### 1. Get Gemini API Key
+```bash
+# Register at Google AI Studio
+# Get free API key from: https://aistudio.google.com/apikey
+```
 
-See ADR-006 for detailed analysis and recommendations
+### 2. Configure Environment
+```bash
+# Add to .env file
+echo "GOOGLE_API_KEY=your-api-key-here" >> .env
+```
+
+### 3. Install Dependencies
+```bash
+pip install google-generativeai
+```
+
+### 4. Start Implementation
+See **Week 4-5** in the [Implementation Plan](../plan/implementation-plan-02112025.md) for CIAR Scorer and Fact Extraction integration
 
 ## Model Selection Quick Reference
 
