@@ -158,3 +158,183 @@ class FactQuery(BaseModel):
     fact_categories: Optional[List[FactCategory]] = None
     limit: int = Field(default=10, ge=1, le=100)
     order_by: str = Field(default="ciar_score DESC")
+
+
+class Episode(BaseModel):
+    """
+    Represents a consolidated episode in L3 Episodic Memory.
+    
+    Episodes are clusters of related facts from L2, summarized into
+    coherent narrative experiences. Dual-indexed in Qdrant (vector)
+    and Neo4j (graph) for hybrid retrieval.
+    """
+    
+    episode_id: str
+    session_id: str
+    
+    # Content
+    summary: str = Field(..., min_length=10, max_length=10000)
+    narrative: Optional[str] = None  # Longer form narrative
+    
+    # Source facts
+    source_fact_ids: List[str] = Field(default_factory=list)
+    fact_count: int = Field(default=0, ge=0)
+    
+    # Temporal boundaries
+    time_window_start: datetime
+    time_window_end: datetime
+    duration_seconds: float = Field(default=0.0, ge=0.0)
+    
+    # Bi-temporal properties (ADR-003 requirement)
+    fact_valid_from: datetime  # When facts became true
+    fact_valid_to: Optional[datetime] = None  # When facts stopped being true
+    source_observation_timestamp: datetime  # When we observed/recorded this
+    
+    # Embeddings and indexing
+    embedding_model: str = Field(default="text-embedding-ada-002")
+    vector_id: Optional[str] = None  # Qdrant point ID
+    graph_node_id: Optional[str] = None  # Neo4j node ID
+    
+    # Metadata
+    entities: List[Dict[str, Any]] = Field(default_factory=list)
+    relationships: List[Dict[str, Any]] = Field(default_factory=list)
+    topics: List[str] = Field(default_factory=list)
+    importance_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    
+    # Provenance
+    consolidated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    consolidation_method: str = Field(default="llm_clustering")
+    
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
+        }
+    }
+    
+    def to_qdrant_payload(self) -> Dict[str, Any]:
+        """Convert to Qdrant payload format."""
+        return {
+            'episode_id': self.episode_id,
+            'session_id': self.session_id,
+            'summary': self.summary,
+            'narrative': self.narrative,
+            'source_fact_ids': self.source_fact_ids,
+            'fact_count': self.fact_count,
+            'time_window_start': self.time_window_start.isoformat(),
+            'time_window_end': self.time_window_end.isoformat(),
+            'fact_valid_from': self.fact_valid_from.isoformat(),
+            'fact_valid_to': self.fact_valid_to.isoformat() if self.fact_valid_to else None,
+            'topics': self.topics,
+            'importance_score': self.importance_score,
+            'graph_node_id': self.graph_node_id,
+            'consolidated_at': self.consolidated_at.isoformat()
+        }
+    
+    def to_neo4j_properties(self) -> Dict[str, Any]:
+        """Convert to Neo4j node properties."""
+        return {
+            'episodeId': self.episode_id,
+            'sessionId': self.session_id,
+            'summary': self.summary,
+            'narrative': self.narrative or '',
+            'factCount': self.fact_count,
+            'timeWindowStart': self.time_window_start.isoformat(),
+            'timeWindowEnd': self.time_window_end.isoformat(),
+            'durationSeconds': self.duration_seconds,
+            'factValidFrom': self.fact_valid_from.isoformat(),
+            'factValidTo': self.fact_valid_to.isoformat() if self.fact_valid_to else None,
+            'sourceObservationTimestamp': self.source_observation_timestamp.isoformat(),
+            'importanceScore': self.importance_score,
+            'vectorId': self.vector_id,
+            'consolidatedAt': self.consolidated_at.isoformat(),
+            'consolidationMethod': self.consolidation_method
+        }
+
+
+class KnowledgeDocument(BaseModel):
+    """
+    Represents distilled knowledge in L4 Semantic Memory.
+    
+    Knowledge documents are generalized patterns mined from L3 episodes,
+    representing durable, reusable insights.
+    """
+    
+    knowledge_id: str
+    
+    # Content
+    title: str = Field(..., min_length=5, max_length=500)
+    content: str = Field(..., min_length=10, max_length=50000)
+    knowledge_type: str = Field(default="insight")  # insight, pattern, rule, preference
+    
+    # Confidence and provenance
+    confidence_score: float = Field(default=0.7, ge=0.0, le=1.0)
+    source_episode_ids: List[str] = Field(default_factory=list)
+    episode_count: int = Field(default=0, ge=0)
+    
+    # Provenance links (for traceability)
+    provenance_links: List[str] = Field(default_factory=list)
+    
+    # Classification
+    category: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    domain: Optional[str] = None
+    
+    # Lifecycle
+    distilled_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_validated: Optional[datetime] = None
+    validation_count: int = Field(default=0, ge=0)
+    
+    # Usage tracking
+    access_count: int = Field(default=0, ge=0)
+    last_accessed: Optional[datetime] = None
+    usefulness_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
+        }
+    }
+    
+    def to_typesense_document(self) -> Dict[str, Any]:
+        """Convert to Typesense document format."""
+        return {
+            'id': self.knowledge_id,
+            'title': self.title,
+            'content': self.content,
+            'knowledge_type': self.knowledge_type,
+            'confidence_score': self.confidence_score,
+            'source_episode_ids': self.source_episode_ids,
+            'episode_count': self.episode_count,
+            'provenance_links': self.provenance_links,
+            'category': self.category or '',
+            'tags': self.tags,
+            'domain': self.domain or '',
+            'distilled_at': int(self.distilled_at.timestamp()),
+            'access_count': self.access_count,
+            'usefulness_score': self.usefulness_score,
+            'validation_count': self.validation_count
+        }
+
+
+class EpisodeQuery(BaseModel):
+    """Query parameters for retrieving episodes."""
+    session_id: Optional[str] = None
+    min_importance: Optional[float] = Field(default=0.0, ge=0.0, le=1.0)
+    topics: Optional[List[str]] = None
+    time_range_start: Optional[datetime] = None
+    time_range_end: Optional[datetime] = None
+    limit: int = Field(default=10, ge=1, le=100)
+
+
+class KnowledgeQuery(BaseModel):
+    """Query parameters for retrieving knowledge documents."""
+    search_text: Optional[str] = None
+    knowledge_type: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+    min_confidence: Optional[float] = Field(default=0.0, ge=0.0, le=1.0)
+    limit: int = Field(default=10, ge=1, le=100)

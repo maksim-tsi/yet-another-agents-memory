@@ -1,17 +1,15 @@
 """
-Memory module for multi-layered cognitive memory system.
-
-This module contains:
-- Memory tier implementations (L1-L4)
-- Data models (Fact, Episode, Knowledge)
-- Memory engines (Promotion, Consolidation, Distillation) - Coming in Phase 2B-D
+Memory system module.
 """
 
-from .models import Fact, FactType, FactCategory, FactQuery
+from src.memory.models import (
+    Fact, FactType, FactCategory, FactQuery,
+    Episode, EpisodeQuery,
+    KnowledgeDocument, KnowledgeQuery
+)
 
 __all__ = [
-    'Fact',
-    'FactType',
-    'FactCategory',
-    'FactQuery'
+    'Fact', 'FactType', 'FactCategory', 'FactQuery',
+    'Episode', 'EpisodeQuery',
+    'KnowledgeDocument', 'KnowledgeQuery'
 ]
