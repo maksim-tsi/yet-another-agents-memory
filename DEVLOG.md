@@ -179,6 +179,13 @@ src/memory/
 - Week 5 completion: Fact Extractor + Promotion Engine (5-8 days)
 - **Total**: 12-18 days to unblock Consolidation Engine
 
+**Implementation Plan Created:**
+- 📋 **[LLM Provider Implementation Plan](../plan/llm-provider-implementation-plan-12112025.md)** - Comprehensive Phase 2B development guide
+- Detailed task breakdown with code examples
+- Testing strategy and acceptance criteria
+- Configuration templates and deployment checklist
+- Ready for developer use
+
 **References:**
 - Git commits analyzed: Last 50 (back to October 20, 2025)
 - Key commits: `43d8c1b` (LLM tests), `252f623` (ADR-006), `e6e704a` (CIAR scorer)
