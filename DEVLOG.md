@@ -16,6 +16,36 @@ Each entry should include:
 
 ## Log Entries
 
+### 2025-12-27 - Documentation Alignment 📚
+
+**Status:** ✅ Complete
+
+**Summary:**
+Updated `docs/specs/spec-phase2-memory-tiers.md` to align with the actual Pydantic V2 model implementations in `src/memory/models.py`.
+
+**Details:**
+- **Model Updates:** Replaced outdated plain class definitions for `Fact`, `Episode`, and `Knowledge` with current Pydantic `BaseModel` definitions.
+- **Renaming:** Renamed `Knowledge` class to `KnowledgeDocument` in the spec to match the code.
+- **Enums:** Updated `FactType` and added `FactCategory` to match the implementation.
+- **Consistency:** Updated references to `Knowledge` class to `KnowledgeDocument` in the spec.
+
+### 2025-12-27 - Pydantic V2 Migration Fixes 🔧
+
+**Status:** ✅ Complete
+
+**Summary:**
+Removed deprecated `json_encoders` configuration from Pydantic models to align with Pydantic V2 standards and resolve deprecation warnings.
+
+**Details:**
+- **Refactoring:** Removed `json_encoders` from `Fact`, `Episode`, and `KnowledgeDocument` models in `src/memory/models.py`. Pydantic V2 natively serializes `datetime` to ISO 8601, making the custom encoder redundant.
+- **Verification:** Verified serialization behavior matches requirements.
+- **Testing:** Full test suite passed (396 tests).
+
+**Commands Run:**
+```bash
+pytest tests/ -v
+```
+
 ### 2025-12-27 - Infrastructure Migration & Environment Recovery 🏗️
 
 **Status:** ✅ Complete
