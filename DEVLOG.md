@@ -16,6 +16,33 @@ Each entry should include:
 
 ## Log Entries
 
+### 2025-12-27 - Phase 2 Lifecycle Engines Planning 📅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Created a detailed implementation plan for the Phase 2 Lifecycle Engines (Promotion, Consolidation, Distillation).
+
+**Details:**
+- **Plan Created:** `docs/plan/implementation-plan-2025-12-27-phase2-engines.md`
+- **Scope:** Covers Phase 2B (Promotion), 2C (Consolidation), and 2D (Distillation).
+- **Alignment:** Mapped all tasks to specific sections of `docs/specs/spec-phase2-memory-tiers.md`.
+
+### 2025-12-27 - Phase 2 Readiness Assessment 📊
+
+**Status:** ✅ Complete
+
+**Summary:**
+Conducted a comprehensive audit of the codebase against Phase 2 specifications and generated a readiness report.
+
+**Details:**
+- **Report Generated:** `docs/reports/2025-12-27-phase2-readiness-assessment.md`
+- **Findings:**
+    - Phase 2A (Memory Tiers) is 100% complete.
+    - Phase 2B (Promotion) is blocked by missing `PromotionEngine` and `FactExtractor`.
+    - `LLMClient` is implemented and functional, contrary to outdated instructions.
+- **Next Steps:** Prioritize implementation of `src/memory/engines/` starting with Fact Extraction.
+
 ### 2025-12-27 - Documentation Alignment 📚
 
 **Status:** ✅ Complete
