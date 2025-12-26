@@ -23,8 +23,6 @@ Usage:
 
 import os
 import pytest
-import asyncio
-from typing import Optional
 
 # Import clients for each service
 try:
@@ -277,7 +275,7 @@ def test_redis_operations(config):
         # Clean up
         client.delete(test_key)
         
-        print(f"✓ Redis operations: SET/GET working")
+        print("✓ Redis operations: SET/GET working")
         
     finally:
         if client:
@@ -324,7 +322,7 @@ def test_qdrant_health(config):
         # Test that we can get collections (indicates service is healthy)
         collections = client.get_collections()
         
-        print(f"✓ Qdrant health check passed")
+        print("✓ Qdrant health check passed")
         
     except Exception as e:
         pytest.fail(f"Qdrant health check failed: {e}")
@@ -373,7 +371,7 @@ def test_neo4j_query(config):
             record = result.single()
             assert record['num'] == 1
             
-            print(f"✓ Neo4j query execution working")
+            print("✓ Neo4j query execution working")
         
     finally:
         if driver:
@@ -420,7 +418,7 @@ def test_typesense_auth(config):
         collections = response.json()
         assert isinstance(collections, list)
         
-        print(f"✓ Typesense authentication working")
+        print("✓ Typesense authentication working")
         print(f"  Collections: {len(collections)}")
         
     except requests.exceptions.RequestException as e:

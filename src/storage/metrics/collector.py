@@ -1,11 +1,10 @@
 """
 Metrics collector for storage adapters.
 """
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, Optional, Union
 import time
 import random
 from datetime import datetime, timezone, timedelta
-from collections import defaultdict, deque
 import asyncio
 from .storage import MetricsStorage
 from .aggregator import MetricsAggregator

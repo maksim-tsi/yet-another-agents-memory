@@ -1,8 +1,6 @@
-import asyncio
 import json
 import importlib.util
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest

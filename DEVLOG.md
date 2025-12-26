@@ -15,6 +15,27 @@ Each entry should include:
 ---
 
 ## Log Entries
+
+### 2025-12-26 - Branch Sync, CIAR Fix & Linter Cleanup 🧹
+
+**Status:** ✅ Complete
+
+**Summary:**
+Synchronized local branches with remotes, fixed a logic bug in the CIAR scorer regarding future timestamps, and performed a repository-wide linter cleanup.
+
+**Details:**
+- **Branch Sync:** Fast-forwarded `dev`, `dev-mas`, and `main` to match their remote counterparts.
+- **Bug Fix:** `src/memory/ciar_scorer.py`: Fixed `_calculate_age_decay` to handle future timestamps (negative age) by clamping to 0, preventing invalid decay scores (>1.0) which caused test failures.
+- **Linting:** Installed `ruff` and ran `ruff check --fix`, automatically resolving ~75 issues (unused imports, f-strings).
+- **Verification:** Ran focused test suite (`tests/utils/test_llm_client.py` and `tests/memory/`) with **100% pass rate (122 tests)**.
+
+**Commands Run:**
+```bash
+git pull --ff-only
+ruff check . --fix
+pytest tests/utils/test_llm_client.py tests/memory/ -v
+```
+
 ### 2025-11-15 - Demo: File output formats + Unit Tests (NDJSON / JSON-array) 🧪
 
 **Status:** ✅ Complete

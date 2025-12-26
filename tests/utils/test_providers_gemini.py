@@ -2,10 +2,9 @@ import sys
 import types
 import pytest
 
-from types import SimpleNamespace
 
 from src.utils.providers import GeminiProvider
-from src.utils.llm_client import LLMResponse, ProviderHealth
+from src.utils.llm_client import LLMResponse
 
 
 class FakeUsage:
