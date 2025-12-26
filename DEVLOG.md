@@ -16,6 +16,29 @@ Each entry should include:
 
 ## Log Entries
 
+### 2025-12-27 - Infrastructure Migration & Environment Recovery 🏗️
+
+**Status:** ✅ Complete
+
+**Summary:**
+Completed the "Role Swap" infrastructure migration, updated configuration templates, fixed database schema issues, and verified full system integrity.
+
+**Details:**
+- **Config Update:** Updated `.env.example`, `scripts/setup_database.sh`, and `docs/IAC/INFRASTRUCTURE_ACCESS_GUIDE.md` to reflect new IP assignments (Dev Node: `.172`, Data Node: `.187`).
+- **Database Recovery:** Diagnosed missing PostgreSQL tables (`active_context`, `working_memory`) despite successful connection. Executed `migrations/001_active_context.sql` to restore schema.
+- **Verification:**
+    - Connectivity tests: **100% Pass** (Postgres, Redis, Qdrant, Neo4j, Typesense).
+    - Full Test Suite: **100% Pass** (396 tests).
+
+**Commands Run:**
+```bash
+# Database Migration
+psql -h $DATA_NODE_IP -U $POSTGRES_USER -d mas_memory -f migrations/001_active_context.sql
+
+# Verification
+pytest tests/ -v
+```
+
 ### 2025-12-26 - Branch Sync, CIAR Fix & Linter Cleanup 🧹
 
 **Status:** ✅ Complete
