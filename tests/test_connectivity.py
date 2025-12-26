@@ -77,28 +77,28 @@ def config():
     
     return {
         # PostgreSQL
-        'postgres_host': os.getenv('DEV_IP', '192.168.107.172'),
+        'postgres_host': os.getenv('DATA_NODE_IP', '192.168.107.187'),
         'postgres_port': int(os.getenv('POSTGRES_PORT', '5432')),
         'postgres_user': os.getenv('POSTGRES_USER', 'postgres'),
         'postgres_password': os.getenv('POSTGRES_PASSWORD'),
         'postgres_db': os.getenv('POSTGRES_DB', 'mas_memory'),
         
         # Redis
-        'redis_host': os.getenv('DEV_IP', '192.168.107.172'),
+        'redis_host': os.getenv('DEV_NODE_IP', '192.168.107.172'),
         'redis_port': int(os.getenv('REDIS_PORT', '6379')),
         
         # Qdrant
-        'qdrant_host': os.getenv('STG_IP', '192.168.107.187'),
+        'qdrant_host': os.getenv('DATA_NODE_IP', '192.168.107.187'),
         'qdrant_port': int(os.getenv('QDRANT_PORT', '6333')),
         
         # Neo4j
-        'neo4j_host': os.getenv('STG_IP', '192.168.107.187'),
+        'neo4j_host': os.getenv('DATA_NODE_IP', '192.168.107.187'),
         'neo4j_bolt_port': int(os.getenv('NEO4J_BOLT_PORT', '7687')),
         'neo4j_user': os.getenv('NEO4J_USER', 'neo4j'),
         'neo4j_password': os.getenv('NEO4J_PASSWORD'),
         
         # Typesense
-        'typesense_host': os.getenv('STG_IP', '192.168.107.187'),
+        'typesense_host': os.getenv('DATA_NODE_IP', '192.168.107.187'),
         'typesense_port': int(os.getenv('TYPESENSE_PORT', '8108')),
         'typesense_api_key': os.getenv('TYPESENSE_API_KEY'),
     }

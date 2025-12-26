@@ -123,8 +123,8 @@ Tests use `pytest` with `pytest-asyncio`. See `.github/instructions/testing.inst
 
 ### Environment Setup
 Copy `.env.example` to `.env` with:
-- PostgreSQL: `DEV_IP`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- Neo4j: `STG_IP`, `NEO4J_USER`, `NEO4J_PASSWORD`
+- PostgreSQL: `DATA_NODE_IP`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+- Neo4j: `DATA_NODE_IP`, `NEO4J_USER`, `NEO4J_PASSWORD`
 - LLM APIs: `GOOGLE_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`
 - Detailed host-detection and bootstrap steps live in `docs/environment-guide.md`; follow that guide before running commands.
 
