@@ -40,10 +40,10 @@ This project is guided by five core principles. All new code and refactoring sho
 - **CIAR Scorer**: Calculation logic in `src/memory/ciar_scorer.py` (Certainty × Impact × Age × Recency)
 - **Metrics System**: Comprehensive observability in `src/storage/metrics/` (timing, throughput, percentiles)
 - **LLM Connectivity**: 7 models tested (Gemini, Groq, Mistral) but not integrated
+- **LLM Client**: `src/utils/llm_client.py` - multi-provider abstraction with fallback
 
 ## What's Missing ❌
 
-- **LLM Client**: `src/utils/llm_client.py` - multi-provider abstraction with fallback (blocks all engines)
 - **Lifecycle Engines**: `src/memory/engines/` directory - promotion, consolidation, distillation
 - **Fact Extraction**: LLM-based structured extraction from L1 turns
 - **Autonomous Flow**: L1→L2→L3→L4 intelligent promotion based on CIAR thresholds
@@ -53,18 +53,25 @@ This project is guided by five core principles. All new code and refactoring sho
 - **Python Version**: Python 3.12.3
 - **Virtual Environment Path**: `/home/max/code/mas-memory-layer/.venv`
 - **CRITICAL RULE**: You MUST NOT use the `source .venv/bin/activate` command. Your `run_in_terminal` tool operates in a stateless shell, and any environment activation will be lost on the very next command.
-- **MANDATORY**: All Python, pip, or pytest commands MUST use the direct, absolute executable path to ensure the correct environment is used:
+- **Host Detection**: Before running any command, execute the following to determine whether you are on the managed remote Ubuntu VM, a local macOS checkout, or a local Ubuntu/RDP session:
+  ```bash
+  uname -a
+  hostname
+  pwd
+  ```
+  - If the output shows `Linux` and a hostname such as `skz-dev-lv`, you are on the managed remote VM and must use the absolute paths below.
+  - If the output shows `Darwin` (macOS) or a local Ubuntu hostname, you may use the relative `.venv` paths (e.g., `./.venv/bin/python`).
+  - Always document the host context in worklogs/DEVLOG entries when it affects behaviour.
+- **MANDATORY (Remote VM)**: When operating on the managed remote host, all Python, pip, or pytest commands MUST use the direct, absolute executable path to ensure the correct environment is used:
   - To run Python scripts: `/home/max/code/mas-memory-layer/.venv/bin/python ...`
   - To run tests (pytest): `/home/max/code/mas-memory-layer/.venv/bin/pytest ...`
   - To install packages: `/home/max/code/mas-memory-layer/.venv/bin/pip ...`
+- **RECOMMENDED (Local environments)**: Use the equivalent relative commands (`./.venv/bin/python`, etc.) to keep paths portable. The relative commands map 1:1 to the absolute versions and prevent accidental use of a different interpreter.
 
 ## MANDATORY: Terminal Resiliency Protocol (Remote SSH)
 
-- **Context**: You are operating on a remote Ubuntu machine (skz-dev-lv) via SSH. The `run_in_terminal` tool is known to be unreliable in this environment; it can hang, time out, or fail to capture command output.
-- **Rule 1 (Execution)**: To prevent failures, all commands that produce output (like tests or scripts) MUST be executed using the redirect-and-cat pattern. This decouples execution from output capture.
-  - **Pattern**: `<command> > /tmp/copilot.out && cat /tmp/copilot.out`
-- **Rule 2 (Fallback)**: If this fails and you get no output, you MUST immediately use the `get_terminal_output` tool to try and retrieve the output.
-- **Rule 3 (Escalation)**: If both steps fail, STOP. Do not retry the command. Report the failure, state the exact command you ran, and ask me to run it manually and paste back the contents of `/tmp/copilot.out`.
+  * **Pattern**: `<command> > /tmp/copilot.out 2>&1; cat /tmp/copilot.out`
+  * The semicolon ensures the log is surfaced even if the primary command exits non-zero. See `docs/lessons-learned.md` (entry LL-20251115-01) for the incident summary.
 
 ## Path-Specific Instructions
 
@@ -86,16 +93,16 @@ Detailed implementation patterns are organized by directory:
 ### Running Tests
 ```bash
 # All tests (pytest discovers tests/ directory)
-/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ -v > /tmp/copilot.out && cat /tmp/copilot.out
+/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ -v > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
 
 # Smoke tests (connectivity checks)
-/home/max/code/mas-memory-layer/scripts/run_smoke_tests.sh > /tmp/copilot.out && cat /tmp/copilot.out
+/home/max/code/mas-memory-layer/scripts/run_smoke_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
 
 # Specific storage adapter
-/home/max/code/mas-memory-layer/scripts/run_redis_tests.sh > /tmp/copilot.out && cat /tmp/copilot.out
+/home/max/code/mas-memory-layer/scripts/run_redis_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
 
 # Memory integration tests
-/home/max/code/mas-memory-layer/scripts/run_memory_integration_tests.sh > /tmp/copilot.out && cat /tmp/copilot.out
+/home/max/code/mas-memory-layer/scripts/run_memory_integration_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
 ```
 
 Tests use `pytest` with `pytest-asyncio`. See `.github/instructions/testing.instructions.md` for complete testing guidelines.
@@ -103,22 +110,23 @@ Tests use `pytest` with `pytest-asyncio`. See `.github/instructions/testing.inst
 ### Running Benchmarks
 ```bash
 # Storage performance benchmarks
-/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py run --size 10000 > /tmp/copilot.out && cat /tmp/copilot.out
-/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py analyze > /tmp/copilot.out && cat /tmp/copilot.out
+/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py run --size 10000 > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py analyze > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
 ```
 
 ### Database Setup
 ```bash
 # PostgreSQL migrations
-/home/max/code/mas-memory-layer/scripts/setup_database.sh > /tmp/copilot.out && cat /tmp/copilot.out
+/home/max/code/mas-memory-layer/scripts/setup_database.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
 # Applies migrations/001_active_context.sql
 ```
 
 ### Environment Setup
 Copy `.env.example` to `.env` with:
-- PostgreSQL: `DEV_IP`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- Neo4j: `STG_IP`, `NEO4J_USER`, `NEO4J_PASSWORD`
+- PostgreSQL: `DATA_NODE_IP`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+- Neo4j: `DATA_NODE_IP`, `NEO4J_USER`, `NEO4J_PASSWORD`
 - LLM APIs: `GOOGLE_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`
+- Detailed host-detection and bootstrap steps live in `docs/environment-guide.md`; follow that guide before running commands.
 
 ## External Tool: Gemini CLI (Future Use)
 
@@ -128,13 +136,14 @@ Copy `.env.example` to `.env` with:
 - **Execution**: All `gemini` commands MUST follow the MANDATORY: Terminal Resiliency Protocol.
 - **Example Command**:
 ```bash
-gemini -p "@./ Review the project architecture and suggest improvements for the L3 tier" > /tmp/copilot.out && cat /tmp/copilot.out
+gemini -p "@./ Review the project architecture and suggest improvements for the L3 tier" > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
 ```
 
 ## Critical Files & Directories
 
 - **ADRs**: `docs/ADR/003-four-layers-memory.md` (architecture), `004-ciar-scoring-formula.md`, `006-free-tier-llm-strategy.md`
 - **Status Docs**: `docs/reports/adr-003-architecture-review.md` (gap analysis), `DEVLOG.md` (progress tracking)
+- **Lessons Register**: `docs/lessons-learned.md` (structured incident log with mitigations)
 - **Data Models**: `src/memory/models.py` (Fact, Episode, KnowledgeDocument with Pydantic validation)
 - **Metrics**: `src/storage/metrics/collector.py`, `aggregator.py`, `exporters.py`
 - **Benchmarks**: `benchmarks/` directory with workload configs
