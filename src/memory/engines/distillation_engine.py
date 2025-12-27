@@ -15,6 +15,7 @@ Architecture:
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
+import time
 import yaml
 from pathlib import Path
 
@@ -63,7 +64,9 @@ class DistillationEngine(BaseEngine):
             episode_threshold: Minimum episodes before triggering distillation
             metrics_enabled: Enable metrics collection
         """
-        super().__init__(metrics_enabled)
+        metrics_config = {"enabled": metrics_enabled}
+        collector = MetricsCollector(config=metrics_config)
+        super().__init__(metrics_collector=collector)
         self.episodic_tier = episodic_tier
         self.semantic_tier = semantic_tier
         self.llm_client = LLMClient()
@@ -136,88 +139,85 @@ class DistillationEngine(BaseEngine):
         Returns:
             Dict with processing results and metrics
         """
-        timer = self.metrics.start_timer("distillation")
-        
-        try:
-            # Extract parameters
-            force_process = kwargs.get("force_process", False)
-            session_id = kwargs.get("session_id")
-            time_range = kwargs.get("time_range")  # Optional temporal filtering
-            
-            # Step 1: Check if we should trigger distillation
-            episode_count = await self._count_episodes(session_id, time_range)
-            
-            if not force_process and episode_count < self.episode_threshold:
-                logger.info(
-                    f"Episode count ({episode_count}) below threshold ({self.episode_threshold}), "
-                    "skipping distillation"
-                )
-                self.metrics.stop_timer("distillation", timer)
-                return {
-                    "status": "skipped",
-                    "reason": "below_threshold",
-                    "episode_count": episode_count,
-                    "threshold": self.episode_threshold
-                }
-            
-            # Step 2: Retrieve episodes from L3
-            logger.info(f"Retrieving {episode_count} episodes for distillation")
-            episodes = await self._retrieve_episodes(session_id, time_range)
-            
-            if not episodes:
-                logger.warning("No episodes retrieved for distillation")
-                self.metrics.stop_timer("distillation", timer)
-                return {
-                    "status": "skipped",
-                    "reason": "no_episodes",
-                    "episode_count": 0
-                }
-            
-            # Step 3: Generate knowledge documents for each type
-            knowledge_types = self.domain_config.get("knowledge_types", {})
-            created_docs = []
-            
-            for knowledge_type, type_config in knowledge_types.items():
-                try:
-                    doc = await self._create_knowledge_document(
-                        episodes=episodes,
-                        knowledge_type=knowledge_type,
-                        type_config=type_config,
-                        session_id=session_id
+        async with self.metrics.start_timer("distillation") as timer:
+            try:
+                # Extract parameters
+                force_process = kwargs.get("force_process", False)
+                session_id = kwargs.get("session_id")
+                time_range = kwargs.get("time_range")  # Optional temporal filtering
+                
+                # Step 1: Check if we should trigger distillation
+                episode_count = await self._count_episodes(session_id, time_range)
+                
+                if not force_process and episode_count < self.episode_threshold:
+                    logger.info(
+                        f"Episode count ({episode_count}) below threshold ({self.episode_threshold}), "
+                        "skipping distillation"
                     )
-                    
-                    if doc:
-                        # Step 4: Store in L4
-                        doc_id = await self.semantic_tier.store(doc)
-                        created_docs.append({
-                            "id": doc_id,
-                            "type": knowledge_type,
-                            "episode_count": len(episodes)
-                        })
-                        logger.info(f"Created {knowledge_type} document: {doc_id}")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to create {knowledge_type} document: {e}")
-                    # Continue with other knowledge types
-                    continue
-            
-            elapsed_ms = self.metrics.stop_timer("distillation", timer)
-            
-            return {
-                "status": "success",
-                "processed_episodes": len(episodes),
-                "created_documents": len(created_docs),
-                "documents": created_docs,
-                "elapsed_ms": elapsed_ms
-            }
-            
-        except Exception as e:
-            self.metrics.stop_timer("distillation", timer)
-            logger.error(f"Distillation processing failed: {e}")
-            return {
-                "status": "error",
-                "error": str(e)
-            }
+                    return {
+                        "status": "skipped",
+                        "reason": "below_threshold",
+                        "episode_count": episode_count,
+                        "threshold": self.episode_threshold
+                    }
+                
+                # Step 2: Retrieve episodes from L3
+                logger.info(f"Retrieving {episode_count} episodes for distillation")
+                episodes = await self._retrieve_episodes(session_id, time_range)
+                
+                if not episodes:
+                    logger.warning("No episodes retrieved for distillation")
+                    return {
+                        "status": "skipped",
+                        "reason": "no_episodes",
+                        "episode_count": 0
+                    }
+                
+                # Step 3: Generate knowledge documents for each type
+                knowledge_types = self.domain_config.get("knowledge_types", {})
+                created_docs = []
+                
+                for knowledge_type, type_config in knowledge_types.items():
+                    try:
+                        doc = await self._create_knowledge_document(
+                            episodes=episodes,
+                            knowledge_type=knowledge_type,
+                            type_config=type_config,
+                            session_id=session_id
+                        )
+                        
+                        if doc:
+                            # Step 4: Store in L4
+                            doc_id = await self.semantic_tier.store(doc)
+                            created_docs.append({
+                                "id": doc_id,
+                                "type": knowledge_type,
+                                "episode_count": len(episodes)
+                            })
+                            logger.info(f"Created {knowledge_type} document: {doc_id}")
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to create {knowledge_type} document: {e}")
+                        # Continue with other knowledge types
+                        continue
+                
+                elapsed_ms = (time.perf_counter() - timer.start_time) * 1000
+                
+                return {
+                    "status": "success",
+                    "processed_episodes": len(episodes),
+                    "created_documents": len(created_docs),
+                    "documents": created_docs,
+                    "elapsed_ms": elapsed_ms
+                }
+                
+            except Exception as e:
+                timer.success = False
+                logger.error(f"Distillation processing failed: {e}")
+                return {
+                    "status": "error",
+                    "error": str(e)
+                }
     
     async def _count_episodes(
         self,
@@ -313,8 +313,8 @@ class DistillationEngine(BaseEngine):
             episode_context = "\n\n".join([
                 f"Episode {i+1} (ID: {ep.episode_id}):\n"
                 f"Summary: {ep.summary}\n"
-                f"Facts: {len(ep.fact_ids)} facts\n"
-                f"Entities: {', '.join(ep.entities[:5])}"  # First 5 entities
+                f"Facts: {len(ep.source_fact_ids)} facts\n"
+                f"Entities: {', '.join([str(e.get('name', e)) for e in ep.entities[:5]])}"  # First 5 entities
                 for i, ep in enumerate(episodes)
             ])
             
@@ -337,7 +337,7 @@ Provide a structured response with the following fields:
             )
             
             # Parse LLM response
-            content, title, key_points = self._parse_llm_response(response, knowledge_type)
+            content, title, key_points = self._parse_llm_response(response.text, knowledge_type)
             
             # Extract metadata from episodes
             metadata = self._extract_metadata(episodes)
@@ -447,11 +447,26 @@ Provide a structured response with the following fields:
         
         # Add aggregate metadata
         metadata["source_episode_count"] = len(episodes)
-        metadata["entities"] = list(set(
-            entity
-            for ep in episodes
-            for entity in ep.entities
-        ))[:20]  # Top 20 unique entities
+        
+        # Collect and deduplicate entities
+        all_entities = [entity for ep in episodes for entity in ep.entities]
+        unique_entities = []
+        seen_hashes = set()
+        
+        for entity in all_entities:
+            try:
+                # Create a hashable representation for deduplication
+                # Convert values to strings to handle unhashable types like lists
+                entity_hash = tuple(sorted((k, str(v)) for k, v in entity.items()))
+                
+                if entity_hash not in seen_hashes:
+                    seen_hashes.add(entity_hash)
+                    unique_entities.append(entity)
+            except Exception:
+                # If something goes wrong, just include it to be safe
+                unique_entities.append(entity)
+                
+        metadata["entities"] = unique_entities[:20]  # Top 20 unique entities
         
         return metadata
     

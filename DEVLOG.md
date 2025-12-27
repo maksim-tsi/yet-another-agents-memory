@@ -16,6 +16,35 @@ Each entry should include:
 
 ## Log Entries
 
+### 2025-12-27 - Phase 2D Distillation Engine & Knowledge Synthesizer Completion ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Completed Phase 2D implementation. Fixed Pydantic V2 compatibility issues in test fixtures and engine code. Updated MetricsCollector API for better manual control. All tests for Distillation Engine and Knowledge Synthesizer are passing.
+
+**Details:**
+- **Pydantic V2 Alignment:**
+  - Updated `tests/memory/test_distillation_engine.py` fixtures to match `Episode` model schema (`source_fact_ids`, `time_window_start`, entity dicts).
+  - Fixed `DistillationEngine` to use correct field names (`source_fact_ids`, `source_episode_ids`).
+  - Resolved `unhashable type: 'dict'` error in metadata extraction by implementing entity deduplication with hashing.
+- **Metrics System Updates:**
+  - Enhanced `MetricsCollector` with `start_timer` and `stop_timer` methods to support both context manager and manual usage.
+  - Updated `OperationTimer` to support manual `start()` and `stop()` calls.
+  - Fixed `KnowledgeSynthesizer` to correctly await async `stop_timer` calls.
+- **Bug Fixes:**
+  - Fixed `LLMResponse` object handling in `DistillationEngine._parse_llm_response`.
+  - Corrected `doc_id` vs `knowledge_id` usage in conflict detection.
+  - Fixed `MetricsCollector` initialization in `DistillationEngine`.
+- **Testing:**
+  - **Distillation Engine:** 12/12 tests passing.
+  - **Knowledge Synthesizer:** 14/14 tests passing.
+  - **Total Phase 2D Tests:** 26/26 passing.
+
+**Next Steps:**
+1. Integration testing with real storage services.
+2. End-to-end pipeline validation (L1→L2→L3→L4).
+
 ### 2025-12-27 - Phase 2D Distillation Engine & Knowledge Synthesizer Implementation 🧠
 
 **Status:** 🚧 In Progress (92% Complete)

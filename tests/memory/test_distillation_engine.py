@@ -11,6 +11,7 @@ from src.memory.models import Episode, KnowledgeDocument
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.semantic_memory_tier import SemanticMemoryTier
 from src.utils.providers import BaseProvider
+from src.utils.llm_client import LLMResponse
 
 
 @pytest.fixture
@@ -37,7 +38,8 @@ def mock_llm_provider():
     """Mock LLM provider."""
     provider = MagicMock(spec=BaseProvider)
     provider.name = "mock_provider"
-    provider.generate = AsyncMock(return_value="""Title: Container Handling Best Practices
+    provider.generate = AsyncMock(return_value=LLMResponse(
+        text="""Title: Container Handling Best Practices
 
 This knowledge document summarizes key patterns from recent container operations.
 
@@ -47,7 +49,9 @@ Key_points:
 - Use specialized equipment for refrigerated containers
 - Document any damage immediately
 - Follow port-specific loading sequences
-""")
+""",
+        provider="mock_provider"
+    ))
     return provider
 
 
@@ -59,10 +63,12 @@ def sample_episodes():
             episode_id="ep_001",
             session_id="session_001",
             summary="Container loading at USLAX terminal",
-            fact_ids=["fact_001", "fact_002", "fact_003"],
-            entities=["USLAX", "MAERSK", "40HC", "Terminal_2"],
-            start_time=datetime(2025, 12, 20, 10, 0, 0),
-            end_time=datetime(2025, 12, 20, 12, 0, 0),
+            source_fact_ids=["fact_001", "fact_002", "fact_003"],
+            entities=[{"name": "USLAX"}, {"name": "MAERSK"}, {"name": "40HC"}, {"name": "Terminal_2"}],
+            time_window_start=datetime(2025, 12, 20, 10, 0, 0),
+            time_window_end=datetime(2025, 12, 20, 12, 0, 0),
+            fact_valid_from=datetime(2025, 12, 20, 10, 0, 0),
+            source_observation_timestamp=datetime(2025, 12, 20, 12, 0, 0),
             metadata={
                 "port_code": "USLAX",
                 "shipping_line": "MAERSK",
@@ -74,10 +80,12 @@ def sample_episodes():
             episode_id="ep_002",
             session_id="session_001",
             summary="Refrigerated container inspection",
-            fact_ids=["fact_004", "fact_005"],
-            entities=["USLAX", "40RF", "temperature_control"],
-            start_time=datetime(2025, 12, 20, 14, 0, 0),
-            end_time=datetime(2025, 12, 20, 15, 0, 0),
+            source_fact_ids=["fact_004", "fact_005"],
+            entities=[{"name": "USLAX"}, {"name": "40RF"}, {"name": "temperature_control"}],
+            time_window_start=datetime(2025, 12, 20, 14, 0, 0),
+            time_window_end=datetime(2025, 12, 20, 15, 0, 0),
+            fact_valid_from=datetime(2025, 12, 20, 14, 0, 0),
+            source_observation_timestamp=datetime(2025, 12, 20, 15, 0, 0),
             metadata={
                 "port_code": "USLAX",
                 "container_type": "40RF",
@@ -88,10 +96,12 @@ def sample_episodes():
             episode_id="ep_003",
             session_id="session_001",
             summary="Weight distribution issue resolution",
-            fact_ids=["fact_006", "fact_007", "fact_008"],
-            entities=["USLAX", "MSC", "container_stacking"],
-            start_time=datetime(2025, 12, 20, 16, 0, 0),
-            end_time=datetime(2025, 12, 20, 17, 0, 0),
+            source_fact_ids=["fact_006", "fact_007", "fact_008"],
+            entities=[{"name": "USLAX"}, {"name": "MSC"}, {"name": "container_stacking"}],
+            time_window_start=datetime(2025, 12, 20, 16, 0, 0),
+            time_window_end=datetime(2025, 12, 20, 17, 0, 0),
+            fact_valid_from=datetime(2025, 12, 20, 16, 0, 0),
+            source_observation_timestamp=datetime(2025, 12, 20, 17, 0, 0),
             metadata={
                 "port_code": "USLAX",
                 "shipping_line": "MSC",
@@ -102,10 +112,12 @@ def sample_episodes():
             episode_id="ep_004",
             session_id="session_002",
             summary="Damaged container documentation",
-            fact_ids=["fact_009", "fact_010"],
-            entities=["USLAX", "damage_report", "insurance"],
-            start_time=datetime(2025, 12, 21, 9, 0, 0),
-            end_time=datetime(2025, 12, 21, 10, 0, 0),
+            source_fact_ids=["fact_009", "fact_010"],
+            entities=[{"name": "USLAX"}, {"name": "damage_report"}, {"name": "insurance"}],
+            time_window_start=datetime(2025, 12, 21, 9, 0, 0),
+            time_window_end=datetime(2025, 12, 21, 10, 0, 0),
+            fact_valid_from=datetime(2025, 12, 21, 9, 0, 0),
+            source_observation_timestamp=datetime(2025, 12, 21, 10, 0, 0),
             metadata={
                 "port_code": "USLAX",
                 "terminal_id": "Terminal_2"
@@ -115,10 +127,12 @@ def sample_episodes():
             episode_id="ep_005",
             session_id="session_002",
             summary="Loading sequence optimization",
-            fact_ids=["fact_011", "fact_012", "fact_013"],
-            entities=["USLAX", "loading_plan", "efficiency"],
-            start_time=datetime(2025, 12, 21, 11, 0, 0),
-            end_time=datetime(2025, 12, 21, 13, 0, 0),
+            source_fact_ids=["fact_011", "fact_012", "fact_013"],
+            entities=[{"name": "USLAX"}, {"name": "loading_plan"}, {"name": "efficiency"}],
+            time_window_start=datetime(2025, 12, 21, 11, 0, 0),
+            time_window_end=datetime(2025, 12, 21, 13, 0, 0),
+            fact_valid_from=datetime(2025, 12, 21, 11, 0, 0),
+            source_observation_timestamp=datetime(2025, 12, 21, 13, 0, 0),
             metadata={
                 "port_code": "USLAX",
                 "terminal_id": "Terminal_2"
@@ -318,9 +332,9 @@ async def test_provenance_tracking(
     
     # Check provenance
     for doc in stored_docs:
-        assert len(doc.source_episodes) == 5
-        assert "ep_001" in doc.source_episodes
-        assert "ep_005" in doc.source_episodes
+        assert len(doc.source_episode_ids) == 5
+        assert "ep_001" in doc.source_episode_ids
+        assert "ep_005" in doc.source_episode_ids
 
 
 @pytest.mark.asyncio
@@ -454,4 +468,4 @@ async def test_metrics_collection(
     
     # Get metrics
     metrics = await engine.get_metrics()
-    assert "distillation" in metrics
+    assert "distillation" in metrics["operations"]

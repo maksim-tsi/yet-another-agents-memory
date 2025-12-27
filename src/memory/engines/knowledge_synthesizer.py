@@ -147,7 +147,7 @@ class KnowledgeSynthesizer:
             if cached_result:
                 logger.info(f"Cache hit for query: {query[:50]}...")
                 if self.metrics:
-                    self.metrics.stop_timer("synthesis", timer)
+                    await self.metrics.stop_timer("synthesis", timer)
                 return {
                     "status": "success",
                     "synthesized_text": cached_result,
@@ -166,7 +166,7 @@ class KnowledgeSynthesizer:
             if not filtered_docs:
                 logger.info("No knowledge documents found matching filters")
                 if self.metrics:
-                    self.metrics.stop_timer("synthesis", timer)
+                    await self.metrics.stop_timer("synthesis", timer)
                 return {
                     "status": "success",
                     "synthesized_text": "No relevant knowledge found for this query.",
@@ -186,7 +186,7 @@ class KnowledgeSynthesizer:
             if not relevant_docs:
                 logger.info(f"No documents above similarity threshold {self.similarity_threshold}")
                 if self.metrics:
-                    self.metrics.stop_timer("synthesis", timer)
+                    await self.metrics.stop_timer("synthesis", timer)
                 return {
                     "status": "success",
                     "synthesized_text": "No highly relevant knowledge found for this query.",
@@ -207,7 +207,7 @@ class KnowledgeSynthesizer:
             # Step 6: Cache result
             self._cache_result(cache_key, synthesized_text)
             
-            elapsed_ms = self.metrics.stop_timer("synthesis", timer) if self.metrics else 0
+            elapsed_ms = await self.metrics.stop_timer("synthesis", timer) if self.metrics else 0
             
             return {
                 "status": "success",
@@ -222,7 +222,7 @@ class KnowledgeSynthesizer:
             
         except Exception as e:
             if self.metrics:
-                self.metrics.stop_timer("synthesis", timer)
+                await self.metrics.stop_timer("synthesis", timer)
             logger.error(f"Synthesis failed: {e}")
             return {
                 "status": "error",
@@ -375,7 +375,7 @@ class KnowledgeSynthesizer:
         for doc in documents:
             if doc.metadata and doc.metadata.get("conflict_tag") == conflict_tag:
                 conflicts.append({
-                    "doc_id": doc.doc_id,
+                    "doc_id": doc.knowledge_id,
                     "title": doc.title,
                     "conflict_type": doc.metadata.get("conflict_type", "unknown")
                 })
@@ -392,7 +392,7 @@ class KnowledgeSynthesizer:
                 for doc2 in recommendations[i+1:]:
                     if self._are_contradictory(doc1.content, doc2.content):
                         conflicts.append({
-                            "doc_ids": [doc1.doc_id, doc2.doc_id],
+                            "doc_ids": [doc1.knowledge_id, doc2.knowledge_id],
                             "titles": [doc1.title, doc2.title],
                             "conflict_type": "contradictory_recommendations"
                         })
