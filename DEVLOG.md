@@ -16,6 +16,20 @@ Each entry should include:
 
 ## Log Entries
 
+### 2025-12-27 - Phase 2C Consolidation Engine Implementation 📊
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented the `ConsolidationEngine` to cluster facts from Working Memory (L2) into episodes stored in Episodic Memory (L3) with Gemini-based embeddings.
+
+**Details:**
+- **Embedding Support:** Added `get_embedding` method to `GeminiProvider` using `gemini-embedding-001` model.
+- **Consolidation Logic:** Implemented time-based fact clustering (24h windows), LLM-based episode summarization, and dual-write to Qdrant+Neo4j.
+- **Test Data:** Created 6 test documents (2 .md, 2 .txt, 2 .html) with ~1000 words each on CS and logistics topics in `tests/fixtures/embedding_test_data/`.
+- **Testing:** Added comprehensive unit tests (`tests/memory/engines/test_consolidation_engine.py`) with 100% pass rate (8 tests).
+- **Total Engine Tests:** All 18 engine tests passing.
+
 ### 2025-12-27 - Phase 2B Promotion Engine Implementation 🚀
 
 **Status:** ✅ Complete

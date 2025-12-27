@@ -63,36 +63,54 @@ The implementation follows the architecture defined in **ADR-003** and the **Pha
 1.  **Episode Clustering**
     *   **Logic**: Group facts by time windows (e.g., 24h) and semantic similarity.
     *   **File**: `src/memory/engines/consolidation_engine.py` (or helper module).
+    *   **Status**: [x] Complete
 
 2.  **Consolidation Engine Logic**
     *   **File**: `src/memory/engines/consolidation_engine.py`
     *   **Requirements**:
-        *   Retrieve facts from `WorkingMemoryTier`.
-        *   Use `LLMClient` to generate episode summaries and narratives.
-        *   **Dual-Write**: Store `Episode` objects in `EpisodicMemoryTier` (handles both Qdrant and Neo4j storage).
-        *   **Resilience**: Handle partial failures (e.g., Vector store success but Graph store failure).
+        *   [x] Retrieve facts from `WorkingMemoryTier`.
+        *   [x] Use `LLMClient` to generate episode summaries and narratives.
+        *   [x] **Dual-Write**: Store `Episode` objects in `EpisodicMemoryTier` (handles both Qdrant and Neo4j storage).
+        *   [x] **Resilience**: Handle partial failures (e.g., Vector store success but Graph store failure).
 
 ---
 
 ## Phase 2D: Distillation Engine (L3 → L4)
 
-**Objective**: Mine patterns and insights from Episodic Memory (L3) to create generalized Knowledge in Semantic Memory (L4).
+**Objective**: Create domain-specific knowledge documents from episodes and provide query-time synthesis to preserve agent context windows.
 
 **Spec Reference**: `spec-phase2-memory-tiers.md` > "Lifecycle Engines: Autonomous Memory Management" > "3. Distillation (L3→L4)"
 
+**Architecture Decision**: Query-time synthesis rather than background processing to optimize agent context usage, not database size.
+
 ### Tasks
 
-1.  **Pattern Mining**
-    *   **Logic**: Analyze multiple episodes to find recurring themes, user preferences, or rules.
-    *   **File**: `src/memory/engines/distillation_engine.py` (or helper module).
+1.  **Domain Configuration**
+    *   **File**: `config/domains/container_logistics.yaml`
+    *   **Requirements**:
+        *   [x] Define metadata schema (terminal_id, port_code, shipping_line, container_type, trade_lane, region, customer_id, vessel_id).
+        *   [x] Specify matching rules for metadata-first filtering.
+        *   [x] Document domain-specific knowledge types.
 
 2.  **Distillation Engine Logic**
     *   **File**: `src/memory/engines/distillation_engine.py`
     *   **Requirements**:
-        *   Query `EpisodicMemoryTier` for relevant episodes.
-        *   Use `LLMClient` to synthesize `KnowledgeDocument` objects.
-        *   Store in `SemanticMemoryTier` (Typesense).
-        *   **Provenance**: Link created Knowledge back to source Episode IDs.
+        *   [ ] Trigger on episode count threshold (default 5 episodes).
+        *   [ ] Generate all knowledge types (summaries, insights, patterns, recommendations, rules).
+        *   [ ] Extract rich metadata from episodes (domain-specific fields).
+        *   [ ] Store in `SemanticMemoryTier` (Typesense) with full metadata.
+        *   [ ] **No Deduplication**: Allow multiple knowledge documents for different contexts.
+        *   [ ] **Provenance**: Link each document to source Episode IDs.
+
+3.  **Knowledge Synthesizer**
+    *   **File**: `src/memory/engines/knowledge_synthesizer.py`
+    *   **Requirements**:
+        *   [ ] **Metadata-First Filtering**: Filter L4 documents by domain metadata before similarity comparison.
+        *   [ ] **Cosine Similarity**: Compute similarity within filtered groups (threshold 0.85).
+        *   [ ] **Query-Context Synthesis**: Use LLM to combine relevant knowledge with agent query context.
+        *   [ ] **Conflict Transparency**: Surface conflicting information to agent rather than hiding it.
+        *   [ ] **Short-TTL Caching**: Cache synthesized results for 1 hour to reduce LLM calls.
+        *   [ ] **Performance**: Target <200ms for metadata filtering + similarity search.
 
 ---
 

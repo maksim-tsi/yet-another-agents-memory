@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, List
 
 from .llm_client import BaseProvider, LLMResponse, ProviderHealth
 
@@ -50,6 +50,29 @@ class GeminiProvider(BaseProvider):
             }
 
         return LLMResponse(text=getattr(response, "text", ""), provider=self.name, model=model, usage=usage_dict)
+
+    async def get_embedding(self, text: str, model: Optional[str] = None) -> List[float]:
+        """Generate embedding using Gemini embedding model.
+        
+        Args:
+            text: Text to embed.
+            model: Embedding model name (default: gemini-embedding-001).
+            
+        Returns:
+            List of floats representing the embedding vector.
+        """
+        model = model or "gemini-embedding-001"
+
+        def sync_call():
+            response = self.client.models.embed_content(
+                model=model,
+                contents=text,
+            )
+            return response
+
+        response = await asyncio.to_thread(sync_call)
+        # Response structure: response.embeddings[0].values
+        return list(response.embeddings[0].values)
 
     async def health_check(self) -> ProviderHealth:
         """Attempt a lightweight call to verify Gemini connectivity.
