@@ -1,7 +1,7 @@
 # Phase 2 Lifecycle Engines Implementation Plan
 
 **Date**: 2025-12-27
-**Status**: Draft
+**Status**: In Progress
 **Reference Spec**: [spec-phase2-memory-tiers.md](../specs/spec-phase2-memory-tiers.md)
 
 ## Overview
@@ -14,8 +14,8 @@ The implementation follows the architecture defined in **ADR-003** and the **Pha
 
 ## Prerequisites
 
-- [ ] **Update Documentation**: Update `.github/copilot-instructions.md` to reflect that `LLM Client` is implemented (currently marked as missing).
-- [ ] **Engine Foundation**: Create `src/memory/engines/` directory.
+- [x] **Update Documentation**: Update `.github/copilot-instructions.md` to reflect that `LLM Client` is implemented (currently marked as missing).
+- [x] **Engine Foundation**: Create `src/memory/engines/` directory.
 
 ---
 
@@ -30,25 +30,25 @@ The implementation follows the architecture defined in **ADR-003** and the **Pha
 1.  **Base Engine Interface**
     *   **File**: `src/memory/engines/base_engine.py`
     *   **Requirements**:
-        *   Abstract `BaseEngine` class.
-        *   Standard methods: `process()`, `health_check()`, `get_metrics()`.
-        *   Async/await pattern for non-blocking operations.
+        *   [x] Abstract `BaseEngine` class.
+        *   [x] Standard methods: `process()`, `health_check()`, `get_metrics()`.
+        *   [x] Async/await pattern for non-blocking operations.
 
 2.  **Fact Extractor**
     *   **File**: `src/memory/engines/fact_extractor.py`
     *   **Requirements**:
-        *   Use `LLMClient` to process raw text turns.
-        *   Implement structured output parsing (JSON/Pydantic) to create `Fact` objects.
-        *   **Resilience**: Implement Circuit Breaker pattern (fallback to rule-based extraction on LLM failure).
+        *   [x] Use `LLMClient` to process raw text turns.
+        *   [x] Implement structured output parsing (JSON/Pydantic) to create `Fact` objects.
+        *   [x] **Resilience**: Implement Circuit Breaker pattern (fallback to rule-based extraction on LLM failure).
 
 3.  **Promotion Engine Logic**
     *   **File**: `src/memory/engines/promotion_engine.py`
     *   **Requirements**:
-        *   Poll `ActiveContextTier` for recent turns (batch processing).
-        *   Invoke `FactExtractor`.
-        *   Score facts using existing `CIARScorer`.
-        *   Filter based on `promotion_threshold` (default 0.6).
-        *   Store qualifying facts in `WorkingMemoryTier`.
+        *   [x] Poll `ActiveContextTier` for recent turns (batch processing).
+        *   [x] Invoke `FactExtractor`.
+        *   [x] Score facts using existing `CIARScorer`.
+        *   [x] Filter based on `promotion_threshold` (default 0.6).
+        *   [x] Store qualifying facts in `WorkingMemoryTier`.
 
 ---
 

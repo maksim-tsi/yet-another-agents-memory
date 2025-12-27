@@ -16,6 +16,32 @@ Each entry should include:
 
 ## Log Entries
 
+### 2025-12-27 - Phase 2B Promotion Engine Implementation 🚀
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented the `PromotionEngine` and `FactExtractor` to automate the flow of information from Active Context (L1) to Working Memory (L2).
+
+**Details:**
+- **Fact Extraction:** Implemented `FactExtractor` using `LLMClient` with a circuit-breaker fallback to rule-based extraction.
+- **Promotion Logic:** Implemented `PromotionEngine` which orchestrates the pipeline: Retrieve L1 turns -> Extract Facts -> Calculate CIAR Score -> Filter -> Store in L2.
+- **Testing:** Added comprehensive unit tests for both components (`tests/memory/engines/test_fact_extractor.py`, `tests/memory/engines/test_promotion_engine.py`) with 100% pass rate.
+- **Architecture:** Fully aligned with ADR-003 and Phase 2 specs.
+
+### 2025-12-27 - Phase 2B Engine Foundation 🏗️
+
+**Status:** ✅ Complete
+
+**Summary:**
+Established the foundation for Lifecycle Engines with the `BaseEngine` interface and directory structure.
+
+**Details:**
+- **Documentation:** Updated `.github/copilot-instructions.md` to reflect `LLMClient` status.
+- **Structure:** Created `src/memory/engines/` package.
+- **Core Interface:** Implemented `BaseEngine` in `src/memory/engines/base_engine.py` with async `process`, `health_check`, and `get_metrics`.
+- **Testing:** Added unit tests in `tests/memory/engines/test_base_engine.py` (100% pass).
+
 ### 2025-12-27 - Phase 2 Lifecycle Engines Planning 📅
 
 **Status:** ✅ Complete

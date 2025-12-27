@@ -40,10 +40,10 @@ This project is guided by five core principles. All new code and refactoring sho
 - **CIAR Scorer**: Calculation logic in `src/memory/ciar_scorer.py` (Certainty × Impact × Age × Recency)
 - **Metrics System**: Comprehensive observability in `src/storage/metrics/` (timing, throughput, percentiles)
 - **LLM Connectivity**: 7 models tested (Gemini, Groq, Mistral) but not integrated
+- **LLM Client**: `src/utils/llm_client.py` - multi-provider abstraction with fallback
 
 ## What's Missing ❌
 
-- **LLM Client**: `src/utils/llm_client.py` - multi-provider abstraction with fallback (blocks all engines)
 - **Lifecycle Engines**: `src/memory/engines/` directory - promotion, consolidation, distillation
 - **Fact Extraction**: LLM-based structured extraction from L1 turns
 - **Autonomous Flow**: L1→L2→L3→L4 intelligent promotion based on CIAR thresholds
