@@ -31,12 +31,12 @@ This section provides the necessary context for all development tasks.
 This is a **four-tier cognitive memory system** for Multi-Agent Systems (MAS), designed for supply chain/logistics applications.
 
 **Four-Tier Architecture (ADR-003)**:
-- **L1: Active Context** (Redis) → 10-20 recent turns, 24h TTL
-- **L2: Working Memory** (PostgreSQL) → Significant facts filtered by CIAR score
+- **L1: Active Context** (Redis) → 10-20 recent **raw** turns, 24h TTL, **no pre-processing** (hot path)
+- **L2: Working Memory** (PostgreSQL) → Significant facts filtered by CIAR score, **batch-processed topic segments**
 - **L3: Episodic Memory** (Qdrant + Neo4j) → Consolidated episodes with dual indexing
 - **L4: Semantic Memory** (Typesense) → Distilled knowledge patterns
 
-**Information Flow**: L1 raw turns → [Promotion Engine] → L2 facts → [Consolidation Engine] → L3 episodes → [Distillation Engine] → L4 knowledge
+**Information Flow**: L1 raw turns → [Promotion Engine with batch compression/segmentation via Groq/Gemini] → L2 facts → [Consolidation Engine] → L3 episodes → [Distillation Engine] → L4 knowledge
 
 **Core Architectural Principles**:
 1. **Computational State Persistence**: Memory is an active workspace for multi-step reasoning

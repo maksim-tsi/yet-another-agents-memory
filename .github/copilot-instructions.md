@@ -9,13 +9,13 @@ This is a **four-tier cognitive memory system** for Multi-Agent Systems (MAS), d
 ### Four-Tier Memory Architecture (ADR-003)
 
 ```
-L1: Active Context (Redis) → 10-20 recent turns, 24h TTL
-L2: Working Memory (PostgreSQL) → Significant facts filtered by CIAR score
+L1: Active Context (Redis) → 10-20 raw turns, 24h TTL (no pre-processing, hot path)
+L2: Working Memory (PostgreSQL) → CIAR-filtered facts (batch-processed via Groq/Gemini)
 L3: Episodic Memory (Qdrant + Neo4j) → Consolidated episodes with dual indexing
 L4: Semantic Memory (Typesense) → Distilled knowledge patterns
 ```
 
-**Information Flow**: L1 raw turns → [Promotion Engine] → L2 facts → [Consolidation Engine] → L3 episodes → [Distillation Engine] → L4 knowledge
+**Information Flow**: L1 raw turns → [Promotion Engine: batch compression/segmentation via Fast Inference LLMs] → L2 facts → [Consolidation Engine] → L3 episodes → [Distillation Engine] → L4 knowledge
 
 ## Core Architectural Principles
 

@@ -9,6 +9,140 @@
 
 ---
 
+## ⚠️ CRITICAL PRE-PHASE 3 PREREQUISITE: Architectural Flow Correction
+
+**Status**: MUST COMPLETE BEFORE WEEK 1  
+**Priority**: P0 (BLOCKER)  
+**Estimated Duration**: 3-5 days  
+**Owner**: Core Team
+
+### Background
+
+During ADR-003 architecture review (December 28, 2025), a critical mismatch was identified between the **documented architecture** (ADR-003) and the **current implementation** of the Promotion Engine (L1→L2 flow).
+
+**Architecture Decision (ADR-003, Updated Dec 28, 2025)**:
+- **L1**: Raw buffer (no pre-processing)
+- **L2 Promotion**: Batch processing with compression & topic segmentation via Fast Inference LLMs (Groq/Gemini)
+
+**Current Implementation Gap**:
+- `PromotionEngine` retrieves ALL turns (no batch threshold)
+- `FactExtractor` extracts individual facts (not topic segments)
+- No compression or segmentation logic
+- Wrong granularity for CIAR scoring
+
+### Required Changes
+
+#### 1. Update PromotionEngine Architecture
+**File**: `src/memory/engines/promotion_engine.py`
+
+**Changes Required**:
+- [ ] Add **batch threshold trigger** (e.g., process when L1 buffer reaches 10-20 turns)
+- [ ] Replace `FactExtractor` with `TopicSegmenter` (new component)
+- [ ] Single API call to Fast Inference LLM for batch compression + segmentation
+- [ ] Score **topic segments** (not individual facts) using CIAR
+- [ ] Store segments in L2 as structured summaries
+
+**Reference Documents**:
+- [ADR-003: L2 Procedure](../ADR/003-four-layers-memory.md#l2-working-memory-significance-filtered-store) (Lines 42-45)
+- [ADR-006: Fast Inference LLM Strategy](../ADR/006-free-tier-llm-strategy.md) (Groq Llama-3.3-70b, Gemini Flash)
+
+#### 2. Create TopicSegmenter Component
+**File**: `src/memory/engines/topic_segmenter.py` (NEW)
+
+**Implementation**:
+```python
+class TopicSegmenter:
+    """
+    Segments and compresses batches of raw turns into coherent topics.
+    
+    Process:
+    1. Receive batch of raw turns from L1 (e.g., 10-20 messages)
+    2. Single LLM call to Fast Inference model (Groq/Gemini)
+    3. Output: List of topic segments with:
+       - content: Compressed summary of the topic
+       - certainty: Confidence in the segment (0.0-1.0)
+       - impact: Estimated significance (0.0-1.0)
+       - turn_range: [start_idx, end_idx]
+    """
+    
+    async def segment_batch(self, turns: List[Dict], metadata: Dict) -> List[TopicSegment]:
+        """Single API call for compression + segmentation."""
+        pass
+```
+
+**Acceptance Criteria**:
+- [ ] Single LLM call per batch (not per turn)
+- [ ] Output format compatible with CIAR scoring
+- [ ] Compression reduces token count by 30-50%
+- [ ] Segments are coherent and non-overlapping
+
+#### 3. Update L2 Data Model
+**File**: `src/memory/models.py`
+
+**Changes Required**:
+- [ ] Rename `Fact` → `TopicSegment` OR extend `Fact` to support segment metadata
+- [ ] Add fields: `turn_range`, `compression_ratio`, `segment_index`
+- [ ] Ensure compatibility with CIAR scorer
+
+**Reference**: [ADR-004: CIAR Scoring Formula](../ADR/004-ciar-scoring-formula.md) (scoring interface requirements)
+
+#### 4. Update Tests
+**Files**: 
+- `tests/memory/test_promotion_engine.py`
+- `tests/memory/test_topic_segmenter.py` (NEW)
+
+**Changes Required**:
+- [ ] Test batch threshold triggering
+- [ ] Test single API call to LLM
+- [ ] Test segment compression and scoring
+- [ ] Test L2 storage of segments
+
+#### 5. Documentation Updates
+**Files**:
+- `docs/sd-02.md` (System Design for L1→L2 flow)
+- `docs/dd-02.md` (Design Document for Promotion Engine)
+
+**Changes Required**:
+- [ ] Update flow diagrams to show batch processing
+- [ ] Document `TopicSegmenter` component
+- [ ] Update sequence diagrams for L1→L2 promotion
+
+### Implementation Timeline
+
+```
+Day 1-2: Create TopicSegmenter + update PromotionEngine
+Day 3:   Update data models and CIAR interface
+Day 4:   Write tests and validate with real LLMs
+Day 5:   Update documentation and merge
+```
+
+### Success Criteria
+
+- [ ] All tests pass (unit + integration)
+- [ ] `PromotionEngine` uses batch processing with threshold
+- [ ] Single LLM call per batch (verified via logs)
+- [ ] CIAR scoring operates on topic segments
+- [ ] Documentation aligned with implementation
+
+### Rollout Strategy
+
+1. **Create feature branch**: `fix/adr-003-promotion-flow`
+2. **Implement changes** with TDD (tests first)
+3. **Validate** with smoke tests against Groq/Gemini
+4. **Code review** with ADR-003 as checklist
+5. **Merge** before Phase 3 Week 1 begins
+
+### Risk Mitigation
+
+| Risk | Mitigation |
+|------|------------|
+| Breaking existing tests | Run full test suite after each change |
+| LLM API rate limits | Use mocked LLM for unit tests, real LLM for integration |
+| CIAR scorer compatibility | Maintain backward compatibility with `Fact` model |
+| Timeline slip | If >5 days, split into Phase 3.0 (parallel with W1) |
+
+---
+
 ## Executive Summary
 
 Phase 3 transforms the MAS Memory Layer from standalone infrastructure into a production-ready agent framework. This plan incorporates **validated research findings** from RT1-RT5, ensuring the implementation follows proven patterns and avoids identified pitfalls.
