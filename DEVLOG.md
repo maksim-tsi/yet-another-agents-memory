@@ -16,6 +16,138 @@ Each entry should include:
 
 ## Log Entries
 
+### 2025-12-28 - Phase 3 Week 2: UnifiedMemorySystem + Agent Tools Implementation ✅
+
+**Status:** ✅ Complete  
+**Duration:** 1 day  
+**Branch:** `phase-3-week-2-agent-tools`
+
+**Summary:**
+Implemented core integration layer for Phase 3: Enhanced UnifiedMemorySystem with tier/engine orchestration, MASToolRuntime wrapper for LangChain ToolRuntime pattern, and 3 unified agent tools following ADR-007 guidelines. All 47 tests passing with comprehensive coverage of runtime helpers and tool metadata.
+
+**✅ What's Complete:**
+
+1. **Data Models** (`src/memory/models.py`):
+   - `ContextBlock`: Prompt context assembly with recent L1 turns + high-CIAR L2 facts
+     - `to_prompt_string()`: Format for LLM injection (structured or text)
+     - `estimate_token_count()`: Character-based heuristic (4 chars/token)
+     - Fields: turn_count, fact_count, estimated_tokens, assembled_at
+   - `SearchWeights`: Hybrid search configuration with Pydantic validation
+     - Weights for L2/L3/L4 (default: 0.3/0.5/0.2)
+     - Custom validator ensures weights sum to 1.0
+     - JSON schema examples for documentation
+
+2. **MAS Runtime Framework** (`src/agents/runtime.py`, 310 lines):
+   - `MASContext`: Immutable dataclass for context injection
+     - session_id, user_id, organization_id, agent_id
+     - memory_system reference (UnifiedMemorySystem)
+     - Config flags: enable_l1_cache, enable_ciar_filtering, default_min_ciar
+   - `MASToolRuntime`: Wrapper around LangChain's ToolRuntime
+     - Context access: `get_session_id()`, `get_user_id()`, `get_agent_id()`, `get_organization_id()`
+     - Memory system: `get_memory_system()`, `get_config_flag()`
+     - State access: `get_state_value()`, `get_messages()`
+     - Store access: `get_from_store()`, `put_to_store()` (async)
+     - Streaming: `stream_update()`, `stream_status()` (async)
+     - Utility: `get_tool_call_id()`, `get_config()`
+
+3. **Enhanced UnifiedMemorySystem** (`memory_system.py`):
+   - **Refactored constructor** to inject tier classes and lifecycle engines:
+     - Optional L1-L4 tier instances (backward compatible)
+     - Optional lifecycle engines (PromotionEngine, ConsolidationEngine, DistillationEngine)
+   - **Lifecycle orchestration methods**:
+     - `run_promotion_cycle(session_id)`: Execute L1→L2 with CIAR filtering
+     - `run_consolidation_cycle(session_id)`: Execute L2→L3 episode clustering
+     - `run_distillation_cycle(session_id)`: Execute L3→L4 knowledge synthesis
+   - **Hybrid cross-tier query** (`query_memory()`):
+     - Merges results from L2 (Facts), L3 (Episodes), L4 (Knowledge)
+     - Min-max normalization per tier for comparable scoring
+     - Configurable weights via SearchWeights model
+     - Returns unified schema: [{content, tier, score, metadata}]
+   - **Context block assembly** (`get_context_block()`):
+     - Retrieves recent L1 turns (max_turns parameter)
+     - Filters L2 facts by min CIAR score (default 0.6)
+     - Returns ContextBlock model ready for prompt injection
+
+4. **Unified Agent Tools** (`src/agents/tools/unified_tools.py`, 460 lines):
+   - All tools use `langchain_core.tools.tool` decorator
+   - All tools accept `runtime: ToolRuntime` parameter (hidden from LLM)
+   - Input schemas defined with Pydantic models
+   
+   **Tool Implementations**:
+   
+   a) `memory_query(query, limit, l2_weight, l3_weight, l4_weight)`:
+      - Cross-tier semantic search with weight normalization
+      - Auto-normalizes weights if they don't sum to 1.0
+      - Returns formatted results with tier labels and scores
+      - Streaming status updates via `mas_runtime.stream_status()`
+   
+   b) `get_context_block(min_ciar, max_turns, max_facts, format)`:
+      - Retrieves focused context for current conversation
+      - Format options: 'structured' (summary) or 'text' (prompt-ready)
+      - Includes metadata: turn count, fact count, token estimate
+   
+   c) `memory_store(content, tier, metadata)`:
+      - Stores content in specified tier (L1, L2, or 'auto')
+      - Auto-tier selection based on content length (<200 chars → L1)
+      - L2 storage queued via L1 for promotion engine
+
+5. **Comprehensive Test Suite** (47/47 tests passing):
+   
+   **Runtime Tests** (`tests/agents/test_runtime.py`, 26 tests):
+   - MASContext creation and field access
+   - MASToolRuntime wrapper functionality:
+     - Context extraction (session_id, user_id, memory_system)
+     - State access (messages, custom fields)
+     - Store operations (get, put, with None handling)
+     - Streaming (update, status)
+     - Utility methods (tool_call_id, config)
+   
+   **Tool Tests** (`tests/agents/tools/test_unified_tools.py`, 21 tests):
+   - Input schema validation and defaults
+   - Tool metadata (name, description, args_schema)
+   - Tool structure (coroutine attribute for async execution)
+   - Error handling (missing memory system)
+   - Weight normalization in memory_query
+
+**Key Architectural Decisions:**
+
+1. **ToolRuntime over InjectedState**: Adopted modern LangChain pattern per ADR-007 update
+2. **Hybrid Search Normalization**: Min-max per tier ensures comparable scores across heterogeneous backends
+3. **SearchWeights Validation**: Pydantic validator enforces sum-to-1.0 constraint at model level
+4. **Backward Compatibility**: UnifiedMemorySystem constructor parameters are optional for gradual migration
+5. **Async-First**: All lifecycle methods and tools are async for ASGI (FastAPI) compatibility
+6. **Error Handling**: Tools return user-friendly error strings instead of raising exceptions (LLM-consumable)
+
+**Performance Considerations:**
+
+- Min-max normalization: O(n) per tier, negligible overhead for typical result sets (<50 items)
+- Token estimation: Character-based heuristic (4.0 chars/token) for fast approximation
+- Hybrid query: Parallel execution of L2/L3/L4 queries (async gather pattern)
+
+**Test Results:**
+```bash
+tests/agents/test_runtime.py .................... 26 passed
+tests/agents/tools/test_unified_tools.py ....... 21 passed
+================================================ 47 passed in 0.30s
+```
+
+**Integration Verification:**
+```bash
+✅ All imports successful
+ContextBlock: ContextBlock
+SearchWeights: SearchWeights
+MASToolRuntime: MASToolRuntime
+Tools: memory_query, get_context_block, memory_store
+```
+
+**Next Steps (Phase 3 Week 3):**
+- CIAR-specific tools: `ciar_calculate()`, `ciar_filter()`, `ciar_adjust()`
+- Tier-specific tools: `l2_search_facts()`, `l3_query_graph()`, `l4_search_knowledge()`
+- Knowledge synthesis tool: `synthesize_knowledge()` for L4 distillation
+- Tool integration tests with mocked memory system
+
+---
+
 ### 2025-12-28 - Phase 3 Week 1: Redis Infrastructure Implementation ✅
 
 **Status:** ✅ Complete  

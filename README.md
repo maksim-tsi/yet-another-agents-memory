@@ -6,14 +6,15 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 
 ---
 
-## 🚀 **Current Status: Phase 2 Complete | Phase 3 Week 1 Complete — Redis Infrastructure Ready**
+## 🚀 **Current Status: Phase 2 Complete | Phase 3 Week 2 Complete — Agent Tools Ready**
 
-**Overall ADR-003 Completion:** Functional implementation ~87% (tiers + lifecycle engines + Redis infrastructure complete); Phase 3 Week 2 in progress.
+**Overall ADR-003 Completion:** Functional implementation ~92% (tiers + lifecycle engines + Redis infrastructure + agent tools complete); Phase 3 Week 3-6 in progress.
 
 **Phase 1 (Storage Adapters):** ✅ 100% Complete — 143/143 tests passing  
 **Phase 2 (Memory Tiers + Lifecycle Engines):** ✅ Complete — 441/445 tests passing (86% coverage)  
 **Phase 3 Week 1 (Redis Infrastructure):** ✅ Complete — NamespaceManager, Lua scripts, Lifecycle Streams, Recovery triggers  
-**Phase 3 Week 2-6 (Agent Integration):** 🚧 In Progress — UnifiedMemorySystem + Tools + LangGraph orchestration
+**Phase 3 Week 2 (UnifiedMemorySystem + Agent Tools):** ✅ Complete — Enhanced memory system, MASToolRuntime, unified tools (47/47 tests passing)  
+**Phase 3 Week 3-6 (Agent Framework + LangGraph):** 🚧 In Progress — BaseAgent, CIAR tools, tier-specific tools, LangGraph orchestration
 
 **Acceptance Criteria (Readiness Gates):**
 - Coverage ≥80% per component and overall
@@ -25,17 +26,17 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 - ✅ Storage infrastructure (5 database adapters, metrics, benchmarks)
 - ✅ Memory tier classes (L1–L4 with dual-indexing, bi-temporal model)
 - ✅ CIAR scoring system (calculation logic)
-- ✅ Data models (Fact, Episode, KnowledgeDocument)
+- ✅ Data models (Fact, Episode, KnowledgeDocument, ContextBlock, SearchWeights)
 - ✅ Multi-provider LLM client with provider wrappers and demos
 - ✅ Lifecycle engines (Promotion, Consolidation, Distillation) + Knowledge Synthesizer
 - ✅ Phase 3 research validation (5 research topics validated)
 - ✅ **Phase 3 Week 1**: Redis infrastructure (NamespaceManager with Hash Tags, Lua scripts, Lifecycle Streams, Recovery triggers)
+- ✅ **Phase 3 Week 2**: Enhanced UnifiedMemorySystem (hybrid query, lifecycle orchestration), MASToolRuntime wrapper, unified agent tools (memory_query, get_context_block, memory_store)
 
 **What's Next**: 
-- 🚧 **Phase 3 Week 2**: Enhanced UnifiedMemorySystem + Agent Tool Suite
-- 🔧 LangGraph orchestration with multi-agent coordination
-- 🔧 CIAR-aware tools with ToolRuntime pattern (runtime.state, runtime.context)
-- 🔧 FastAPI agent wrapper for benchmark integration
+- 🚧 **Phase 3 Week 3**: CIAR-specific tools + tier-specific tools + knowledge synthesis
+- 🔧 **Phase 3 Week 4-5**: BaseAgent framework + three agent variants (MemoryAgent, RAGAgent, FullContextAgent)
+- 🔧 **Phase 3 Week 6**: LangGraph orchestration + FastAPI wrapper + E2E integration tests
 - 🚧 Real-storage E2E pipeline validation (L1→L4) and GoodAI benchmark runs
 
 **See**: 
@@ -43,6 +44,13 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 - [Phase 3 Implementation Plan](docs/plan/phase3-implementation-plan-2025-12-27.md) for 6-week roadmap
 - [Research Validation](docs/research/README.md) for RT1-RT5 findings
 - [ADR-003 Architecture Review](docs/reports/adr-003-architecture-review.md) for gap analysis
+
+### 2025-12-28 — Changelog (Phase 3 Week 2 Complete)
+- **Enhanced UnifiedMemorySystem**: Refactored to inject L1-L4 tiers + lifecycle engines; added hybrid `query_memory()` with configurable weights, `get_context_block()` for prompt assembly, and lifecycle cycle methods.
+- **MAS Runtime Framework**: Created `MASToolRuntime` wrapper around LangChain's ToolRuntime with 20+ helpers for session/user/context access; implemented `MASContext` dataclass for immutable configuration.
+- **Unified Agent Tools**: Implemented 3 LangChain-compatible tools (`memory_query`, `get_context_block`, `memory_store`) using `@tool` decorator with ToolRuntime parameter (hidden from LLM per ADR-007).
+- **Data Models**: Added `ContextBlock` (prompt context assembly), `SearchWeights` (hybrid search config with validation).
+- **Comprehensive Tests**: 47/47 tests passing (26 runtime tests + 21 tool tests) covering all new components.
 
 ### 2025-12-27 — Changelog (Status Alignment)
 - Implemented Promotion, Consolidation, and Distillation engines with Knowledge Synthesizer; 396/396 tests passing.

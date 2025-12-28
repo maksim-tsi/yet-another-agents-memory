@@ -1,12 +1,13 @@
 # Phase 3 Implementation Plan: Agent Integration Layer
 
-**Version**: 1.1  
+**Version**: 1.2  
 **Date**: December 28, 2025 (Updated)  
 **Duration**: 6 weeks  
-**Status**: Week 1 Complete | Week 2 In Progress  
+**Status**: Week 1 Complete | Week 2 Complete | Week 3 In Progress  
 **Prerequisites**: ✅ Phase 2 Complete (441/445 tests, 86% coverage)  
 **Research Validation**: ✅ Complete — See [docs/research/README.md](../research/README.md)  
-**Week 1 Status**: ✅ Complete (Dec 28, 2025) — Redis infrastructure implemented
+**Week 1 Status**: ✅ Complete (Dec 28, 2025) — Redis infrastructure implemented  
+**Week 2 Status**: ✅ Complete (Dec 28, 2025) — UnifiedMemorySystem enhanced, agent tools created (47/47 tests passing)
 
 ---
 
@@ -193,9 +194,141 @@ class NamespaceManager:
 ```
 
 **Acceptance Criteria**:
-- [ ] All session-related keys share same Hash Tag
-- [ ] Unit tests verify slot colocation (CRC16 check)
-- [ ] Integration test with Redis Cluster mode
+- [x] All session-related keys share same Hash Tag
+- [x] Unit tests verify slot colocation (CRC16 check)
+- [x] Integration test with Redis Cluster mode
+
+**Status**: ✅ Complete (Dec 28, 2025)
+
+---
+
+## Week 2: Enhanced UnifiedMemorySystem & Agent Tools (COMPLETE ✅)
+
+**Objective**: Integrate tier classes with lifecycle engines and create foundational agent tools using ToolRuntime pattern.
+
+### W2.1: Enhanced UnifiedMemorySystem (P0 — COMPLETE ✅)
+
+**Status**: ✅ Complete (Dec 28, 2025)  
+**Files Modified**: `memory_system.py`
+
+**Deliverables**:
+- [x] Refactored constructor to inject L1-L4 tier instances
+- [x] Injected lifecycle engines (PromotionEngine, ConsolidationEngine, DistillationEngine)
+- [x] Implemented `run_promotion_cycle(session_id)` delegating to PromotionEngine
+- [x] Implemented `run_consolidation_cycle(session_id)` delegating to ConsolidationEngine
+- [x] Implemented `run_distillation_cycle(session_id)` delegating to DistillationEngine
+- [x] Implemented `query_memory()` with hybrid L2/L3/L4 search and configurable weights
+- [x] Implemented `get_context_block()` returning ContextBlock model
+- [x] All methods async for ASGI compatibility
+
+**Key Features**:
+- **Hybrid Query**: Min-max normalization per tier, weighted scoring, unified result schema
+- **Context Assembly**: Recent L1 turns + CIAR-filtered L2 facts with token estimation
+- **Backward Compatibility**: All tier/engine parameters optional
+- **Error Handling**: Graceful degradation with informative error messages
+
+**Test Coverage**: Integrated with existing `tests/memory/test_memory_system.py`
+
+### W2.2: MAS Runtime Framework (P0 — COMPLETE ✅)
+
+**Status**: ✅ Complete (Dec 28, 2025)  
+**Files Created**: 
+- `src/agents/runtime.py` (310 lines)
+- `src/agents/__init__.py`
+- `tests/agents/test_runtime.py` (26 tests)
+
+**Deliverables**:
+- [x] `MASContext` dataclass for immutable configuration
+- [x] `MASToolRuntime` wrapper with 20+ helper methods
+- [x] Context access methods (session_id, user_id, agent_id, organization_id)
+- [x] State access methods (state values, messages)
+- [x] Store access methods (async get/put)
+- [x] Streaming methods (updates, status)
+- [x] Comprehensive test suite (26/26 tests passing)
+
+**Test Results**:
+```
+tests/agents/test_runtime.py::TestMASContext ............ 2 passed
+tests/agents/test_runtime.py::TestMASToolRuntime ...... 24 passed
+```
+
+### W2.3: Data Models (P0 — COMPLETE ✅)
+
+**Status**: ✅ Complete (Dec 28, 2025)  
+**Files Modified**: `src/memory/models.py`
+
+**Deliverables**:
+- [x] `ContextBlock` model with prompt formatting methods
+- [x] `SearchWeights` model with validation (sum-to-1.0)
+- [x] Token estimation logic (character-based heuristic)
+- [x] Export statements for new models
+
+**Features**:
+- ContextBlock includes: recent_turns, significant_facts, episode_summaries, knowledge_snippets
+- `to_prompt_string()` method for LLM injection (structured or text format)
+- `estimate_token_count()` using 4.0 chars/token heuristic
+- SearchWeights custom validator ensures L2+L3+L4 weights = 1.0
+
+### W2.4: Unified Agent Tools (P0 — COMPLETE ✅)
+
+**Status**: ✅ Complete (Dec 28, 2025)  
+**Files Created**:
+- `src/agents/tools/__init__.py`
+- `src/agents/tools/unified_tools.py` (460 lines)
+- `tests/agents/tools/__init__.py`
+- `tests/agents/tools/test_unified_tools.py` (21 tests)
+
+**Deliverables**:
+- [x] `memory_query` tool (cross-tier semantic search)
+- [x] `get_context_block` tool (context assembly)
+- [x] `memory_store` tool (content storage with tier routing)
+- [x] All tools use `@tool` decorator from `langchain_core`
+- [x] All tools use `runtime: ToolRuntime` parameter (hidden from LLM)
+- [x] Pydantic input schemas for all tools
+- [x] Comprehensive test suite (21/21 tests passing)
+
+**Test Results**:
+```
+tests/agents/tools/test_unified_tools.py::TestToolInputSchemas ..... 6 passed
+tests/agents/tools/test_unified_tools.py::TestToolFunctionSignatures  3 passed
+tests/agents/tools/test_unified_tools.py::TestToolMetadata ........ 9 passed
+tests/agents/tools/test_unified_tools.py::TestMemoryQueryTool ...... 1 passed
+tests/agents/tools/test_unified_tools.py::TestGetContextBlockTool . 1 passed
+tests/agents/tools/test_unified_tools.py::TestMemoryStoreTool ...... 1 passed
+```
+
+**Tool Capabilities**:
+- `memory_query`: Hybrid search with weight normalization, streaming status updates
+- `get_context_block`: Dual output formats (structured summary or text prompt)
+- `memory_store`: Auto-tier selection based on content length
+
+### W2 Summary
+
+**Total Implementation**:
+- **New Files**: 7 (runtime + tools + tests)
+- **Modified Files**: 2 (memory_system.py, models.py)
+- **Lines of Code**: ~1,100 (production) + ~400 (tests)
+- **Test Coverage**: 47/47 tests passing (100%)
+
+**Key Achievements**:
+1. Successfully integrated all four memory tiers with lifecycle engines
+2. Implemented hybrid query with configurable weighting and normalization
+3. Created reusable ToolRuntime wrapper for all future agent tools
+4. Established pattern for LangChain-compatible tool development
+5. Comprehensive test coverage with async support
+
+**Architectural Validation**:
+- ✅ ToolRuntime pattern adopted per ADR-007
+- ✅ Async-first for ASGI compatibility
+- ✅ Pydantic v2 validation throughout
+- ✅ Error handling returns LLM-consumable strings
+- ✅ Backward compatibility maintained for gradual migration
+
+**Next Steps (Week 3)**:
+- CIAR-specific tools for score calculation and filtering
+- Tier-specific tools for granular memory access
+- Knowledge synthesis tool for L4 distillation
+- Tool integration tests with mocked backends
 
 ---
 
