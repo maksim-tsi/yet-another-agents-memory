@@ -17,24 +17,61 @@ Phase 3 focuses on integrating the foundational four-tier memory system with aut
 
 We will implement a **Hierarchical, Async-First Agent Architecture** using the following specific patterns:
 
-### **2.1. The `InjectedState` Pattern for Context Security**
-We will **strictly prohibit** passing infrastructure IDs (`user_id`, `session_id`, `thread_id`) as explicit arguments in LLM tool schemas. Instead, we will use LangGraph's `InjectedState` annotation to inject these values directly from the graph state into the tool execution runtime.
+### **2.1. The `ToolRuntime` Pattern for Context Security (Updated Dec 28, 2025)**
 
-*   **Why:** Prevents the LLM from hallucinating invalid IDs or cross-contaminating sessions. Reduces input token cost.
+**Note:** This ADR has been updated to reflect the modern LangChain tool pattern. The original `InjectedState` annotation is superseded by `ToolRuntime`, a unified parameter providing tools with access to state, context, store, and streaming capabilities.
+
+We will **strictly prohibit** passing infrastructure IDs (`user_id`, `session_id`, `thread_id`) as explicit arguments in LLM tool schemas. Instead, we will use LangChain's `ToolRuntime` parameter to access these values from the graph state, immutable context, and persistent store.
+
+*   **Why:** Prevents the LLM from hallucinating invalid IDs or cross-contaminating sessions. Reduces input token cost. Provides unified access to state management, persistence, and streaming.
 *   **Implementation:**
     ```python
-    from typing import Annotated
-    from langgraph.prebuilt import InjectedState
+    from langchain.tools import tool, ToolRuntime
 
     @tool
     async def memory_store(
         content: str, 
-        state: Annotated[dict, InjectedState]  # Hidden from LLM schema
-    ):
-        # ID is trusted because it comes from the system state, not the model
-        session_id = state["session_id"] 
-        # ... logic ...
+        runtime: ToolRuntime  # Hidden from LLM schema
+    ) -> str:
+        """Store content in memory for the current session."""
+        # IDs are trusted because they come from system state, not the model
+        session_id = runtime.state["session_id"]  # Mutable graph state
+        user_id = runtime.context.user_id          # Immutable context
+        
+        # Access persistent store for long-term memory
+        # store_data = await runtime.store.get(...)
+        
+        # Stream progress updates
+        # await runtime.stream_writer.write({"status": "storing..."})
+        
+        # ... storage logic ...
+        return f"Stored content for session {session_id}"
     ```
+
+**Key `ToolRuntime` Features:**
+- **`runtime.state`**: Mutable graph state (messages, counters, session_id)
+- **`runtime.context`**: Immutable configuration (user_id, permissions)
+- **`runtime.store`**: Persistent key-value store for cross-session memory
+- **`runtime.stream_writer`**: Real-time updates to client
+- **`runtime.tool_call_id`**: Unique ID for this tool invocation
+- **`runtime.config`**: Graph-level configuration
+
+**Legacy Pattern (Still Supported):**
+For compatibility with older LangGraph code, the `InjectedState` pattern remains functional:
+```python
+from typing import Annotated
+from langgraph.prebuilt import InjectedState
+
+@tool
+async def memory_store(
+    content: str, 
+    state: Annotated[dict, InjectedState]  # Hidden from LLM schema
+):
+    session_id = state["session_id"]
+    # ... logic ...
+```
+
+However, **new code MUST use `ToolRuntime`** for unified access and future compatibility.
 
 ### **2.2. Hierarchical Topology (Supervisor & Sub-Graphs)**
 We will not implement a single, flat graph. We will use a **Supervisor** topology where a top-level node routes execution to isolated **Sub-Graphs** based on intent.
@@ -60,9 +97,14 @@ The global agent state schema will utilize **Reducers** (specifically `operator.
 ## **3. Rationale**
 
 These decisions are grounded in the findings from Research Topics RT1 (LangGraph Integration) and RT4 (Context Injection):
-*   **RT1** confirmed that `InjectedState` is the only secure way to handle multi-tenant context in LangGraph.
+*   **RT1** confirmed that `ToolRuntime` (formerly `InjectedState`) is the only secure way to handle multi-tenant context in LangGraph.
 *   **RT1** validated that Sub-Graphs are necessary to manage tool complexity as the system scales.
 *   **RT4** demonstrated that optimizing the context window (via hidden IDs) reduces latency and cost.
+
+**Update (Dec 28, 2025):**
+- LangChain documentation now recommends `ToolRuntime` as the unified pattern for state/context/store access
+- Provides better separation between mutable state and immutable context
+- Enables native streaming and persistent storage access within tools
 
 ## **4. Consequences**
 
@@ -77,6 +119,27 @@ These decisions are grounded in the findings from Research Topics RT1 (LangGraph
 
 ## **5. Implementation Guidelines**
 
-1.  **Tool Definitions:** Must use `@tool` decorator and include `state: Annotated[dict, InjectedState]`.
+1.  **Tool Definitions:** Must use `@tool` decorator and include `runtime: ToolRuntime` parameter (hidden from LLM).
 2.  **State Definition:** Use `TypedDict` with `Annotated[list, add_messages]` for the conversation history.
 3.  **Graph Compilation:** Use `compile(checkpointer=AsyncPostgresSaver)` to ensure persistence.
+4.  **Context Access Patterns:**
+    - **Mutable state** (session_id, messages): `runtime.state["key"]`
+    - **Immutable config** (user_id, permissions): `runtime.context.attr`
+    - **Persistent memory** (cross-session): `await runtime.store.get/put(...)`
+    - **Streaming** (progress updates): `await runtime.stream_writer.write(...)`
+5.  **Legacy Compatibility:** Existing `InjectedState` tools remain functional but should be migrated to `ToolRuntime` during refactoring.
+
+**Example Tool Signature:**
+```python
+from langchain.tools import tool, ToolRuntime
+
+@tool
+async def l2_search_facts(
+    query: str,
+    min_ciar_score: float = 0.6,
+    runtime: ToolRuntime = None  # Hidden from LLM, auto-injected
+) -> List[Dict[str, Any]]:
+    """Search working memory for facts matching query with minimum CIAR score."""
+    session_id = runtime.state["session_id"]
+    # ... implementation ...
+```

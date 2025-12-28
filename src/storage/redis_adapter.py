@@ -47,6 +47,7 @@ from .base import (
     validate_required_fields,
 )
 from .metrics import OperationTimer
+from src.memory.namespace import NamespaceManager
 
 logger = logging.getLogger(__name__)
 
@@ -330,8 +331,22 @@ class RedisAdapter(StorageAdapter):
                 raise StorageDataError(f"Failed to encode data: {e}") from e
     
     def _make_key(self, session_id: str) -> str:
-        """Generate Redis key for session"""
-        return f"session:{session_id}:turns"
+        """
+        Generate Redis key for session with Hash Tag for Cluster safety.
+        
+        Uses NamespaceManager to ensure consistent Hash Tag formatting:
+        {session:ID}:turns
+        
+        Hash Tags enable atomic MULTI/EXEC and Lua operations across
+        session keys by guaranteeing they colocate to the same Redis node.
+        
+        Args:
+            session_id: Unique session identifier
+            
+        Returns:
+            Redis key with Hash Tag: {session:ID}:turns
+        """
+        return NamespaceManager.l1_turns(session_id)
     
     async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
         """
@@ -339,7 +354,7 @@ class RedisAdapter(StorageAdapter):
         
         If refresh_ttl_on_read is enabled, extends session TTL on access.
         
-        ID format: "session:{session_id}:turns:{turn_id}"
+        ID format: "{session:{session_id}}:turns:{turn_id}"
         
         Args:
             id: Turn identifier from store()

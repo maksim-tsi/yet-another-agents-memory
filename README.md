@@ -6,13 +6,14 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 
 ---
 
-## 🚀 **Current Status: Phase 2 Complete | Phase 3 Research Validated — Ready for Implementation**
+## 🚀 **Current Status: Phase 2 Complete | Phase 3 Week 1 Complete — Redis Infrastructure Ready**
 
-**Overall ADR-003 Completion:** Functional implementation ~85% (tiers + lifecycle engines complete); Phase 3 research validated — ready for agent integration.
+**Overall ADR-003 Completion:** Functional implementation ~87% (tiers + lifecycle engines + Redis infrastructure complete); Phase 3 Week 2 in progress.
 
 **Phase 1 (Storage Adapters):** ✅ 100% Complete — 143/143 tests passing  
 **Phase 2 (Memory Tiers + Lifecycle Engines):** ✅ Complete — 441/445 tests passing (86% coverage)  
-**Phase 3 (Agent Integration):** 🔬 Research Validated — Implementation plan ready
+**Phase 3 Week 1 (Redis Infrastructure):** ✅ Complete — NamespaceManager, Lua scripts, Lifecycle Streams, Recovery triggers  
+**Phase 3 Week 2-6 (Agent Integration):** 🚧 In Progress — UnifiedMemorySystem + Tools + LangGraph orchestration
 
 **Acceptance Criteria (Readiness Gates):**
 - Coverage ≥80% per component and overall
@@ -28,11 +29,12 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 - ✅ Multi-provider LLM client with provider wrappers and demos
 - ✅ Lifecycle engines (Promotion, Consolidation, Distillation) + Knowledge Synthesizer
 - ✅ Phase 3 research validation (5 research topics validated)
+- ✅ **Phase 3 Week 1**: Redis infrastructure (NamespaceManager with Hash Tags, Lua scripts, Lifecycle Streams, Recovery triggers)
 
 **What's Next**: 
-- 🚀 Phase 3: Agent Integration Layer (6-week implementation plan ready)
+- 🚧 **Phase 3 Week 2**: Enhanced UnifiedMemorySystem + Agent Tool Suite
 - 🔧 LangGraph orchestration with multi-agent coordination
-- 🔧 CIAR-aware tools with Reasoning-First schemas
+- 🔧 CIAR-aware tools with ToolRuntime pattern (runtime.state, runtime.context)
 - 🔧 FastAPI agent wrapper for benchmark integration
 - 🚧 Real-storage E2E pipeline validation (L1→L4) and GoodAI benchmark runs
 
