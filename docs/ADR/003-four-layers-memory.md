@@ -23,10 +23,11 @@ This decision formalizes the following architectural commitments for each tier:
 ### **L1: Active Context (Working Memory Buffer)**
 
 *   **Component:** **Redis**.
-*   **Purpose:** To serve as a high-speed, ephemeral cache for the most recent, raw conversational turns (approx. 10-20 turns). This is the agent's immediate sensory buffer.
-*   **Data Model:** Simple key-value store. Key: `session_id`, Value: a list of raw message strings.
+*   **Purpose:** To serve as a high-speed, ephemeral cache for the most recent **topic-segmented** conversational turns (approx. 10-20 turns). This is the agent's immediate sensory buffer, populated by the **Sensory Memory Processor**.
+*   **Data Model:** Simple key-value store. Key: `session_id`, Value: a list of **compressed, segmented** message objects.
 *   **Procedure (Lifecycle):**
-    *   **Ingestion:** New messages are appended to the list.
+    *   **Pre-Processing:** Raw inputs are compressed (LLMLingua-2) and segmented by topic *before* storage.
+    *   **Ingestion:** New segments are appended to the list.
     *   **Eviction:** A strict **Time-To-Live (TTL)** policy (e.g., 24 hours) is enforced to automatically discard stale data, ensuring the layer remains lightweight.
 *   **Architectural Pattern:** **Ephemeral Cache.** This layer prioritizes speed and recency over durability.
 
@@ -38,8 +39,8 @@ This decision formalizes the following architectural commitments for each tier:
 *   **Purpose:** To act as an intermediate, short-term store for **significant facts only**. This is the critical filtering stage that protects the more expensive downstream layers from noise.
 *   **Data Model:** A relational table (`significant_facts`) with columns for `fact_id`, `content`, `ciar_score`, `certainty`, `impact`, `source_uri`, `timestamp`, etc.
 *   **Procedure (Lifecycle - Promotion Engine):**
-    1.  **Extraction:** An LLM-based process extracts candidate facts from the raw L1 context.
-    2.  **Scoring:** Each candidate fact is scored using the formal **CIAR (Certainty, Impact, Age, Recency) model:** `CIAR = (Certainty * Impact) * Age_Decay * Recency_Boost`.
+    1.  **Summarization:** The engine retrieves topic segments from L1 and generates a concise summary for each.
+    2.  **Scoring:** Each summary is scored using the formal **CIAR (Certainty, Impact, Age, Recency) model:** `CIAR = (Certainty * Impact) * Age_Decay * Recency_Boost`.
     3.  **Promotion:** Facts with a CIAR score exceeding a tunable threshold (e.g., >0.6) are written to this L2 table.
 *   **Architectural Pattern:** **Significance-Based Caching.** This is our key differentiator from systems like Mem0. It is an interpretable, cost-saving filter that ensures only high-value information proceeds to deeper processing.
 
@@ -53,9 +54,11 @@ This decision formalizes the following architectural commitments for each tier:
     *   **Neo4j:** A **bi-temporal property graph**. All factual relationships will have properties for `factValidFrom`, `factValidTo`, `sourceObservationTimestamp`, and `sourceType`. Higher-order events (e.g., shipments) will be modeled using a **hypergraph simulation pattern** (e.g., a central `:Shipment` node connected to participants).
     *   **Qdrant:** A vector collection where each vector represents the embedding of a full "episode" summary. The vector payload will contain the ID of the corresponding event node in Neo4j.
 *   **Procedure (Lifecycle - Consolidation Engine):**
-    1.  **Clustering:** On a periodic, asynchronous basis, facts from L2 (PostgreSQL) are clustered by time and context.
-    2.  **Summarization:** An LLM summarizes each cluster into a coherent narrative "episode."
-    3.  **Dual-Indexing:** The episode is dually indexed into L3: its vector embedding is stored in **Qdrant**, and its structured entities and relationships (with full bi-temporal metadata) are written to **Neo4j**, including the hypergraph event nodes.
+    1.  **Segmented Paging:** On a periodic, asynchronous basis, facts from L2 (PostgreSQL) are clustered by semantic similarity into "segments."
+    2.  **Summarization:** An LLM summarizes each segment into a coherent narrative "episode."
+    3.  **Temporal Resolution:** The engine compares new facts against existing graph edges. If a contradiction is found, the old edge is **invalidated** (updating `factValidTo`) rather than deleted.
+    4.  **Dual-Indexing:** The episode is dually indexed into L3 (Qdrant & Neo4j).
+    5.  **Look-back Linking:** After indexing, the system queries for similar *existing* episodes and creates new, emergent relationships between them in the graph.
 *   **Architectural Pattern:** **Hybrid Retrieval Model.** This enables two powerful query pathways: semantic similarity search across experiences ("find similar situations") via Qdrant, and precise, structured traversal of relationships ("show me the full history of this container") via Neo4j.
 
 ---
