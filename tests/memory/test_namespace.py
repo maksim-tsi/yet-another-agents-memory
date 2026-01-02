@@ -1,63 +1,6 @@
 """
 Tests for Redis namespace management with Hash Tags.
 
-Test Coverage:
-- Key generation for all namespace types
-- Hash Tag extraction and validation
-- Lifecycle event publishing
-- MAXLEN stream trimming behavior
-- Fire-and-forget resilience
-"""
-
-import pytest
-import pytest_asyncio
-import redis.asyncio as redis
-import os
-import uuid
-import json
-
-from src.memory.namespace import NamespaceManager
-
-
-@pytest.fixture
-def session_id():
-    """Generate unique test session ID."""
-    return f"test-{uuid.uuid4()}"
-
-
-@pytest.fixture
-def agent_id():
-    """Generate unique test agent ID."""
-    return f"agent-{uuid.uuid4()}"
-
-
-@pytest_asyncio.fixture
-async def redis_client():
-    """
-    Create Redis client for testing.
-    
-    Skips tests if REDIS_URL environment variable not set.
-    """
-    redis_url = os.getenv('REDIS_URL')
-    if not redis_url:
-        pytest.skip("REDIS_URL environment variable not set")
-    
-    client = redis.from_url(redis_url, decode_responses=True)
-    
-    try:
-        await client.ping()
-    except redis.RedisError:
-        pytest.skip("Redis server not available")
-    
-    yield client
-    
-    await client.aclose()
-
-
-@pytest_asyncio.fixture
-"""
-Tests for Redis namespace management with Hash Tags.
-
 Covers:
 - Key generation and Hash Tag consistency
 - Lifecycle event publishing
@@ -300,13 +243,15 @@ class TestHashTagClusterSafety:
         assert key1 == key2 == "{mas}:lifecycle"
 
 
-@pytest.mark.benchmark
 class TestNamespacePerformance:
     """Benchmark namespace operations (skipped if pytest-benchmark missing)."""
 
+    if BENCHMARK_AVAILABLE:
+        pytestmark = pytest.mark.benchmark
+    else:
+        pytestmark = pytest.mark.skip(reason="pytest-benchmark not installed")
+
     def test_key_generation_performance(self, benchmark):
-        if not BENCHMARK_AVAILABLE:
-            pytest.skip("pytest-benchmark not installed")
         session_id = str(uuid.uuid4())
 
         def generate_keys():
@@ -319,9 +264,6 @@ class TestNamespacePerformance:
 
     @pytest.mark.asyncio
     async def test_event_publishing_throughput(self, namespace_manager, cleanup_keys):
-        if not BENCHMARK_AVAILABLE:
-            pytest.skip("pytest-benchmark not installed")
-
         stream_key = NamespaceManager.lifecycle_stream()
         cleanup_keys(stream_key)
 
@@ -338,4 +280,3 @@ class TestNamespacePerformance:
         duration = time.time() - start
         ops_per_sec = 100 / duration
         assert ops_per_sec > 100, f"Only {ops_per_sec:.0f} ops/sec"
-    def test_key_generation_performance(self, benchmark):
