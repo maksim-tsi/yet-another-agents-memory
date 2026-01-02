@@ -399,11 +399,21 @@ class ConsolidationEngine(BaseEngine):
             limit=500,
             include_low_ciar=True
         )
+        logger.debug(
+            "Consolidation L2 fetch: session=%s count=%d",
+            session_id,
+            len(all_facts)
+        )
 
         if not all_facts and hasattr(self.l2, "get_recent_cached"):
             cached = self.l2.get_recent_cached(session_id)
             if cached:
                 all_facts = cached
+                logger.debug(
+                    "Consolidation fallback to cache: session=%s cached_count=%d",
+                    session_id,
+                    len(all_facts)
+                )
         
         filtered = []
         for fact_dict in all_facts:
