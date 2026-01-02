@@ -81,6 +81,7 @@ class LLMClient:
     }
 
     def __init__(self, provider_configs: Optional[Iterable[ProviderConfig]] = None) -> None:
+        self.name = "llm-client"
         self._providers: Dict[str, BaseProvider] = {}
         self._configs: Dict[str, ProviderConfig] = {}
         if provider_configs:

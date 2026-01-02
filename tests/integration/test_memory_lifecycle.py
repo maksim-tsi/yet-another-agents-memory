@@ -16,6 +16,8 @@ Each test uses unique session_id for namespace isolation and surgical cleanup.
 import pytest
 import asyncio
 import time
+import hashlib
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from src.memory.tiers.active_context_tier import ActiveContextTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
@@ -603,16 +605,46 @@ def create_test_facts(session_id: str, count: int = 20):
 def create_test_episodes(session_id: str, user_id: str, count: int = 5):
     """Create test episodes for L3 with provenance metadata."""
     import uuid
+
+    def _load_corpus() -> str:
+        """Load real text corpus from embedding test data for deterministic vectors."""
+        data_dir = Path(__file__).parent.parent / "fixtures" / "embedding_test_data"
+        if not data_dir.exists():
+            return ""
+        texts = []
+        for file_path in sorted(data_dir.glob("*")):
+            try:
+                texts.append(file_path.read_text(encoding="utf-8"))
+            except OSError:
+                continue
+        return "\n\n".join(texts)
+
+    corpus = _load_corpus()
+
+    def _deterministic_embedding(seed_text: str) -> list[float]:
+        """Generate a stable pseudo-embedding from real text without padding."""
+        vector = []
+        target_dim = EpisodicMemoryTier.VECTOR_SIZE
+        base = (seed_text or corpus or "fallback").encode("utf-8")
+        for i in range(target_dim):
+            digest = hashlib.sha256(base + i.to_bytes(4, "little", signed=False)).digest()
+            # Use first 8 bytes for a float-ish value in [0,1)
+            value = int.from_bytes(digest[:8], "big") / float(2**64)
+            vector.append(round(value, 6))
+        return vector
+
     episodes = []
     for i in range(count):
         episode_id = f"test-episode-{uuid.uuid4().hex[:8]}"
+        content = f"Episode summarizing shipment tracking events {i*5} through {i*5+4}"
+        embedding = _deterministic_embedding(content)
         episodes.append({
             'episode_id': episode_id,
             'session_id': session_id,
             'user_id': user_id,
             'summary': f"Test episode {i}: Port operations and customs delays",
-            'content': f"Episode summarizing shipment tracking events {i*5} through {i*5+4}",
-            'embedding': [0.1 + (i * 0.05)] * 384,  # Dummy 384-dim vector
+            'content': content,
+            'embedding': embedding,
             'fact_ids': [f"test-fact-{i*5+j}" for j in range(5)],  # Link to 5 facts
             'created_at': datetime.now(timezone.utc) - timedelta(days=i),
             'valid_from': datetime.now(timezone.utc) - timedelta(days=i),

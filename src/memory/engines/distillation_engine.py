@@ -69,8 +69,12 @@ class DistillationEngine(BaseEngine):
         super().__init__(metrics_collector=collector)
         self.episodic_tier = episodic_tier
         self.semantic_tier = semantic_tier
-        self.llm_client = LLMClient()
-        self.llm_client.register_provider(llm_provider)
+        # Accept either a provider or a fully-configured LLMClient
+        if isinstance(llm_provider, LLMClient):
+            self.llm_client = llm_provider
+        else:
+            self.llm_client = LLMClient()
+            self.llm_client.register_provider(llm_provider)
         self.episode_threshold = episode_threshold
         
         # Load domain configuration

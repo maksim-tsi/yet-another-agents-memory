@@ -226,5 +226,5 @@ class TopicSegmenter:
             impact=0.5,     # Medium impact (unknown)
             participant_count=len(participants),
             message_count=len(turns),
-            temporal_context={}
+            temporal_context=""
         )

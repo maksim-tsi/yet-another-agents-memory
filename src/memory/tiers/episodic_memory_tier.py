@@ -32,7 +32,7 @@ class EpisodicMemoryTier(BaseTier):
     """
     
     COLLECTION_NAME = "episodes"
-    VECTOR_SIZE = 1536  # OpenAI ada-002 embedding size
+    VECTOR_SIZE = 768  # Gemini text-embedding-004 default dimension
     
     def __init__(
         self,

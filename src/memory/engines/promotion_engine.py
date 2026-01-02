@@ -92,6 +92,7 @@ class PromotionEngine(BaseEngine):
             "segments_promoted": 0,
             "facts_extracted": 0,
             "facts_promoted": 0,
+            "facts_filtered": 0,
             "errors": 0
         }
 
@@ -163,6 +164,18 @@ class PromotionEngine(BaseEngine):
                         
                         # Recalculate CIAR with inherited values
                         fact.ciar_score = self.scorer.calculate(fact)
+
+                        # Respect L2 threshold before store to avoid ValueError from WorkingMemoryTier
+                        ciar_threshold = getattr(self.l2, "ciar_threshold", self.promotion_threshold)
+                        if fact.ciar_score < ciar_threshold:
+                            logger.info(
+                                "Filtered fact %s below CIAR threshold %.2f (score=%.3f)",
+                                fact.fact_id,
+                                ciar_threshold,
+                                fact.ciar_score,
+                            )
+                            stats["facts_filtered"] += 1
+                            continue
                         
                         # Store in L2
                         await self.l2.store(fact.model_dump())

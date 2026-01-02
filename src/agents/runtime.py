@@ -186,6 +186,13 @@ class MASToolRuntime:
             List of messages (typically LangChain message objects)
         """
         return self._runtime.state.get('messages', [])
+
+    # --- Status Streaming ---
+
+    async def stream_status(self, message: str) -> None:
+        """Proxy status updates to the underlying runtime when available."""
+        if hasattr(self._runtime, 'stream_status'):
+            await self._runtime.stream_status(message)
     
     # --- Store Access Methods ---
     
