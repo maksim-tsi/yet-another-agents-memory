@@ -214,6 +214,10 @@ class QdrantAdapter(StorageAdapter):
             except Exception as e:
                 logger.error(f"Qdrant store failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to store in Qdrant: {e}") from e
+
+    async def upsert(self, data: Dict[str, Any]) -> str:
+        """Alias for store to match adapter expectations."""
+        return await self.store(data)
     
     async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
         """
@@ -290,6 +294,10 @@ class QdrantAdapter(StorageAdapter):
             if not self._connected or not self.client:
                 raise StorageConnectionError("Not connected to Qdrant")
             
+            # Backwards compatibility: allow query_vector alias
+            if 'vector' not in query and 'query_vector' in query:
+                query = {**query, 'vector': query['query_vector']}
+
             # Validate required fields
             validate_required_fields(query, ['vector'])
             
@@ -304,9 +312,13 @@ class QdrantAdapter(StorageAdapter):
                 if 'filter' in query and query['filter'] is not None:
                     search_filter = self._build_qdrant_filter(query['filter'])
                 
+                # Allow per-request override for collection_name when callers want to
+                # query a non-default collection (e.g., episodic vs semantic memory).
+                collection_name = query.get('collection_name', self.collection_name)
+
                 # Perform search
                 results = await self.client.search(
-                    collection_name=self.collection_name,
+                    collection_name=collection_name,
                     query_vector=vector,
                     limit=limit,
                     score_threshold=score_threshold,
@@ -802,11 +814,14 @@ class QdrantAdapter(StorageAdapter):
             raise StorageConnectionError("Not connected to Qdrant")
         
         try:
-            # Check if collection already exists
+            # Check if collection already exists and verify vector size; recreate on mismatch
             try:
-                await self.client.get_collection(name)
-                # Collection exists, return False
-                return False
+                existing = await self.client.get_collection(name)
+                existing_vectors = existing.config.params.vectors
+                if hasattr(existing_vectors, "size") and existing_vectors.size != self.vector_size:
+                    await self.client.delete_collection(name)
+                else:
+                    return False
             except Exception:
                 # Collection doesn't exist, proceed with creation
                 pass

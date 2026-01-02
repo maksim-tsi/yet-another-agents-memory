@@ -58,13 +58,10 @@ class SemanticMemoryTier(BaseTier):
                 knowledge = KnowledgeDocument(**data)
             else:
                 knowledge = data
-            
-            # Store in Typesense
-            await self.typesense.index_document(
-                collection_name=self.collection_name,
-                document=knowledge.to_typesense_document()
-            )
-            
+
+            # Store in Typesense via adapter store API
+            await self.typesense.store(knowledge.to_typesense_document())
+
             return knowledge.knowledge_id
     
     async def retrieve(self, knowledge_id: str) -> Optional[KnowledgeDocument]:

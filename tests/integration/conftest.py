@@ -314,7 +314,10 @@ async def neo4j_adapter(test_session_id: str) -> AsyncGenerator[Neo4jAdapter, No
 async def qdrant_adapter(test_session_id: str) -> AsyncGenerator[QdrantAdapter, None]:
     """Live Qdrant adapter fixture for L3 Episodic Memory (Node 2: 192.168.107.187)."""
     adapter = QdrantAdapter(config={
-        'url': os.getenv('QDRANT_URL', 'http://192.168.107.187:6333')
+        'url': os.getenv('QDRANT_URL', 'http://192.168.107.187:6333'),
+        # L3 episodic vectors live in the "episodes" collection with 768-dim embeddings
+        'collection_name': 'episodes',
+        'vector_size': 768,
     })
     await adapter.connect()
     yield adapter

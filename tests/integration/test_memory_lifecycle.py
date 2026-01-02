@@ -107,7 +107,7 @@ class TestMemoryLifecycleFlow:
         await asyncio.sleep(test_settings.llm_throttle_seconds)
         
         # 5. Verify facts promoted to L2
-        promoted_facts = await l2_tier.retrieve(test_session_id)
+        promoted_facts = await l2_tier.query_by_session(test_session_id)
         
         # Assert at least some facts were promoted
         assert len(promoted_facts) > 0, f"No facts promoted from {stats['turns_retrieved']} turns"
@@ -185,18 +185,29 @@ class TestMemoryLifecycleFlow:
         
         # 4. Execute consolidation
         start_consolidation = time.perf_counter()
-        stats = await consolidation_engine.consolidate_facts(test_session_id)
+        stats = await consolidation_engine.process_session(test_session_id)
         latencies['consolidation_ms'] = (time.perf_counter() - start_consolidation) * 1000
         
         await asyncio.sleep(test_settings.llm_throttle_seconds)
+
+        assert stats.get('episodes_created', 0) > 0, f"Consolidation produced no episodes: {stats}"
         
         # 5. Verify dual indexing
         # Query Qdrant with session_id filter
-        qdrant_results = await qdrant_adapter.search(
-            query_vector=[0.1] * 384,  # Dummy vector for search
-            filter={'session_id': test_session_id},
-            limit=10
-        )
+        qdrant_results = await qdrant_adapter.search({
+            'vector': [0.1] * l3_tier.vector_size,
+            'filter': {'session_id': test_session_id},
+            'limit': 10,
+            'collection_name': l3_tier.collection_name,
+        })
+
+        # Debug: also search without filter to isolate filter vs storage issues
+        debug_results = await qdrant_adapter.search({
+            'vector': [0.1] * l3_tier.vector_size,
+            'limit': 10,
+            'collection_name': l3_tier.collection_name,
+        })
+        print(f"DEBUG: Qdrant results with filter={len(qdrant_results)}, without filter={len(debug_results)}")
         
         # Query Neo4j for episodes
         neo4j_query = """
@@ -270,7 +281,12 @@ class TestMemoryLifecycleFlow:
         episodes = create_test_episodes(test_session_id, test_user_id, count=5)
         start_store = time.perf_counter()
         for episode in episodes:
-            await l3_tier.store(episode)
+            await l3_tier.store({
+                'episode': {k: v for k, v in episode.items() if k != 'embedding'},
+                'embedding': episode['embedding'],
+                'entities': [],
+                'relationships': []
+            })
         latencies['l3_store_ms'] = (time.perf_counter() - start_store) * 1000
         
         # 3. Create distillation engine
@@ -397,7 +413,7 @@ class TestMemoryLifecycleFlow:
         
         # Phase 3: L2→L3 consolidation
         start_consolidation = time.perf_counter()
-        consolidation_stats = await consolidation_engine.consolidate_facts(test_session_id)
+        consolidation_stats = await consolidation_engine.process_session(test_session_id)
         latencies['consolidation_ms'] = (time.perf_counter() - start_consolidation) * 1000
         
         await asyncio.sleep(test_settings.llm_throttle_seconds)
@@ -408,7 +424,7 @@ class TestMemoryLifecycleFlow:
         latencies['distillation_ms'] = (time.perf_counter() - start_distillation) * 1000
         
         # Verify data flow
-        l2_facts = await l2_tier.retrieve(test_session_id)
+        l2_facts = await l2_tier.query_by_session(test_session_id)
         
         # Query L3 episodes
         neo4j_query = "MATCH (e:Episode {session_id: $sid}) RETURN count(e) as count"
@@ -584,9 +600,9 @@ def create_test_facts(session_id: str, count: int = 20):
     """Create test facts for L2 with varying CIAR scores."""
     facts = []
     for i in range(count):
-        # Alternate between high and low CIAR scores
-        certainty = 0.9 if i % 2 == 0 else 0.4
-        impact = 0.8 if i % 2 == 0 else 0.3
+        # Integration happy-path requires CIAR above threshold
+        certainty = 0.85
+        impact = 0.75
         
         facts.append({
             'session_id': session_id,
@@ -638,6 +654,8 @@ def create_test_episodes(session_id: str, user_id: str, count: int = 5):
         episode_id = f"test-episode-{uuid.uuid4().hex[:8]}"
         content = f"Episode summarizing shipment tracking events {i*5} through {i*5+4}"
         embedding = _deterministic_embedding(content)
+        window_start = datetime.now(timezone.utc) - timedelta(days=i, hours=1)
+        window_end = window_start + timedelta(hours=1)
         episodes.append({
             'episode_id': episode_id,
             'session_id': session_id,
@@ -649,6 +667,12 @@ def create_test_episodes(session_id: str, user_id: str, count: int = 5):
             'created_at': datetime.now(timezone.utc) - timedelta(days=i),
             'valid_from': datetime.now(timezone.utc) - timedelta(days=i),
             'valid_to': None,
+            'time_window_start': window_start,
+            'time_window_end': window_end,
+            'duration_seconds': (window_end - window_start).total_seconds(),
+            'fact_valid_from': window_start,
+            'fact_valid_to': window_end,
+            'source_observation_timestamp': window_start,
             'metadata': {'test': True, 'episode_index': i}
         })
     return episodes

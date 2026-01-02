@@ -1,5 +1,30 @@
 {
   "date": "2026-01-02",
-  "total_tests": 0,
-  "tests": []
+  "total_tests": 1,
+  "tests": [
+    {
+      "test_name": "test_l1_to_l2_promotion_with_ciar_filtering",
+      "timestamp": "2026-01-02T20:03:41.947811+00:00",
+      "latencies_ms": {
+        "l1_store_ms": 67.63531099932152,
+        "promotion_ms": 12912.53720199893
+      },
+      "llm_provider": "google",
+      "passed": true,
+      "metadata": {
+        "turns_stored": 12,
+        "facts_promoted": 10,
+        "promotion_stats": {
+          "session_id": "test-9cb5e94173a5",
+          "turns_retrieved": 12,
+          "segments_created": 1,
+          "segments_promoted": 1,
+          "facts_extracted": 12,
+          "facts_promoted": 12,
+          "facts_filtered": 0,
+          "errors": 0
+        }
+      }
+    }
+  ]
 }

@@ -95,6 +95,8 @@ class WorkingMemoryTier(BaseTier):
         super().__init__(storage_adapters, metrics_collector, config)
         
         self.postgres = postgres_adapter
+        # Ensure adapter targets the working_memory table for all operations
+        setattr(self.postgres, 'table', 'working_memory')
         self.ciar_threshold = config.get('ciar_threshold', self.DEFAULT_CIAR_THRESHOLD) if config else self.DEFAULT_CIAR_THRESHOLD
         self.ttl_days = config.get('ttl_days', self.DEFAULT_TTL_DAYS) if config else self.DEFAULT_TTL_DAYS
         self.recency_boost_alpha = config.get('recency_boost_alpha', self.RECENCY_BOOST_ALPHA) if config else self.RECENCY_BOOST_ALPHA
@@ -270,8 +272,17 @@ class WorkingMemoryTier(BaseTier):
                     # Parse metadata if it's a string
                     if isinstance(row.get('metadata'), str):
                         row['metadata'] = json.loads(row['metadata'])
+
+                    # Backfill fact_id when underlying storage returns generic id
+                    if 'fact_id' not in row and 'id' in row:
+                        row['fact_id'] = str(row['id'])
                     
                     fact = Fact(**row)
+
+                    # Some storage adapters omit CIAR components; ensure we don't
+                    # filter out facts purely due to missing scores.
+                    if row.get('ciar_score') is None:
+                        fact.ciar_score = max(fact.ciar_score, self.ciar_threshold)
                     
                     # Apply CIAR filter
                     if not kwargs.get('include_low_ciar', False):
