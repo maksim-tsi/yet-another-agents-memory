@@ -16,6 +16,29 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-01-02 - Phase 5 Readiness Grading Scripts & Marker Alignment ✅
+
+**Status:** ✅ Complete  
+**Duration:** <1 day  
+**Branch:** `dev-mas`
+
+**Summary:**
+Added Phase 5 readiness grading automation (bash + Python) with explicit pytest marker scopes for unit/mocked, integration, and real LLM/provider checks. Documented usage, marker policy, and `GOOGLE_API_KEY` requirement across plans, tracker, scripts README, GEMINI.MD, AGENTS.MD, and copilot instructions.
+
+**✅ What's Complete:**
+- Readiness scripts: `scripts/grade_phase5_readiness.sh` (fast vs full modes, optional summary output, bench toggle, skip-llm) and `scripts/grade_phase5_readiness.py` (JSON summary with coverage/env flags).
+- Documentation updates: [docs/plan/phase5-readiness-checklist-2026-01-02.md](docs/plan/phase5-readiness-checklist-2026-01-02.md) (automation approach and examples) and [docs/reports/phase5-readiness.md](docs/reports/phase5-readiness.md) (invocations and summary handling).
+- Marker and LLM key alignment recorded in [scripts/README.md](scripts/README.md), [GEMINI.MD](GEMINI.MD), [AGENTS.MD](AGENTS.MD), and [.github/copilot-instructions.md](.github/copilot-instructions.md); real runs use `GOOGLE_API_KEY` (not `GEMINI_API_KEY`).
+
+**❌ What's Missing / Next Actions:**
+- Run `./scripts/grade_phase5_readiness.sh --mode full --summary-out /tmp/phase5-readiness.json` with real backends and `GOOGLE_API_KEY` exported to populate grades.
+- Consider default summary path (e.g., `artifacts/phase5-readiness.json`) and an optional `slow` marker if long benchmarks are added.
+
+**Evidence:**
+- Scripts: [scripts/grade_phase5_readiness.sh](scripts/grade_phase5_readiness.sh), [scripts/grade_phase5_readiness.py](scripts/grade_phase5_readiness.py)
+- Docs: [docs/plan/phase5-readiness-checklist-2026-01-02.md](docs/plan/phase5-readiness-checklist-2026-01-02.md), [docs/reports/phase5-readiness.md](docs/reports/phase5-readiness.md)
+- Instructions: [scripts/README.md](scripts/README.md), [GEMINI.MD](GEMINI.MD), [AGENTS.MD](AGENTS.MD), [.github/copilot-instructions.md](.github/copilot-instructions.md)
+
 ### 2025-12-29 - Gemini Native Structured Output Implementation ✅
 
 **Status:** ✅ Complete  
