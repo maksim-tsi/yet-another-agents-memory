@@ -488,12 +488,12 @@ class EpisodicMemoryTier(BaseTier):
             'episode_id': episode.episode_id,
             'metadata': episode.to_qdrant_payload()
         }
-
+        
         if hasattr(self.qdrant, 'upsert'):
             await self.qdrant.upsert(payload)
         else:
             await self.qdrant.store(payload)
-
+        
         return point_id
     
     async def _store_in_neo4j(

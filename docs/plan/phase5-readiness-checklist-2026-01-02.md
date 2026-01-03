@@ -3,10 +3,44 @@
 **Date:** 2026-01-02  
 **Purpose:** Provide a structured, graded readiness framework for Phase 5, aligned to the four-tier cognitive memory architecture and lifecycle engines. Grades: Green (meets bar), Amber (minor gaps), Red (blocking gaps). Each item lists required evidence and project-specific improvement guidance.
 
-## 2026-01-03 Status Update
+## 2026-01-03 Status Update (Session 2 - RESOLVED)
+
+**🟢 L2→L3 Consolidation Test: PASSING**
+
+The `test_l2_to_l3_consolidation_with_episode_clustering` test now passes consistently after resolving the Qdrant scroll vs search issue.
+
+### Issue Resolved
+- **Problem:** Test stored episodes successfully but failed to retrieve them with `search()` + filter
+- **Root Cause:** Qdrant `search()` is vector-similarity-first; dummy query vector `[0.1]*768` had ~0 similarity to real embeddings, causing filter-based queries to return nothing
+- **Solution:** Added `scroll()` method to `QdrantAdapter` for pure filter-based retrieval; updated test to use `scroll()` instead of `search()`
+- **Full Report:** [docs/reports/qdrant-scroll-vs-search-debugging-2026-01-03.md](../reports/qdrant-scroll-vs-search-debugging-2026-01-03.md)
+
+### Current Test Status
+```
+tests/integration/test_memory_lifecycle.py
+├── test_l1_to_l2_promotion_with_ciar_filtering      ✅ PASSED
+├── test_l2_to_l3_consolidation_with_episode_clustering ✅ PASSED (fixed 2026-01-03)
+├── test_l3_to_l4_distillation_with_knowledge_synthesis ✅ PASSED
+└── test_full_lifecycle_end_to_end                   ✅ PASSED
+```
+
+### Key Implementation Changes
+| File | Change |
+|------|--------|
+| `src/storage/qdrant_adapter.py` | Added `scroll()` method for filter-only retrieval |
+| `tests/integration/test_memory_lifecycle.py` | Changed Qdrant verification from `search()` to `scroll()` |
+
+### Design Guideline Established
+- Use `search()` for semantic similarity queries ("find items similar to X")
+- Use `scroll()` for metadata-based queries ("find all items matching session_id=Y")
+
+---
+
+## 2026-01-03 Status Update (Session 1)
 - See daily report [docs/reports/lifecycle-status-2026-01-03.md](../reports/lifecycle-status-2026-01-03.md) and log entry in [DEVLOG.md](../../DEVLOG.md).
-- Current gap: end-to-end lifecycle test still fails due to zero L4 knowledge documents; distillation now forces processing with rule-based fallback but episode retrieval remains sparse in integration flow.
-- Next action: verify episodic retrieval and Typesense writes during distillation, then rerun full lifecycle test and update grading outcomes.
+- ~~Current gap: end-to-end lifecycle test still fails due to zero L4 knowledge documents; distillation now forces processing with rule-based fallback but episode retrieval remains sparse in integration flow.~~
+- ~~Next action: verify episodic retrieval and Typesense writes during distillation, then rerun full lifecycle test and update grading outcomes.~~
+- **UPDATE:** All core lifecycle tests now pass. See Session 2 update above.
 
 ## 1. Architecture & ADR Alignment
 - **Tier responsibilities and flow (L1–L4)** — Evidence: [docs/ADR/003-four-layers-memory.md](../ADR/003-four-layers-memory.md), [AGENTS.MD](../../AGENTS.MD), [docs/reports/adr-003-architecture-review.md](../reports/adr-003-architecture-review.md). Improvement: ensure diagrams and text reflect current engine code paths and dual-index commitments.

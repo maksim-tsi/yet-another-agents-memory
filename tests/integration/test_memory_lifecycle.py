@@ -183,6 +183,16 @@ class TestMemoryLifecycleFlow:
         # Apply throttle
         await asyncio.sleep(test_settings.llm_throttle_seconds)
         
+        # STEP 0: Get point count BEFORE consolidation
+        points_before = 0
+        if hasattr(qdrant_adapter, 'client') and qdrant_adapter.client:
+            try:
+                info_before = await qdrant_adapter.client.get_collection('episodes')
+                points_before = info_before.points_count
+                print(f"DEBUG STEP0: Points BEFORE consolidation = {points_before}")
+            except Exception as e:
+                print(f"DEBUG STEP0: Failed: {e}")
+        
         # 4. Execute consolidation
         start_consolidation = time.perf_counter()
         stats = await consolidation_engine.process_session(test_session_id)
@@ -190,29 +200,78 @@ class TestMemoryLifecycleFlow:
         
         await asyncio.sleep(test_settings.llm_throttle_seconds)
 
+        print(f"DEBUG: Consolidation stats={stats}")
         assert stats.get('episodes_created', 0) > 0, f"Consolidation produced no episodes: {stats}"
         
         # 5. Verify dual indexing
-        # Query Qdrant with session_id filter
-        qdrant_results = await qdrant_adapter.search({
-            'vector': [0.1] * l3_tier.vector_size,
-            'filter': {'session_id': test_session_id},
-            'limit': 10,
-            'collection_name': l3_tier.collection_name,
-        })
-
-        # Debug: also search without filter to isolate filter vs storage issues
-        debug_results = await qdrant_adapter.search({
-            'vector': [0.1] * l3_tier.vector_size,
-            'limit': 10,
-            'collection_name': l3_tier.collection_name,
-        })
-        print(f"DEBUG: Qdrant results with filter={len(qdrant_results)}, without filter={len(debug_results)}")
+        # STEP 1: Check adapter identity
+        test_qdrant_id = id(qdrant_adapter)
+        l3_qdrant_id = id(l3_tier.qdrant)
+        test_qdrant_url = getattr(qdrant_adapter, 'url', getattr(qdrant_adapter, '_url', 'UNKNOWN'))
+        l3_qdrant_url = getattr(l3_tier.qdrant, 'url', getattr(l3_tier.qdrant, '_url', 'UNKNOWN'))
+        print(f"DEBUG STEP1: test_qdrant_adapter id={test_qdrant_id}, url={test_qdrant_url}")
+        print(f"DEBUG STEP1: l3_tier.qdrant id={l3_qdrant_id}, url={l3_qdrant_url}")
+        print(f"DEBUG STEP1: SAME_ADAPTER={test_qdrant_id == l3_qdrant_id}")
         
-        # Query Neo4j for episodes
+        # STEP 2: Get collection info via scroll (no vector needed)
+        if hasattr(qdrant_adapter, 'client') and qdrant_adapter.client:
+            try:
+                collection_info = await qdrant_adapter.client.get_collection('episodes')
+                print(f"DEBUG STEP2: Collection 'episodes' points_count={collection_info.points_count} (was {points_before} before)")
+                print(f"DEBUG STEP2: Points ADDED = {collection_info.points_count - points_before}")
+            except Exception as e:
+                print(f"DEBUG STEP2: Failed to get collection info: {e}")
+        
+        # STEP 4: Use scroll to list ALL points (no vector similarity)
+        if hasattr(qdrant_adapter, 'client') and qdrant_adapter.client:
+            try:
+                scroll_result = await qdrant_adapter.client.scroll(
+                    collection_name='episodes',
+                    limit=20,
+                    with_payload=True
+                )
+                points, next_offset = scroll_result
+                print(f"DEBUG STEP4: Scroll found {len(points)} points")
+                found_our_session = False
+                for i, p in enumerate(points):
+                    p_session = p.payload.get('session_id', 'NONE') if p.payload else 'NO_PAYLOAD'
+                    marker = " <-- OUR SESSION" if p_session == test_session_id else ""
+                    if p_session == test_session_id:
+                        found_our_session = True
+                    print(f"DEBUG STEP4: Point[{i}] id={p.id}, session_id={p_session}{marker}")
+                print(f"DEBUG STEP4: Found our session ({test_session_id}): {found_our_session}")
+            except Exception as e:
+                print(f"DEBUG STEP4: Scroll failed: {e}")
+        
+        # Now do the original search tests
+        # First, check if ANY data exists in Qdrant (no filter)
+        all_results = await qdrant_adapter.search({
+            'vector': [0.1] * l3_tier.vector_size,
+            'limit': 10,
+            'collection_name': l3_tier.collection_name,
+        })
+        print(f"DEBUG: Qdrant ALL results (no filter)={len(all_results)}")
+        if all_results:
+            for i, r in enumerate(all_results[:3]):
+                print(f"DEBUG: Result[{i}] session_id={r.get('session_id')}, score={r.get('score')}")
+        
+        # Query Qdrant with session_id filter using SCROLL (no vector similarity needed)
+        # This is the correct approach - scroll retrieves by filter, search requires vector similarity
+        print(f"DEBUG: Scrolling Qdrant - session={test_session_id}, collection={l3_tier.collection_name}")
+        qdrant_results = await qdrant_adapter.scroll(
+            filter_dict={'session_id': test_session_id},
+            limit=10,
+            collection_name=l3_tier.collection_name,
+        )
+        print(f"DEBUG: Qdrant scroll results={len(qdrant_results)}")
+        if qdrant_results:
+            for i, r in enumerate(qdrant_results[:3]):
+                print(f"DEBUG: ScrollResult[{i}] session_id={r.get('session_id')}, episode_id={r.get('episode_id')}")
+
+        # Query Neo4j for episodes (use sessionId which is the stored property name)
         neo4j_query = """
-        MATCH (e:Episode {session_id: $session_id})
-        RETURN e.episode_id as episode_id, e.summary as summary
+        MATCH (e:Episode {sessionId: $session_id})
+        RETURN e.episodeId as episode_id, e.summary as summary
         LIMIT 10
         """
         neo4j_results = await neo4j_adapter.execute_query(neo4j_query, {'session_id': test_session_id})

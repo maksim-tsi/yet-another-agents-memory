@@ -372,7 +372,83 @@ class QdrantAdapter(StorageAdapter):
             except Exception as e:
                 logger.error(f"Qdrant delete failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to delete from Qdrant: {e}") from e
-    
+
+    async def scroll(
+        self,
+        filter_dict: Optional[Dict[str, Any]] = None,
+        limit: int = 100,
+        with_payload: bool = True,
+        with_vectors: bool = False,
+        collection_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Scroll through points using filter-only retrieval (no vector similarity).
+        
+        Unlike search(), scroll() retrieves points purely based on filter criteria
+        without requiring a query vector or vector similarity comparison. This is
+        useful for retrieving all points matching a session_id or other metadata.
+        
+        Args:
+            filter_dict: Filter conditions (e.g., {'session_id': 'xyz'})
+            limit: Maximum number of points to return
+            with_payload: Include point payload in results
+            with_vectors: Include vectors in results
+            collection_name: Override default collection name
+            
+        Returns:
+            List of matching points as dictionaries
+            
+        Raises:
+            StorageConnectionError: If not connected
+            StorageQueryError: If scroll operation fails
+        """
+        async with OperationTimer(self.metrics, 'scroll'):
+            if not self._connected or not self.client:
+                raise StorageConnectionError("Not connected to Qdrant")
+            
+            try:
+                target_collection = collection_name or self.collection_name
+                
+                # Build filter if provided
+                scroll_filter = None
+                if filter_dict:
+                    scroll_filter = self._build_qdrant_filter(filter_dict)
+                
+                # Perform scroll
+                points, _next_offset = await self.client.scroll(
+                    collection_name=target_collection,
+                    scroll_filter=scroll_filter,
+                    limit=limit,
+                    with_payload=with_payload,
+                    with_vectors=with_vectors
+                )
+                
+                # Format results to match search() output format
+                formatted_results = []
+                for point in points:
+                    result = {
+                        'id': str(point.id),
+                        'vector': point.vector if with_vectors else None,
+                        'content': point.payload.get('content') if point.payload else None,
+                        'metadata': point.payload.get('metadata', {}) if point.payload else {},
+                        'score': None  # No similarity score for scroll
+                    }
+                    
+                    # Add any additional payload fields
+                    if point.payload:
+                        for key, value in point.payload.items():
+                            if key not in ['content', 'metadata']:
+                                result[key] = value
+                    
+                    formatted_results.append(result)
+                
+                logger.debug(f"Scroll returned {len(formatted_results)} results from {target_collection}")
+                return formatted_results
+                
+            except Exception as e:
+                logger.error(f"Qdrant scroll failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Failed to scroll Qdrant: {e}") from e
+
     def _build_qdrant_filter(self, filter_dict: Dict[str, Any]) -> Optional[Filter]:
         """
         Build a Qdrant Filter from a dictionary specification.
