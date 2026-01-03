@@ -5,10 +5,13 @@ Stores generalized knowledge documents distilled from L3 episodes.
 Provides full-text search, faceted filtering, and provenance tracking.
 """
 
+import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 
 from src.memory.tiers.base_tier import BaseTier
+
+logger = logging.getLogger(__name__)
 from src.storage.typesense_adapter import TypesenseAdapter
 from src.storage.metrics.collector import MetricsCollector
 from src.storage.metrics.timer import OperationTimer
@@ -67,6 +70,13 @@ class SemanticMemoryTier(BaseTier):
                 await index_func(document=document, collection_name=self.collection_name)
             else:
                 await self.typesense.store(document)
+
+            logger.info(
+                "L4 store confirmed: knowledge_id=%s, type=%s, collection=%s",
+                knowledge.knowledge_id,
+                knowledge.knowledge_type,
+                self.collection_name
+            )
 
             return knowledge.knowledge_id
     

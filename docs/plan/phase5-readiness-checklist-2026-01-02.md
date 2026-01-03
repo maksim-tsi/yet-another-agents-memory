@@ -58,3 +58,181 @@
 	- Fast path: `./scripts/grade_phase5_readiness.sh --mode fast`
 	- Full path with summary file: `./scripts/grade_phase5_readiness.sh --mode full --summary-out /tmp/phase5-readiness.json`
 	- To skip real LLM/provider checks even if `GOOGLE_API_KEY` is set: add `--skip-llm`
+
+---
+
+## 2026-01-03 Implementation Session: Data Starvation Cascade Fix
+
+### Root Cause Analysis
+
+The `test_full_lifecycle_end_to_end` test fails due to a **data starvation cascade**:
+1. Too few facts flow from L1→L2 (semantic weakness in test data)
+2. Results in thin L3 episodes 
+3. Produces zero L4 knowledge documents
+
+Contributing factors identified:
+- **Vector dimension mismatch**: QdrantAdapter defaults to 384, EpisodicMemoryTier expects 768, Gemini outputs 3072 by default
+- **Low query limits**: `query_by_session()` defaults to 10 results (truncates during consolidation)
+- **Weak test content**: Generic "Container arrived" messages don't trigger meaningful LLM fact extraction
+
+### Completed Fixes (2026-01-03)
+
+| Fix | File | Change |
+|-----|------|--------|
+| ✅ Vector dimension to 768 | `src/utils/providers.py` | Added `output_dimensionality=768` to `GeminiProvider.get_embedding()` |
+| ✅ Fallback embedding aligned | `src/memory/engines/consolidation_engine.py` | Changed fallback from 1536 to 768 dims |
+| ✅ L2 query limits increased | `src/memory/tiers/working_memory_tier.py` | `query_by_session()` and `query_by_type()` default limit: 10→100 |
+| ✅ Rich test data | `tests/integration/test_memory_lifecycle.py` | New `SUPPLY_CHAIN_CONVERSATION_TEMPLATES` with realistic scenarios |
+| ✅ Distillation logging | `src/memory/engines/distillation_engine.py` | Added INFO log in `_retrieve_episodes()` (pre/post filter counts) |
+| ✅ L4 store confirmation | `src/memory/tiers/semantic_memory_tier.py` | Added INFO log confirming Typesense write with `knowledge_id` |
+
+### Pending: Arize Phoenix Integration
+
+#### Overview
+Phoenix provides LLM call tracing for debugging embeddings, latencies, and token usage. Already deployed on `skz-dev-lv:6006`.
+
+#### Environment Configuration
+
+Add to `.env`:
+```bash
+# --- Arize Phoenix (LLM Observability) ---
+PHOENIX_PORT=6006
+PHOENIX_GRPC_PORT=4317
+PHOENIX_COLLECTOR_ENDPOINT=http://${DEV_NODE_IP}:${PHOENIX_PORT}/v1/traces
+PHOENIX_PROJECT_NAME=mlm-mas-dev
+PHOENIX_URL=http://${DEV_NODE_IP}:${PHOENIX_PORT}
+```
+
+#### Project Naming Convention
+| Environment | Project Name |
+|-------------|--------------|
+| Development | `mlm-mas-dev` |
+| Testing | `mlm-mas-test` |
+| Production | `mlm-mas-prod` |
+
+#### Dependencies to Add (requirements.txt)
+```txt
+# --- Observability & Tracing (Arize Phoenix) ---
+arize-phoenix>=4.0.0                              # Phoenix observability SDK
+openinference-instrumentation-google-genai>=0.1.0 # Auto-instrumentation for Google GenAI
+opentelemetry-exporter-otlp>=1.20.0               # OTLP exporter (HTTP/gRPC)
+```
+
+#### Connectivity Check Script
+
+Create `scripts/check_phoenix_connectivity.sh`:
+```bash
+#!/usr/bin/env bash
+# Verify Arize Phoenix connectivity
+set -euo pipefail
+
+PHOENIX_HOST="${DEV_NODE_IP:-192.168.107.172}"
+PHOENIX_HTTP_PORT="${PHOENIX_PORT:-6006}"
+PHOENIX_GRPC_PORT="${PHOENIX_GRPC_PORT:-4317}"
+
+echo "=== Arize Phoenix Connectivity Check ==="
+echo "Host: ${PHOENIX_HOST}"
+
+# Check HTTP endpoint (UI + OTLP HTTP collector)
+echo -n "HTTP (port ${PHOENIX_HTTP_PORT}): "
+if curl -sf "http://${PHOENIX_HOST}:${PHOENIX_HTTP_PORT}" -o /dev/null 2>/dev/null; then
+    echo "✅ OK"
+else
+    echo "❌ FAILED"
+fi
+
+# Check gRPC endpoint
+echo -n "gRPC (port ${PHOENIX_GRPC_PORT}): "
+if nc -z "${PHOENIX_HOST}" "${PHOENIX_GRPC_PORT}" 2>/dev/null; then
+    echo "✅ OK"
+else
+    echo "⚠️  Not reachable (may not be exposed)"
+fi
+
+echo ""
+echo "=== Collector Endpoints ==="
+echo "OTLP HTTP: http://${PHOENIX_HOST}:${PHOENIX_HTTP_PORT}/v1/traces"
+echo "OTLP gRPC: ${PHOENIX_HOST}:${PHOENIX_GRPC_PORT}"
+```
+
+#### Instrumentation Code for llm_client.py
+
+Replace Phoenix init in `src/utils/llm_client.py`:
+```python
+# Phoenix configuration constants
+PHOENIX_DEFAULT_PROJECT = "mlm-mas-dev"
+PHOENIX_SERVICE_NAME = "mas-memory-layer"
+
+def _init_phoenix_instrumentation() -> None:
+    """Initialize Phoenix/OpenTelemetry instrumentation if configured.
+    
+    Environment Variables:
+        PHOENIX_COLLECTOR_ENDPOINT: OTLP collector URL (e.g., http://192.168.107.172:6006/v1/traces)
+        PHOENIX_PROJECT_NAME: Project name for trace grouping (default: mlm-mas-dev)
+    """
+    endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+    if not endpoint:
+        logger.debug(
+            "PHOENIX_COLLECTOR_ENDPOINT not set; Phoenix instrumentation disabled. "
+            "Set to http://<host>:6006/v1/traces to enable."
+        )
+        return
+    
+    project_name = os.environ.get("PHOENIX_PROJECT_NAME", PHOENIX_DEFAULT_PROJECT)
+    
+    try:
+        from phoenix.otel import register
+        
+        tracer_provider = register(
+            project_name=project_name,
+            endpoint=endpoint,
+            auto_instrument=True,
+        )
+        
+        logger.info(
+            "Phoenix instrumentation enabled: project=%s, endpoint=%s",
+            project_name,
+            endpoint
+        )
+        
+        # Explicitly instrument Google GenAI
+        try:
+            from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
+            if not GoogleGenAIInstrumentor().is_instrumented_by_opentelemetry:
+                GoogleGenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+                logger.info("Google GenAI instrumentation enabled (explicit)")
+        except ImportError:
+            logger.debug("openinference-instrumentation-google-genai not installed")
+        except Exception as e:
+            logger.warning("Failed to instrument Google GenAI: %s", e)
+        
+    except ImportError:
+        logger.debug("arize-phoenix not installed; run 'pip install arize-phoenix'")
+    except Exception as e:
+        logger.warning("Failed to initialize Phoenix instrumentation: %s", e)
+
+# Initialize at module load (idempotent)
+_init_phoenix_instrumentation()
+```
+
+### Next Steps (Priority Order)
+
+1. **Verify Phoenix Deployment**: Run connectivity check script against `skz-dev-lv:6006`
+2. **Install Dependencies**: Add Phoenix packages to requirements.txt
+3. **Update .env.example**: Add Phoenix configuration variables
+4. **Finalize llm_client.py**: Update instrumentation code with project naming
+5. **Run Full Lifecycle Test**: Verify data starvation fixes resolve the E2E test
+6. **Observe in Phoenix UI**: Confirm embedding dimensions and LLM calls are traced
+
+### Test Commands
+
+```bash
+# Run full lifecycle test
+/home/max/code/mas-memory-layer/.venv/bin/pytest tests/integration/test_memory_lifecycle.py::TestMemoryLifecycleFlow::test_full_lifecycle_end_to_end -v > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+
+# Run all integration tests  
+/home/max/code/mas-memory-layer/.venv/bin/pytest tests/integration/ -v > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+
+# Grade phase 5 readiness
+./scripts/grade_phase5_readiness.sh --mode full > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+```

@@ -8,16 +8,58 @@ tiers.
 The implementation keeps the core logic simple while still exposing enough APIs
 for Phase 2A/2B controllers to scale: configurable provider order, timeout
 control, and health checks.
+
+Phoenix/OpenTelemetry Instrumentation:
+    If PHOENIX_COLLECTOR_ENDPOINT is set, auto-instrumentors are activated
+    at module load time for LLM call observability. This enables embedding
+    dimension verification and latency debugging in the Arize Phoenix UI.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, cast
 
 logger = logging.getLogger(__name__)
+
+
+# Phoenix/OpenTelemetry auto-instrumentation (optional)
+def _init_phoenix_instrumentation() -> None:
+    """Initialize Phoenix auto-instrumentation if endpoint is configured."""
+    endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+    if not endpoint:
+        logger.debug("PHOENIX_COLLECTOR_ENDPOINT not set; skipping Phoenix instrumentation")
+        return
+    
+    try:
+        from phoenix.otel import register
+        
+        # Register with Phoenix collector
+        tracer_provider = register(
+            project_name="mas-memory-layer",
+            endpoint=endpoint,
+        )
+        logger.info("Phoenix instrumentation enabled: endpoint=%s", endpoint)
+        
+        # Auto-instrument Google GenAI if available
+        try:
+            from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
+            GoogleGenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+            logger.info("Google GenAI auto-instrumentation enabled")
+        except ImportError:
+            logger.debug("openinference-instrumentation-google-genai not installed; skipping")
+        
+    except ImportError:
+        logger.debug("arize-phoenix not installed; skipping Phoenix instrumentation")
+    except Exception as e:
+        logger.warning("Failed to initialize Phoenix instrumentation: %s", e)
+
+
+# Initialize at module load time (idempotent)
+_init_phoenix_instrumentation()
 
 
 @dataclass(frozen=True)

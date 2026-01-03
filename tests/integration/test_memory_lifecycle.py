@@ -581,16 +581,72 @@ class TestNetworkLatencyValidation:
 # Placeholder Test Data Factories
 # ============================================================================
 
+# Rich supply chain conversation content for LLM fact extraction
+SUPPLY_CHAIN_CONVERSATION_TEMPLATES = [
+    # User reports shipment issues
+    ("user", "I need to check on shipment MAEU{idx:07d}. It was supposed to arrive at the Port of Los Angeles yesterday but I haven't received any updates."),
+    ("assistant", "I've located shipment MAEU{idx:07d}. It's currently delayed at customs due to incomplete documentation. The expected clearance time is 48-72 hours."),
+    
+    # User asks about safety stock
+    ("user", "Our safety stock levels for SKU-{idx:05d} are critically low. We're down to 15 days of supply and lead time from the supplier is 30 days."),
+    ("assistant", "I recommend placing an emergency order with our backup supplier in Vietnam. They can deliver within 14 days at a 12% premium. I've also flagged this for the procurement team."),
+    
+    # Carrier delay notification
+    ("user", "We just received notification that carrier COSCO is experiencing port congestion in Shanghai. This affects our Q1 inventory replenishment."),
+    ("assistant", "I've identified 12 affected shipments totaling $2.3M in inventory value. Alternative routing through Ningbo port adds 5 days transit time but avoids the congestion."),
+    
+    # Quality control issue
+    ("user", "Quality inspection failed for batch BT-{idx:06d}. Found 8% defect rate, exceeding our 2% threshold."),
+    ("assistant", "I've initiated a supplier corrective action request (SCAR) and placed a hold on remaining inventory from this batch. Root cause analysis meeting scheduled for tomorrow."),
+    
+    # Demand forecast update
+    ("user", "Marketing just revised Q2 demand forecast upward by 35% for the electronics category due to new product launch."),
+    ("assistant", "I've updated the demand planning model. This creates a 45,000 unit gap in our current procurement plan. I recommend activating our contract manufacturing agreement with Flex."),
+    
+    # Supplier financial risk
+    ("user", "Our credit monitoring service flagged supplier ACME-{idx:04d} with deteriorating financial health. They supply 40% of our packaging materials."),
+    ("assistant", "I've initiated dual-sourcing evaluation with three alternative suppliers. Estimated qualification time is 6-8 weeks. Recommend building 60-day buffer stock as mitigation."),
+    
+    # Transportation cost optimization
+    ("user", "Freight costs have increased 23% this quarter. We need to optimize our transportation network to stay within budget."),
+    ("assistant", "Analysis shows consolidating shipments from 3 distribution centers to 2 regional hubs would reduce costs by $180K annually. Trade-off is 0.5 day increase in average delivery time."),
+    
+    # Inventory write-off discussion
+    ("user", "We have 5,000 units of product XYZ-{idx:05d} that will expire in 30 days. Current sell-through rate won't clear this inventory."),
+    ("assistant", "Options: 1) Flash sale at 40% discount (projected recovery: $125K), 2) Donate for tax benefit ($45K), 3) Liquidator sale ($80K). Recommend option 1 given brand positioning."),
+    
+    # Customs compliance issue
+    ("user", "Border control in Germany flagged shipment for missing CE certification on product batch CE-{idx:06d}."),
+    ("assistant", "Our compliance team confirmed the certification exists but wasn't included in shipping documents. I've expedited document submission. Expected release in 24-48 hours with no penalties."),
+    
+    # Warehouse capacity alert
+    ("user", "Warehouse WH-{idx:03d} in Chicago is at 95% capacity. We have 3 inbound shipments arriving this week totaling 2,400 pallets."),
+    ("assistant", "I've arranged overflow storage at third-party facility 15 miles away. Rate is $0.85/pallet/day. Also initiated review of slow-moving inventory for clearance opportunities."),
+]
+
+
 def create_test_turns(session_id: str, count: int = 10):
-    """Create test conversation turns for L1."""
+    """Create test conversation turns for L1 with rich supply chain content.
+    
+    Uses realistic supply chain scenarios to trigger meaningful LLM fact extraction.
+    Content includes shipment delays, inventory issues, supplier risks, and logistics events.
+    """
     turns = []
+    templates = SUPPLY_CHAIN_CONVERSATION_TEMPLATES
+    
     for i in range(count):
+        template_idx = i % len(templates)
+        role, content_template = templates[template_idx]
+        
+        # Format template with index for unique identifiers
+        content = content_template.format(idx=i)
+        
         turns.append({
             'session_id': session_id,
             'turn_id': i,
-            'role': 'user' if i % 2 == 0 else 'assistant',  # Required field
-            'content': f"Test turn {i}: Container MAEU{str(i).zfill(7)} arrived at port.",
-            'metadata': {'test': True, 'turn_index': i},
+            'role': role,
+            'content': content,
+            'metadata': {'test': True, 'turn_index': i, 'scenario_type': 'supply_chain'},
             'created_at': datetime.now(timezone.utc) - timedelta(minutes=count - i)
         })
     return turns

@@ -301,9 +301,19 @@ class DistillationEngine(BaseEngine):
                     limit=limit
                 )
             
+            pre_filter_count = len(episodes)
+            
             # Filter by session_id if provided
             if session_id:
                 episodes = [ep for ep in episodes if ep.session_id == session_id]
+            
+            logger.info(
+                "Distillation episode retrieval: session=%s, pre_filter=%d, post_filter=%d, limit=%d",
+                session_id,
+                pre_filter_count,
+                len(episodes),
+                limit
+            )
             
             return episodes
             

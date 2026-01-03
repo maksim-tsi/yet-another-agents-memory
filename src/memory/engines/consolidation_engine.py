@@ -608,7 +608,8 @@ Format as JSON:
 
     def _fallback_embedding(self, text: str) -> List[float]:
         """Generate deterministic fallback embedding when provider is unavailable."""
-        vector_size = getattr(self.l3, "vector_size", 1536)
+        # Use 768 dims to match EpisodicMemoryTier.VECTOR_SIZE and Qdrant schema
+        vector_size = getattr(self.l3, "vector_size", 768)
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         vector = []
         for i in range(vector_size):

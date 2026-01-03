@@ -321,7 +321,7 @@ class WorkingMemoryTier(BaseTier):
         self,
         session_id: str,
         min_ciar_score: Optional[float] = None,
-        limit: int = 10
+        limit: int = 100
     ) -> List[Fact]:
         """
         Query facts for a specific session.
@@ -329,7 +329,7 @@ class WorkingMemoryTier(BaseTier):
         Args:
             session_id: Session identifier
             min_ciar_score: Minimum CIAR threshold (default: tier threshold)
-            limit: Maximum results
+            limit: Maximum results (default: 100 to support consolidation)
         
         Returns:
             List of facts ordered by CIAR score descending
@@ -344,7 +344,7 @@ class WorkingMemoryTier(BaseTier):
         self,
         fact_type: FactType,
         session_id: Optional[str] = None,
-        limit: int = 10
+        limit: int = 100
     ) -> List[Fact]:
         """
         Query facts by type.
@@ -352,7 +352,7 @@ class WorkingMemoryTier(BaseTier):
         Args:
             fact_type: Type of fact to retrieve
             session_id: Optional session filter
-            limit: Maximum results
+            limit: Maximum results (default: 100)
         
         Returns:
             List of matching facts
