@@ -54,7 +54,7 @@ Revised Phase 5 plan to 10% subset baseline approach (prospective_memory + resta
 **⏳ Pending (Next Steps):**
 
 1. **Complete Infrastructure Setup** (Phase 5A - Days 1-2):
-   - ❌ Install GoodAI benchmark in isolated venv (requires `sudo apt install python3-venv`)
+   - ✅ Install GoodAI benchmark in isolated venv (dependencies installed via requirements.txt)
    - ❌ Create config validator: `scripts/validate_goodai_config.py`
    - ❌ Create subset config: `benchmarks/goodai-ltm-benchmark/configs/mas_subset_32k.yaml`
 

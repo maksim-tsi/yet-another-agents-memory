@@ -41,13 +41,15 @@ python3 -m venv .venv-benchmark
 # Activate (for manual testing only - orchestration scripts handle activation)
 source .venv-benchmark/bin/activate
 
-# Install GoodAI benchmark and dependencies
+# Install dependencies directly from requirements.txt
 cd goodai-ltm-benchmark
-pip install -e .
+pip install -r requirements.txt
 
-# Verify installation
-python -m pytest --version  # Should show pytest installed
+# Verify installation (check for key packages)
+python -c "import anthropic, openai, langchain; print('Dependencies installed successfully')"
 ```
+
+**Note**: The GoodAI benchmark is not packaged as a module (`goodai_ltm` module does not exist), but all test scripts in `datasets/` are executable directly. This is the expected behavior - the benchmark runs by executing Python files, not importing modules.
 
 ### 4. Verify Test Types
 
