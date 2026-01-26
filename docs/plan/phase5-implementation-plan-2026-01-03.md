@@ -1,9 +1,9 @@
 # Phase 5 Implementation Plan: GoodAI LTM Benchmark Evaluation
 
-**Version**: 1.0  
-**Date**: January 3, 2026  
-**Duration**: 6 weeks  
-**Status**: Planning Complete | Implementation Not Started  
+**Version**: 2.0 (Updated: January 26, 2026)  
+**Date**: January 3, 2026 (Original) | January 26, 2026 (Revised)  
+**Duration**: 2-3 weeks (10% subset baseline first)  
+**Status**: Implementation Starting | Subset Execution Strategy  
 **Prerequisites**: ✅ Phase 4 Complete (574/586 tests passing, 0 failures)  
 **Target**: AIMS 2025 Conference Paper Submission  
 **Branch**: `dev-mas`
@@ -12,22 +12,24 @@
 
 ## Executive Summary
 
-Phase 5 executes a rigorous quantitative evaluation of our four-tier hybrid memory architecture using the GoodAI LTM Benchmark. This phase will generate the empirical results required for the AIMS 2025 paper submission, comparing our full system against two baseline configurations across long-conversation scenarios (32k-120k tokens).
+Phase 5 executes a rigorous quantitative evaluation of our four-tier hybrid memory architecture using the GoodAI LTM Benchmark. **This revised plan focuses on a 10% subset execution (32k span, prospective_memory + restaurant tests) to establish performance baselines before full-scale runs.** The subset approach validates system integration, measures vector/graph retrieval performance, and ensures database isolation strategies work under real workload.
 
-### Core Deliverables
+### Core Deliverables (Revised)
 
 1. **Three Agent Implementations**: `MemoryAgent` (full system), `RAGAgent` (standard baseline), `FullContextAgent` (naive baseline)
-2. **Benchmark Integration**: FastAPI wrapper + GoodAI LTM Benchmark runner
-3. **Experimental Results**: 12 benchmark runs with comprehensive instrumentation
-4. **Paper-Ready Tables**: Functional correctness scores + operational efficiency metrics
+2. **Isolated FastAPI Wrappers**: Three separate services (ports 8080/8081/8082) with database-level session isolation
+3. **Benchmark Integration**: GoodAI LTM Benchmark (separate venv) + custom agent interfaces with session ID prefixing
+4. **10% Subset Baseline Results**: Performance bottleneck analysis, timing breakdown, memory accumulation patterns
+5. **Decision Matrix**: Scale to full benchmark, optimize retrieval, or adjust architecture
 
 ### Key Metrics
 
 | Metric Category | Measurements |
 |-----------------|--------------|
-| **Functional Correctness** | GoodAI LTM accuracy scores (32k, 120k token spans) |
-| **Operational Efficiency** | Latency P50/P95/P99, token cost per turn, cache hit rates |
-| **Resource Utilization** | Memory usage, database query counts, LLM API calls |
+| **Functional Correctness** | GoodAI LTM accuracy scores (0-10 scale) on prospective_memory + restaurant tests |
+| **Operational Efficiency** | Adapter-level timing breakdown (LLM % vs L2 % vs L3-vector % vs L3-graph % vs L4 %) |
+| **Resource Utilization** | Memory accumulation timeline, token consumption, database query counts |
+| **System Performance** | Total latency per turn, P50/P95/P99 distributions, bottleneck identification |
 
 ---
 
@@ -61,119 +63,246 @@ Phase 5 executes a rigorous quantitative evaluation of our four-tier hybrid memo
 | **Experiment Automation** | ❌ Not implemented | `scripts/run_experiments.sh` |
 | **Analysis Notebook** | ❌ Not implemented | `benchmarks/analysis/analyze_results.ipynb` |
 
-### Model Configuration
+### Model Configuration (Updated)
 
-| Provider | Model ID | Use Case |
-|----------|----------|----------|
-| **Gemini** | `gemini-3-flash-preview` | Primary inference, structured output, embeddings |
-| **Groq** | `openai/gpt-oss-120b` | Fast inference, batch processing, fallback |
+| Provider | Model ID | Use Case | Rate Limits |
+|----------|----------|----------|-------------|
+| **Gemini** | `gemini-2.5-flash-lite` | Primary model for all agents (subset baseline) | 4K RPM, 4M TPM, Unlimited RPD |
+| **Groq** | `openai/gpt-oss-120b` | Future fallback (not used in subset) | 30 RPM, 200k TPM |
+
+**Rationale**: Switched to `gemini-2.5-flash-lite` for Phase 5 due to significantly higher rate limits (4K RPM vs 10 RPM for gemini-3-flash-preview), enabling faster experimental iteration without quota exhaustion. Unlimited requests per day (RPD) removes daily quota concerns for subset execution.
 
 ---
 
-## Architecture Overview
+## Architecture Overview (Revised: Isolated Services)
 
-### Three Experimental Configurations
+### Three Isolated FastAPI Services with Database-Level Session Isolation
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        GoodAI LTM Benchmark Runner                          │
-│                    (External: goodai-ltm-benchmark repo)                    │
+│              GoodAI LTM Benchmark Runner (Separate Venv)                    │
+│                  benchmarks/.venv-benchmark/                                │
+│                                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────────┐  │
+│  │  mas-full    │  │   mas-rag    │  │   mas-full-context               │  │
+│  │  (agent ifc) │  │  (agent ifc) │  │   (agent ifc)                    │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────────────┬───────────────────┘  │
+│         │ Prefix:         │ Prefix:                  │ Prefix:              │
+│         │ full:{id}       │ rag:{id}                 │ full_context:{id}    │
+└─────────┼─────────────────┼──────────────────────────┼──────────────────────┘
+          │                 │                          │
+          ▼                 ▼                          ▼
+   HTTP :8080        HTTP :8081                 HTTP :8082
+┌─────────────────┐ ┌─────────────────┐ ┌──────────────────────────────────┐
+│  Wrapper #1     │ │  Wrapper #2     │ │  Wrapper #3                      │
+│  --agent full   │ │  --agent rag    │ │  --agent full_context            │
+│  --port 8080    │ │  --port 8081    │ │  --port 8082                     │
+│                 │ │                 │ │                                  │
+│ GET /sessions   │ │ GET /sessions   │ │ GET /sessions                    │
+│ GET /memory_st  │ │ GET /memory_st  │ │ GET /memory_st                   │
+│                 │ │                 │ │                                  │
+│ ┌─────────────┐ │ │ ┌─────────────┐ │ │ ┌────────────────────────────┐   │
+│ │MemoryAgent  │ │ │ │  RAGAgent   │ │ │ │  FullContextAgent          │   │
+│ │(LangGraph)  │ │ │ │(Incremental)│ │ │ │  (Truncation)              │   │
+│ └─────────────┘ │ │ └─────────────┘ │ │ └────────────────────────────┘   │
+└────────┬────────┘ └────────┬────────┘ └───────────────┬──────────────────┘
+         │                   │                           │
+         ▼                   ▼                           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                  Database Layer (Shared with Isolation)                     │
+│                                                                             │
+│  Redis: mas-{agent}:*     PostgreSQL: LOCK TABLE facts                     │
+│  Qdrant: episodes_mas_full, episodes_mas_rag, episodes_mas_full_context   │
+│  Neo4j: Redis distributed lock (LOCK neo4j:{session_id}, 30s TTL)         │
+│  Typesense: Session filtering                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼ HTTP POST /run_turn
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Agent Wrapper API (FastAPI)                         │
-│                      src/evaluation/agent_wrapper.py                        │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────────┐  │
-│  │  config=full    │  │  config=rag     │  │  config=full_context        │  │
-│  └────────┬────────┘  └────────┬────────┘  └──────────────┬──────────────┘  │
-└───────────┼────────────────────┼──────────────────────────┼─────────────────┘
-            │                    │                          │
-            ▼                    ▼                          ▼
-┌───────────────────┐  ┌─────────────────┐  ┌──────────────────────────────────┐
-│   MemoryAgent     │  │    RAGAgent     │  │      FullContextAgent            │
-│   (Full System)   │  │  (RAG Baseline) │  │      (Naive Baseline)            │
-│                   │  │                 │  │                                  │
-│  ┌─────────────┐  │  │  ┌───────────┐  │  │  ┌────────────────────────────┐  │
-│  │ LangGraph   │  │  │  │ Single    │  │  │  │ Full History               │  │
-│  │ StateGraph  │  │  │  │ Vector    │  │  │  │ Concatenation              │  │
-│  │             │  │  │  │ Query     │  │  │  │                            │  │
-│  │ ┌─────────┐ │  │  │  └─────┬─────┘  │  │  └──────────────┬─────────────┘  │
-│  │ │PERCEIVE │ │  │  │        │        │  │                 │                │
-│  │ │RETRIEVE │ │  │  │        ▼        │  │                 ▼                │
-│  │ │REASON   │ │  │  │   ┌────────┐    │  │          ┌────────────┐          │
-│  │ │UPDATE   │ │  │  │   │ Qdrant │    │  │          │   Redis    │          │
-│  │ │RESPOND  │ │  │  │   │(single)│    │  │          │ (history)  │          │
-│  │ └─────────┘ │  │  │   └────────┘    │  │          └────────────┘          │
-│  └──────┬──────┘  │  │                 │  │                                  │
-│         │         │  │                 │  │                                  │
-│         ▼         │  │                 │  │                                  │
-│  ┌─────────────┐  │  │                 │  │                                  │
-│  │ Unified     │  │  │                 │  │                                  │
-│  │ Memory      │  │  │                 │  │                                  │
-│  │ System      │  │  │                 │  │                                  │
-│  │             │  │  │                 │  │                                  │
-│  │ L1→L2→L3→L4│  │  │                 │  │                                  │
-│  └─────────────┘  │  │                 │  │                                  │
-└───────────────────┘  └─────────────────┘  └──────────────────────────────────┘
 ```
 
-### Data Flow Per Agent
+### Database Isolation Strategy
+
+| Layer | Isolation Mechanism | Purpose |
+|-------|---------------------|---------|
+| **Redis** | Key prefix `mas-{agent}:*` + namespace per agent | Prevent L1 cross-contamination |
+| **PostgreSQL** | Table-level locks during writes (`LOCK TABLE facts IN SHARE ROW EXCLUSIVE MODE`) | Serialize writes, prevent race conditions |
+| **Qdrant** | Separate collections per agent (`episodes_mas_full`, etc.) | Enable parallel indexing without contention |
+| **Neo4j** | Redis distributed lock per session (`LOCK neo4j:{session_id}`, 30s TTL) | Coordinate graph writes across services |
+| **Typesense** | Session ID filtering in queries | Logical isolation, shared collection |
+
+### Data Flow Per Agent (Turn-by-Turn Accumulation)
 
 **MemoryAgent (UC-01 - Full System)**:
-1. Load personal state from Operating Memory (Redis L1)
-2. Query L2 for recent working memory (PostgreSQL)
-3. Query L3/L4 for relevant knowledge (Qdrant + Neo4j + Typesense)
-4. Synthesize context with LLM (`gemini-3-flash-preview`)
+1. Receive request with full history + current message (session_id: `full:{goodai_id}`)
+2. Store current turn in L1 Active Context (Redis `mas-full:{session_id}:*`)
+3. Query L2/L3/L4 for relevant knowledge using UnifiedMemorySystem
+4. Synthesize context with LLM (`gemini-2.5-flash-lite`)
 5. Generate response
-6. Update personal state → trigger async promotion engine
+6. Update personal state → trigger async L1→L2 promotion
+7. Return response to GoodAI benchmark
 
 **RAGAgent (UC-02 - Standard RAG)**:
-1. Query single Qdrant collection with current message
-2. Concatenate retrieved chunks with message
-3. Generate response via LLM (stateless, no memory management)
+1. Receive request with history + message (session_id: `rag:{goodai_id}`)
+2. Index current turn into Qdrant collection `episodes_mas_rag`
+3. Query same collection with message embedding (top_k=10)
+4. Concatenate retrieved chunks with message
+5. Generate response via LLM (stateless, no L2/L3/L4)
+6. Return response to GoodAI benchmark
 
 **FullContextAgent (UC-03 - Full Context)**:
-1. Retrieve entire conversation history from Redis
-2. Concatenate full history with current message
-3. Send massive prompt to LLM (no filtering, no summarization)
+1. Receive request with history + message (session_id: `full_context:{goodai_id}`)
+2. Concatenate all history turns (no storage or retrieval)
+3. Truncate if exceeds 120k tokens, log context overflow
+4. Send full prompt to LLM
+5. Generate response
+6. Return response to GoodAI benchmark
 
 ---
 
-## Phase 5A: Agent Implementation (Week 1-2)
+## Phase 5 Subset: 10% Baseline Execution (Week 1-2)
 
-### W5A.1: BaseAgent Abstract Class
+### Subset Scope Definition
 
-**Objective**: Create the abstract base class that all agents inherit from, defining the common interface.
+**Test Coverage**: 10% of GoodAI Benchmark v3.5, 32k memory span only
 
-**File**: `src/agents/base_agent.py`
+| Test Type | Selection Rationale | Expected Test Count |
+|-----------|---------------------|---------------------|
+| `prospective_memory` | Temporal fact recall - tests L2/L3 retrieval across time | ~10-15 test instances |
+| `restaurant` | Multi-entity tracking - tests graph queries and fact consolidation | ~10-15 test instances |
+
+**Why This Subset**:
+- Covers two distinct memory challenges (temporal + multi-entity)
+- Small enough to complete in hours vs days
+- Representative of GoodAI's full benchmark diversity
+- Sufficient to identify system bottlenecks (vector search, graph queries, LLM calls)
+
+---
+
+## Phase 5A: Infrastructure Setup (Days 1-2)
+
+### W5A.1: GoodAI Benchmark Setup & Validation
+
+**Objective**: Download, extract, and validate GoodAI benchmark repository in isolated environment.
+
+**File**: `benchmarks/README.md`
 
 **Tasks**:
-- [ ] Define `BaseAgent` abstract class with:
-  - `async process_turn(message: str, history: List[Dict]) -> str`
-  - `async retrieve_context(query: str) -> Dict[str, Any]`
-  - `async update_state(response: str) -> None`
+- [ ] Download [goodai-ltm-benchmark-main.zip](https://github.com/GoodAI/goodai-ltm-benchmark/archive/refs/heads/main.zip) to `benchmarks/`
+- [ ] Add `goodai-ltm-benchmark*` and `.venv-benchmark/` to `.gitignore`
+- [ ] Extract to `benchmarks/goodai-ltm-benchmark/`
+- [ ] Create isolated Python 3.10+ venv at `benchmarks/.venv-benchmark/`
+- [ ] Install their `requirements.txt` in isolated venv
+- [ ] Validate `prospective_memory.py` and `restaurant.py` exist in `benchmarks/goodai-ltm-benchmark/datasets/`
+- [ ] Document setup process in `benchmarks/README.md`
+
+**Acceptance Criteria**:
+- [ ] GoodAI benchmark runs in isolated venv (test with their example config)
+- [ ] No dependency conflicts with our project venv
+- [ ] Selected test datasets present and loadable
+
+**Deliverables**:
+```
+benchmarks/goodai-ltm-benchmark/       (extracted)
+benchmarks/.venv-benchmark/            (isolated venv)
+benchmarks/README.md                   (setup documentation)
+.gitignore                             (updated)
+```
+
+---
+
+### W5A.2: Update AGENTS.MD and Validate Dependencies
+
+### W5A.2: Update AGENTS.MD and Validate Dependencies
+
+**Objective**: Update project protocol to permit absolute paths and verify LLM/framework support.
+
+**Files**: `AGENTS.MD`, `src/utils/llm_client.py`, `.env.example`
+
+**Tasks**:
+- [ ] Modify `AGENTS.MD` Protocol 8.1 to permit absolute paths for read-only tool operations
+- [ ] Verify `gemini-2.5-flash-lite` model ID support in `src/utils/llm_client.py`
+- [ ] Update `.env.example` with `GOOGLE_API_KEY` and model configuration (4K RPM, 4M TPM, Unlimited RPD)
+- [ ] Verify LangGraph version in `requirements.txt` supports `StateGraph` API (>= 0.1.0)
+- [ ] Document absolute path exception rationale in `AGENTS.MD`
+
+**Acceptance Criteria**:
+- [ ] `gemini-2.5-flash-lite` successfully initializes via LLM client
+- [ ] LangGraph `StateGraph` imports without error
+- [ ] `.env.example` documents all required keys and limits
+
+**Deliverables**:
+```
+AGENTS.MD (Protocol 8.1 updated)
+.env.example (updated with gemini-2.5-flash-lite config)
+```
+
+---
+
+### W5A.3: GoodAI Config Validator
+
+**Objective**: Implement strict JSON schema validator for benchmark configuration files.
+
+**File**: `scripts/validate_goodai_config.py`
+
+**Tasks**:
+- [ ] Create Pydantic model for GoodAI config schema (memory_span, test_types, etc.)
+- [ ] Implement strict validation (reject unknown fields)
+- [ ] Add CLI: `python scripts/validate_goodai_config.py <config.yaml>`
+- [ ] Return exit code 0 (valid) or 1 (invalid) with detailed error messages
+- [ ] Integrate into `run_subset_experiments.sh` as pre-flight check
+
+**Acceptance Criteria**:
+- [ ] Validator catches typos and missing required fields
+- [ ] Validator rejects configs with unknown test types
+- [ ] Clear error messages point to specific validation failures
+
+**Deliverables**:
+```
+scripts/validate_goodai_config.py
+tests/scripts/test_validate_goodai_config.py
+```
+
+---
+
+## Phase 5B: Agent Implementation (Days 3-5)
+
+### W5B.1: BaseAgent and Pydantic Models
+
+**Objective**: Create abstract base class and request/response models with format coercion.
+
+**Files**: `src/agents/base_agent.py`, `src/agents/models.py`
+
+**Tasks**:
+- [ ] Define `BaseAgent` abstract class with methods:
+  - `async process_turn(request: RunTurnRequest) -> RunTurnResponse`
+  - `async health_check() -> Dict[str, Any]`
   - `get_metrics() -> Dict[str, Any]`
-- [ ] Define `AgentInput` and `AgentOutput` Pydantic models
-- [ ] Define `AgentState` TypedDict for LangGraph state management
-- [ ] Implement common instrumentation hooks (timing, token counting)
-- [ ] Add health check method for dependency verification
+- [ ] Define `RunTurnRequest(BaseModel)` with fields:
+  - `history: List[Dict[str, str]]` (GoodAI format)
+  - `message: str` (current user message)
+  - `session_id: str` (prefixed by agent type)
+- [ ] Implement Pydantic validator for automatic format coercion:
+  - Input: `{user: "...", assistant: "..."}` or `{role: "user", content: "..."}`
+  - Output: Standardized `{role: "user", content: "..."}`
+- [ ] Define `RunTurnResponse(BaseModel)` with fields:
+  - `response: str` (agent's response)
+  - `metadata: Dict[str, Any]` (optional instrumentation)
+- [ ] Implement common instrumentation hooks (adapter-level timing)
 
 **Acceptance Criteria**:
 - [ ] Abstract methods enforced (TypeError on direct instantiation)
-- [ ] Pydantic models validate input/output schemas
-- [ ] Unit tests for base class behavior (8+ tests)
+- [ ] Format coercion validator handles both input formats
+- [ ] Unit tests for base class and Pydantic models (10+ tests)
 
 **Deliverables**:
 ```
 src/agents/base_agent.py
-src/agents/models.py (AgentInput, AgentOutput, AgentState)
+src/agents/models.py
 tests/agents/test_base_agent.py
+tests/agents/test_models.py
 ```
 
 ---
 
-### W5A.2: MemoryAgent Implementation (Full System)
+### W5B.2: MemoryAgent with LangGraph StateGraph
 
 **Objective**: Implement the full hybrid memory agent using LangGraph StateGraph with all four memory tiers.
 
@@ -227,9 +356,9 @@ class MemoryAgent(BaseAgent):
 
 **Acceptance Criteria**:
 - [ ] Full PERCEIVE→RETRIEVE→REASON→UPDATE→RESPOND cycle works
-- [ ] Integrates with all 4 memory tiers
+- [ ] Integrates with all 4 memory tiers via UnifiedMemorySystem
 - [ ] Handles LLM failures gracefully (circuit breaker triggers)
-- [ ] Metrics collected for each node (latency, tokens)
+- [ ] Adapter-level metrics collected for each storage operation
 - [ ] Unit tests (12+ tests) + integration test with mocked backends
 
 **Deliverables**:
@@ -241,7 +370,510 @@ tests/integration/test_memory_agent_integration.py
 
 ---
 
-### W5A.3: RAGAgent Implementation (Standard RAG Baseline)
+### W5B.3: RAGAgent with Incremental Indexing
+
+**Objective**: Implement the stateless RAG baseline with turn-by-turn Qdrant indexing.
+
+**File**: `src/agents/rag_agent.py`
+
+**Tasks**:
+- [ ] Create `RAGAgent` class inheriting from `BaseAgent`
+- [ ] Implement turn-by-turn flow:
+  - Index current turn into `episodes_mas_rag` Qdrant collection
+  - Generate embedding for current message
+  - Query same collection (top_k=10, similarity threshold)
+  - Concatenate retrieved chunks with message
+  - Generate response via LLM
+- [ ] No state management between turns (stateless)
+- [ ] No L1/L2/L3/L4 Operating Memory usage
+- [ ] Add instrumentation for Qdrant indexing and query latency
+
+**Architectural Constraints**:
+- No `PersonalMemoryState` (stateless)
+- No async consolidation or promotion
+- Single Qdrant collection per agent instance
+
+**Acceptance Criteria**:
+- [ ] Stateless operation verified (no state persists between calls)
+- [ ] Single Qdrant index + query per turn (verified via logs)
+- [ ] Response quality comparable to MemoryAgent on short contexts
+- [ ] Unit tests (8+ tests)
+
+**Deliverables**:
+```
+src/agents/rag_agent.py
+tests/agents/test_rag_agent.py
+```
+
+---
+
+### W5B.4: FullContextAgent with Graceful Truncation
+
+**Objective**: Implement the naive full-context baseline with history truncation at 120k tokens.
+
+**File**: `src/agents/full_context_agent.py`
+
+**Tasks**:
+- [ ] Create `FullContextAgent` class inheriting from `BaseAgent`
+- [ ] Implement full history concatenation from request
+- [ ] Add token counting (tiktoken or approximate)
+- [ ] Implement graceful truncation at 120k tokens:
+  - Keep most recent turns up to limit
+  - Log context overflow with turn count
+  - Return error response documenting limit exceeded (for 120k+ span tests)
+- [ ] Add instrumentation for prompt size and token counts
+- [ ] No storage or retrieval operations
+
+**Architectural Constraints**:
+- No retrieval or filtering (pass everything or truncate)
+- No knowledge distillation
+- Maximum token consumption per turn
+
+**Acceptance Criteria**:
+- [ ] Full history included in every prompt (up to 120k tokens)
+- [ ] Handles context overflow gracefully (truncation with logging)
+- [ ] Token count metrics accurate
+- [ ] Unit tests (6+ tests)
+
+**Deliverables**:
+```
+src/agents/full_context_agent.py
+tests/agents/test_full_context_agent.py
+```
+
+---
+
+## Phase 5C: Wrapper Services (Days 6-8)
+
+### W5C.1: FastAPI Wrapper with Database Isolation
+
+**Objective**: Create isolated FastAPI service with startup DB checks, session tracking, and cleanup.
+
+**File**: `src/evaluation/agent_wrapper.py`
+
+**Tasks**:
+- [ ] Implement FastAPI application with CLI args:
+  - `--agent-type {full|rag|full_context}`
+  - `--port {8080|8081|8082}`
+  - `--model gemini-2.5-flash-lite`
+- [ ] Implement lifespan context manager:
+  - Pre-initialize UnifiedMemorySystem with agent-specific config
+  - Separate Qdrant collections: `episodes_mas_full`, `episodes_mas_rag`, `episodes_mas_full_context`
+  - Redis key prefix: `mas-{agent}:*`
+  - Validate DB connectivity (Redis ping, PostgreSQL tables, Qdrant collections, Neo4j constraints, Typesense schema)
+  - Fail fast with HTTP 500 and detailed error if any DB unavailable
+- [ ] Implement database isolation mechanisms:
+  - PostgreSQL: Table-level locks during writes (`LOCK TABLE facts IN SHARE ROW EXCLUSIVE MODE`)
+  - Redis: Distributed locks for Neo4j operations (`LOCK neo4j:{session_id}`, 30s TTL, auto-renew)
+  - Qdrant: Agent-specific collection routing
+- [ ] Implement endpoints:
+  - POST `/run_turn` (main processing endpoint)
+  - GET `/sessions` (dynamic session discovery from storage layers)
+  - GET `/memory_state?session_id={id}` (returns `{"session_id": "{agent}:{id}", "l1_turns": N, "l2_facts": M, "l3_episodes": K, "l4_docs": P}`)
+  - GET `/health` (DB connectivity status)
+- [ ] Implement graceful shutdown:
+  - Close DB connections
+  - Flush metrics
+  - Clean up Redis locks
+  - Target only active sessions from current run
+- [ ] Add structured logging (INFO level):
+  - Request/response details
+  - Adapter-level storage timing
+  - Infrastructure errors as HTTP 500
+
+**Acceptance Criteria**:
+- [ ] Startup health checks prevent service start if DB unavailable
+- [ ] All three agent types work with same wrapper code (agent factory pattern)
+- [ ] Session isolation verified (no cross-contamination in unit tests)
+- [ ] Instrumentation captures adapter-level timing
+- [ ] Unit tests for API endpoints (12+ tests)
+
+**Deliverables**:
+```
+src/evaluation/agent_wrapper.py
+src/evaluation/instrumentation.py
+tests/evaluation/test_agent_wrapper.py
+```
+
+---
+
+### W5C.2: GoodAI Agent Interfaces
+
+**Objective**: Register custom agents in GoodAI's model_interfaces with session ID prefixing.
+
+**File**: `benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py`
+
+**Tasks**:
+- [ ] Implement GoodAI agent interface for `mas-full`:
+  - HTTP POST to `http://localhost:8080/run_turn`
+  - Prefix session_id: `full:{goodai_session_id}`
+  - Handle HTTP errors gracefully
+- [ ] Implement interface for `mas-rag`:
+  - HTTP POST to `http://localhost:8081/run_turn`
+  - Prefix session_id: `rag:{goodai_session_id}`
+- [ ] Implement interface for `mas-full-context`:
+  - HTTP POST to `http://localhost:8082/run_turn`
+  - Prefix session_id: `full_context:{goodai_session_id}`
+- [ ] Register agents in GoodAI's agent registry
+- [ ] Add retry logic with exponential backoff for transient HTTP errors
+
+**Acceptance Criteria**:
+- [ ] GoodAI benchmark successfully calls all three agents
+- [ ] Session ID prefixing applied correctly
+- [ ] Error messages from wrappers propagate to GoodAI logs
+
+**Deliverables**:
+```
+benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py
+```
+
+---
+
+## Phase 5D: Execution Infrastructure (Days 9-10)
+
+### W5D.1: Subset Config and Documentation
+
+**Objective**: Create validated subset configuration and document integration.
+
+**Files**: `benchmarks/goodai-ltm-benchmark/configs/mas_subset_32k.yaml`, `docs/integrations/goodai-benchmark-setup.md`
+
+**Tasks**:
+- [ ] Create `mas_subset_32k.yaml` config:
+  ```yaml
+  memory_span: 32000
+  test_types:
+    - prospective_memory
+    - restaurant
+  model: mas-full  # Will be overridden by -a flag
+  ```
+- [ ] Validate config with `scripts/validate_goodai_config.py`
+- [ ] Document in `docs/integrations/goodai-benchmark-setup.md`:
+  - Setup instructions for GoodAI benchmark
+  - HTTP API schema (`/run_turn`, `/sessions`, `/memory_state`)
+  - Session ID prefixing convention
+  - Result file mapping:
+    - GoodAI output: `benchmarks/goodai-ltm-benchmark/data/tests/{benchmark}/results/{agent}/`
+    - Our analysis input: `benchmarks/results/goodai_ltm/subset_baseline_YYYYMMDD/`
+  - Debug endpoint usage
+  - Cleanup verification procedure
+
+**Acceptance Criteria**:
+- [ ] Config passes strict validation
+- [ ] Documentation includes complete setup and troubleshooting guide
+- [ ] Result path mapping clearly documented
+
+**Deliverables**:
+```
+benchmarks/goodai-ltm-benchmark/configs/mas_subset_32k.yaml
+docs/integrations/goodai-benchmark-setup.md
+```
+
+---
+
+### W5D.2: Orchestration Script with Cleanup Verification
+
+**Objective**: Implement robust orchestration script for subset baseline execution.
+
+**File**: `scripts/run_subset_experiments.sh`
+
+**Tasks**:
+- [ ] Implement parallel wrapper startup (3 services):
+  ```bash
+  .venv/bin/python src/evaluation/agent_wrapper.py --agent-type full --port 8080 &
+  .venv/bin/python src/evaluation/agent_wrapper.py --agent-type rag --port 8081 &
+  .venv/bin/python src/evaluation/agent_wrapper.py --agent-type full_context --port 8082 &
+  ```
+- [ ] Wait for all services to be healthy (check `/health` endpoints, 60s timeout)
+- [ ] Execute runs serially (avoid quota exhaustion):
+  ```bash
+  cd benchmarks/.venv-benchmark
+  source bin/activate
+  
+  for agent in mas-full mas-rag mas-full-context; do
+    python -m goodai_ltm_benchmark.run -a $agent -c ../configs/mas_subset_32k.yaml
+    verify_cleanup $agent  # Check /sessions returns empty []
+    if [ $? -ne 0 ]; then
+      force_cleanup $agent  # Call POST /cleanup_force?session_id=all
+    fi
+  done
+  ```
+- [ ] Implement cleanup verification function:
+  - Call `GET /sessions` after each run
+  - Expect empty list `[]`
+  - If not empty, call `POST /cleanup_force?session_id=all`
+  - Log cleanup status to `logs/subset_cleanup_{agent}_YYYYMMDD.log`
+- [ ] Start background memory polling for each agent:
+  ```bash
+  .venv/bin/python scripts/poll_memory_state.py \
+    --port {8080|8081|8082} \
+    --output logs/{agent}_memory_timeline.jsonl \
+    --error-log logs/{agent}_memory_polling_errors.log \
+    --interval 10 &  # Poll every 10 turns
+  ```
+- [ ] Gracefully shutdown wrappers after all runs complete
+- [ ] Copy GoodAI results to our benchmarks directory:
+  ```bash
+  cp -r benchmarks/goodai-ltm-benchmark/data/tests/{prospective_memory,restaurant}/results/mas-* \
+    benchmarks/results/goodai_ltm/subset_baseline_$(date +%Y%m%d)/
+  ```
+
+**Acceptance Criteria**:
+- [ ] All three wrappers start and pass health checks
+- [ ] Runs execute serially with verified cleanup between agents
+- [ ] Memory timeline logs capture L1-L4 accumulation
+- [ ] Polling errors logged separately (don't fail runs)
+- [ ] Results copied to timestamped directory
+
+**Deliverables**:
+```
+scripts/run_subset_experiments.sh
+scripts/poll_memory_state.py
+```
+
+---
+
+## Phase 5E: Analysis and Reporting (Days 11-12)
+
+### W5E.1: Results Analysis Notebook
+
+**Objective**: Analyze subset baseline to identify bottlenecks before full-scale execution.
+
+**File**: `benchmarks/analysis/analyze_subset_baseline.ipynb`
+
+**Tasks**:
+- [ ] Parse GoodAI JSON results:
+  - `{agent}/prospective_memory/results.json` → accuracy, token usage
+  - `{agent}/restaurant/results.json` → accuracy, token usage
+- [ ] Calculate metrics per agent:
+  - Correctness: % questions answered correctly
+  - Token efficiency: tokens per turn
+  - Latency: Average response time per turn
+- [ ] Parse memory timeline logs:
+  - Plot L1/L2/L3/L4 accumulation over turns
+  - Identify which tiers lag behind conversation progress
+- [ ] Parse adapter-level timing logs:
+  - Identify slowest storage operations (writes, queries)
+  - Histogram of operation latencies
+- [ ] Identify top 3 bottlenecks:
+  - Adapter-level (e.g., "L3 Qdrant writes take 200ms, blocking turn completion")
+  - Tier-level (e.g., "L2 promotion lags 50 turns behind conversation")
+  - LLM-level (e.g., "Gemini fact extraction averages 5s per turn")
+- [ ] Generate comparison table:
+  | Agent | Correctness | Tokens/Turn | Latency | Top Bottleneck |
+  |-------|-------------|-------------|---------|----------------|
+  | MAS Full | % | N | Ms | ... |
+  | MAS RAG | % | N | Ms | ... |
+  | MAS Full Context | % | N | Ms | ... |
+
+**Acceptance Criteria**:
+- [ ] All three agents' results parsed successfully
+- [ ] Timing breakdown identifies specific slow operations
+- [ ] Recommendations include 3+ actionable optimizations
+
+**Deliverables**:
+```
+benchmarks/analysis/analyze_subset_baseline.ipynb
+benchmarks/results/goodai_ltm/subset_baseline_YYYYMMDD/analysis_report.md
+```
+
+---
+
+## Phase 5F: Baseline Execution and Validation (Days 13-14)
+
+### W5F.1: Execute Subset Baseline
+
+**Objective**: Run verified subset baseline and validate results format.
+
+**Tasks**:
+- [ ] Execute orchestration script:
+  ```bash
+  bash scripts/run_subset_experiments.sh
+  ```
+- [ ] Monitor execution:
+  - Watch memory timeline logs for L1-L4 accumulation
+  - Monitor adapter timing logs for slow operations
+  - Check wrapper service logs for errors
+- [ ] Verify result files structure:
+  ```
+  benchmarks/results/goodai_ltm/subset_baseline_YYYYMMDD/
+  ├── mas-full/
+  │   ├── prospective_memory/
+  │   │   └── results.json
+  │   └── restaurant/
+  │       └── results.json
+  ├── mas-rag/
+  │   └── ...
+  ├── mas-full-context/
+  │   └── ...
+  └── logs/
+      ├── mas_full_memory_timeline.jsonl
+      ├── mas_rag_memory_timeline.jsonl
+      ├── mas_full_context_memory_timeline.jsonl
+      └── subset_cleanup_*.log
+  ```
+- [ ] Run analysis notebook to generate initial report
+
+**Acceptance Criteria**:
+- [ ] All 3 agents × 2 test types complete successfully
+- [ ] Memory timeline logs show expected L1→L2→L3→L4 promotion
+- [ ] Results.json files parse correctly
+- [ ] Analysis report identifies at least 2 optimization opportunities
+
+**Deliverables**:
+- Timestamped results directory with all JSON outputs
+- Analysis report with bottleneck identification
+- Updated DEVLOG.md with execution summary
+
+---
+
+## Risk Management
+
+### Technical Risks
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| **Gemini 4K RPM quota exhausted** | Medium | High | Serial execution, exponential backoff, fallback to Groq |
+| **Database contention between agents** | Medium | Medium | PostgreSQL table locks, Redis distributed locks, separate Qdrant collections |
+| **Session ID collisions** | Low | High | Agent-specific prefixes (full:, rag:, full_context:) |
+| **Memory promotion lag causes stale retrieval** | High | Medium | Background polling identifies lag, manual trigger endpoints added |
+| **GoodAI benchmark incompatibility** | Low | High | Separate venv with Python 3.10+, HTTP boundary isolation |
+| **Cleanup failure leaves DB dirty** | Medium | Medium | Explicit cleanup verification after each run, forced cleanup on failure |
+
+---
+
+## Success Criteria
+
+### Phase 5 Success Metrics
+
+1. **Baseline Validity**:
+   - [ ] 3 agents × 2 test types execute without errors
+   - [ ] Results.json files contain accuracy and token usage data
+   - [ ] Memory timeline logs show L1-L4 accumulation patterns
+
+2. **System Performance**:
+   - [ ] Average turn latency < 10 seconds
+   - [ ] Memory promotion lag < 20 turns
+   - [ ] Database operations complete within SLA (L1: 10ms, L2: 100ms, L3: 500ms, L4: 1000ms)
+
+3. **Bottleneck Identification**:
+   - [ ] Analysis identifies top 3 slowest operations
+   - [ ] Recommendations include specific code/config changes
+   - [ ] Estimated impact quantified (e.g., "reducing L3 write latency by 50% would reduce turn latency by 2s")
+
+4. **Reproducibility**:
+   - [ ] Orchestration script runs idempotently
+   - [ ] Results directory structure matches documented format
+   - [ ] Analysis notebook produces report automatically
+
+---
+
+## Next Steps (Post-Phase 5)
+
+1. **Optimization Cycle** (2-3 days):
+   - Implement top 3 bottleneck fixes
+   - Re-run subset baseline
+   - Validate improvements quantitatively
+
+2. **Full-Scale Execution Decision** (1 day):
+   - Review subset baseline correctness vs. published GPT-4 results
+   - If correctness within 10%: proceed with full 12-run execution (3 agents × 2 models × 2 spans)
+   - If correctness below threshold: debug retrieval logic, re-run subset
+
+3. **Paper Submission** (AIMS 2025 deadline: TBD):
+   - Include subset baseline as proof-of-concept
+   - Compare full-scale results against published baselines
+   - Document architectural innovations (CIAR scoring, LangGraph state management, dual indexing)
+
+---
+
+## Appendix A: Key Implementation Decisions
+
+### Decision Log
+
+1. **10% Subset Approach** (2026-01-26):
+   - **Rationale**: Full 12-run execution (30-60 hours) risks quota exhaustion and delays AIMS 2025 submission.
+   - **Impact**: Subset (2 test types, 32k span) provides bottleneck identification in 3-5 hours while validating end-to-end workflow.
+
+2. **gemini-2.5-flash-lite Selection** (2026-01-26):
+   - **Rationale**: 4K RPM (vs. 10 RPM for gemini-3-flash-preview) allows serial execution without rate limit stalls.
+   - **Impact**: Estimated 3-5 hour completion time vs. 30+ hours with frequent rate limit retries.
+
+3. **Isolated FastAPI Services** (2026-01-26):
+   - **Rationale**: Database contention risk with parallel agent execution.
+   - **Impact**: Three services on separate ports (8080/8081/8082) enable future parallel execution while maintaining database isolation.
+
+4. **Session ID Prefixing** (2026-01-26):
+   - **Rationale**: GoodAI generates session IDs without agent context, risking collisions.
+   - **Impact**: Prefix scheme (full:, rag:, full_context:) ensures uniqueness across agents.
+
+5. **Cleanup Verification** (2026-01-26):
+   - **Rationale**: Dirty database state from failed runs invalidates subsequent experiments.
+   - **Impact**: Explicit `/sessions` check + forced cleanup ensures clean slate for each run.
+
+6. **Background Memory Polling** (2026-01-26):
+   - **Rationale**: Memory promotion lag is suspected bottleneck but not visible in GoodAI results.
+   - **Impact**: Turn-by-turn L1-L4 snapshots enable lag diagnosis without blocking main execution.
+
+---
+
+## Appendix B: Environment Requirements
+
+### Main Project Environment
+
+```bash
+# Python 3.12.3 required
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Verify LangGraph installed
+python -c "import langgraph; print(langgraph.__version__)"
+
+# Start services
+python src/evaluation/agent_wrapper.py --agent-type full --port 8080
+```
+
+### GoodAI Benchmark Environment
+
+```bash
+# Python 3.10+ required
+cd benchmarks
+python3.10 -m venv .venv-benchmark
+source .venv-benchmark/bin/activate
+
+# Install GoodAI benchmark
+cd goodai-ltm-benchmark
+pip install -e .
+
+# Verify installation
+python -m goodai_ltm_benchmark.run --help
+```
+
+### Database Requirements
+
+- **PostgreSQL**: 13+ (facts, episodes tables)
+- **Redis**: 6+ (active context, distributed locks)
+- **Qdrant**: 1.9+ (episodic memory, separate collections per agent)
+- **Neo4j**: 5.22+ (knowledge graph)
+- **Typesense**: 26+ (semantic search)
+
+---
+
+## Appendix C: Timeline Summary
+
+| Phase | Days | Deliverables |
+|-------|------|--------------|
+| **5A: Infrastructure Setup** | 2 | GoodAI benchmark installed, AGENTS.MD updated, config validator |
+| **5B: Agent Implementation** | 3 | BaseAgent, MemoryAgent, RAGAgent, FullContextAgent with 40+ tests |
+| **5C: Wrapper Services** | 3 | FastAPI wrappers with isolation, GoodAI interfaces |
+| **5D: Execution Infrastructure** | 2 | Orchestration script, configs, documentation |
+| **5E: Analysis and Reporting** | 2 | Analysis notebook, bottleneck identification |
+| **5F: Baseline Execution** | 2 | Subset baseline run, validation, initial report |
+| **Total** | **14 days** | End-to-end 10% subset baseline with bottleneck analysis |
+
+---
+
+**END OF PHASE 5 IMPLEMENTATION PLAN v2.0**
 
 **Objective**: Implement the stateless RAG baseline that uses only a single vector store.
 
