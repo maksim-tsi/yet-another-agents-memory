@@ -61,6 +61,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+tests/reports/
+!tests/reports/.gitkeep
+!tests/reports/**/.gitkeep
 
 # Translations
 *.mo

@@ -476,15 +476,22 @@ tests/agents/test_full_context_agent.py
 **Acceptance Criteria**:
 - [ ] Startup health checks prevent service start if DB unavailable (partial: Redis only).
 - [x] All three agent types work with same wrapper code (agent factory pattern).
-- [ ] Session isolation verified (no cross-contamination in unit tests).
+- [ ] Session isolation verified with `redis_key_validator` assertions in integration tests.
 - [ ] Instrumentation captures adapter-level timing.
-- [ ] Unit tests for API endpoints (12+ tests).
+- [ ] Unit test suite passing (12+ tests, reports in `tests/reports/unit/`).
+- [ ] Integration test suite passing (Redis key validation, reports in `tests/reports/integration/`).
+
+**Test Report Preservation**: Test reports are gitignored by default. After milestone executions,
+manually copy the relevant XML/HTML reports to `docs/reports/test_runs/YYYYMMDD/` for archival.
 
 **Deliverables**:
 ```
 src/evaluation/agent_wrapper.py
 src/evaluation/instrumentation.py
 tests/evaluation/test_agent_wrapper.py
+tests/evaluation/test_mas_agents.py
+tests/integration/test_wrapper_agents_integration.py
+scripts/run_wrapper_tests.sh
 ```
 
 ---
@@ -569,6 +576,7 @@ docs/integrations/goodai-benchmark-setup.md
 **File**: `scripts/run_subset_experiments.sh`
 
 **Tasks**:
+- [ ] Verify W5C.1 tests pass via `scripts/run_wrapper_tests.sh` before orchestration.
 - [ ] Implement parallel wrapper startup (3 services):
   ```bash
   .venv/bin/python src/evaluation/agent_wrapper.py --agent-type full --port 8080 &
