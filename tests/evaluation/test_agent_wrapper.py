@@ -90,6 +90,11 @@ def wrapper_state(mocker: pytest.MockFixture) -> agent_wrapper.AgentWrapperState
     redis_client.ping.return_value = True
     redis_client.close = mocker.Mock()
 
+    rate_limiter = mocker.Mock()
+    rate_limiter.wait_if_needed = mocker.AsyncMock()
+    rate_limiter.record_usage = mocker.Mock()
+    rate_limiter.register_error = mocker.Mock()
+
     return agent_wrapper.AgentWrapperState(
         agent=agent,
         memory_system=mocker.Mock(spec=agent_wrapper.UnifiedMemorySystem),
@@ -97,6 +102,7 @@ def wrapper_state(mocker: pytest.MockFixture) -> agent_wrapper.AgentWrapperState
         l2_tier=l2_tier,
         redis_client=redis_client,
         session_prefix="full",
+        rate_limiter=rate_limiter,
     )
 
 

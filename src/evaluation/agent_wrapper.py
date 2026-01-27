@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Iterable, Optional, Set, Type
 
 import redis
@@ -27,6 +29,84 @@ from src.utils.llm_client import LLMClient, ProviderConfig, ensure_phoenix_instr
 from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
 
 logger = logging.getLogger(__name__)
+
+
+class RateLimiter:
+    """Per-agent rate limiter with JSONL logging and circuit breaker."""
+
+    def __init__(
+        self,
+        rpm: int = 100,
+        tpm: int = 1_000_000,
+        min_delay: float = 0.6,
+        log_file: Optional[str] = None,
+    ) -> None:
+        self.rpm = rpm
+        self.tpm = tpm
+        self.min_delay = min_delay
+        self.request_times: list[datetime] = []
+        self.token_usage: list[tuple[datetime, int]] = []
+        self.consecutive_429s = 0
+        self.log_file = log_file
+
+    async def wait_if_needed(self, estimated_tokens: int) -> None:
+        """Enforce RPM/TPM limits with sliding window, delay, and circuit breaker."""
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(seconds=60)
+        self.request_times = [t for t in self.request_times if t >= cutoff]
+        self.token_usage = [(t, tokens) for t, tokens in self.token_usage if t >= cutoff]
+
+        await asyncio.sleep(self.min_delay)
+
+        if len(self.request_times) >= self.rpm:
+            wait_seconds = (self.request_times[0] - cutoff).total_seconds()
+            await asyncio.sleep(max(0.0, wait_seconds))
+
+        current_tpm = sum(tokens for _, tokens in self.token_usage)
+        if current_tpm + estimated_tokens >= self.tpm:
+            await asyncio.sleep(60)
+
+        if self.consecutive_429s >= 3:
+            logger.warning("Rate limiter circuit breaker triggered; pausing for 60s")
+            await asyncio.sleep(60)
+            self.consecutive_429s = 0
+
+    def record_usage(self, estimated_tokens: int) -> None:
+        """Record token usage and emit JSONL log entry."""
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(seconds=60)
+        self.request_times = [t for t in self.request_times if t >= cutoff]
+        self.token_usage = [(t, tokens) for t, tokens in self.token_usage if t >= cutoff]
+
+        self.request_times.append(now)
+        self.token_usage.append((now, estimated_tokens))
+
+        current_rpm = len(self.request_times)
+        current_tpm = sum(tokens for _, tokens in self.token_usage)
+        self._log_state(now, estimated_tokens, current_rpm, current_tpm)
+
+    def register_error(self, exc: Exception) -> None:
+        """Track rate limit errors for circuit breaker logic."""
+        message = str(exc)
+        if "429" in message or "rate" in message.lower():
+            self.consecutive_429s += 1
+
+    def _log_state(self, timestamp: datetime, estimated_tokens: int, current_rpm: int, current_tpm: int) -> None:
+        if not self.log_file:
+            return
+        log_entry = {
+            "timestamp": timestamp.isoformat(),
+            "estimated_tokens": estimated_tokens,
+            "current_rpm": current_rpm,
+            "current_tpm": current_tpm,
+            "delay_applied": self.min_delay,
+            "circuit_breaker_active": self.consecutive_429s >= 3,
+        }
+        try:
+            with open(self.log_file, "a", encoding="utf-8") as handle:
+                handle.write(json.dumps(log_entry) + "\n")
+        except Exception:
+            logger.exception("Failed to write rate limiter log")
 
 
 class NullKnowledgeStoreManager:
@@ -67,6 +147,7 @@ class AgentWrapperState:
     l2_tier: WorkingMemoryTier
     redis_client: redis.StrictRedis
     session_prefix: str
+    rate_limiter: RateLimiter
     sessions: Set[str] = field(default_factory=set)
 
     def apply_prefix(self, session_id: str) -> str:
@@ -139,6 +220,11 @@ def _read_env_or_raise(key: str) -> str:
 async def initialize_state(config: WrapperConfig) -> AgentWrapperState:
     """Initialize storage adapters, tiers, memory system, and agent."""
 
+    os.makedirs("logs", exist_ok=True)
+    log_stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    rate_log = f"logs/rate_limiter_{config.agent_type}_{log_stamp}.jsonl"
+    rate_limiter = RateLimiter(rpm=100, tpm=1_000_000, min_delay=0.6, log_file=rate_log)
+
     redis_client = redis.StrictRedis.from_url(config.redis_url, decode_responses=True)
     try:
         if not redis_client.ping():
@@ -193,6 +279,7 @@ async def initialize_state(config: WrapperConfig) -> AgentWrapperState:
         l2_tier=l2_tier,
         redis_client=redis_client,
         session_prefix=config.session_prefix,
+        rate_limiter=rate_limiter,
     )
 
 
@@ -229,11 +316,19 @@ def create_app(config: WrapperConfig) -> FastAPI:
         state.track_session(session_id)
         updated_request = request.model_copy(update={"session_id": session_id})
 
+        estimated_input_tokens = _estimate_tokens(updated_request.content)
+        await state.rate_limiter.wait_if_needed(estimated_input_tokens)
+
         try:
             await _store_turn(state, updated_request, role=updated_request.role)
             response = await state.agent.run_turn(updated_request)
             await _store_turn(state, response, role=response.role)
+            estimated_total_tokens = _estimate_tokens(
+                f"{updated_request.content}\n{response.content}"
+            )
+            state.rate_limiter.record_usage(estimated_total_tokens)
         except Exception as exc:
+            state.rate_limiter.register_error(exc)
             logger.exception("Error handling /run_turn for session %s", session_id)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -318,6 +413,11 @@ async def _store_turn(state: AgentWrapperState, message: Any, role: str) -> None
             "metadata": metadata,
         }
     )
+
+
+def _estimate_tokens(text: str) -> int:
+    """Estimate token count using conservative heuristic (4 chars/token)."""
+    return int(len(text) * 0.25)
 
 
 async def _cleanup_session(state: AgentWrapperState, session_id: str) -> Dict[str, Any]:
