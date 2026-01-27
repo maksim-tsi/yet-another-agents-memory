@@ -16,6 +16,48 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-01-27 - Phase 5 Step 5-6 Isolation + Orchestration Tooling 📊
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented database isolation mechanisms (PostgreSQL table locks and Redis-backed Neo4j lock renewal) and added
+orchestration tooling for the GoodAI subset baseline run, including memory-state polling and cleanup verification.
+All wrapper services remain compatible with the new isolation layers, and the orchestration script enforces serial
+execution with post-run cleanup checks.
+
+**Key Findings:**
+- L2 writes now support optional table-level locks, enabled for wrapper-managed Postgres adapters.
+- Neo4j operations can be guarded by session-scoped Redis locks with automatic renewal to prevent TTL expiration.
+- Subset orchestration utilities support wrapper health checks, serial GoodAI runs, and memory timeline logging.
+
+**✅ What's Complete:**
+- PostgreSQL write locking option added in [src/storage/postgres_adapter.py](src/storage/postgres_adapter.py).
+- Redis-backed Neo4j lock renewal implemented in [src/storage/neo4j_adapter.py](src/storage/neo4j_adapter.py).
+- Session-scoped Neo4j locking wired into [src/memory/tiers/episodic_memory_tier.py](src/memory/tiers/episodic_memory_tier.py).
+- Wrapper L2 adapter configured for locking in [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py).
+- Lock renewal integration test added in [tests/integration/test_lock_renewal.py](tests/integration/test_lock_renewal.py).
+- Orchestration script added in [scripts/run_subset_experiments.sh](scripts/run_subset_experiments.sh).
+- Memory polling utility added in [scripts/poll_memory_state.py](scripts/poll_memory_state.py).
+
+**❌ What's Missing:**
+- Wrapper instrumentation module for adapter-level timing in [src/evaluation/instrumentation.py](src/evaluation/instrumentation.py).
+- Subset execution run artifacts and analysis report generation.
+
+**Current Project Completion:**
+- **Phase 5**: ~80% 🚧 (isolation + orchestration complete; instrumentation and execution artifacts pending)
+
+**Evidence from Codebase:**
+```bash
+src/storage/postgres_adapter.py
+src/storage/neo4j_adapter.py
+src/memory/tiers/episodic_memory_tier.py
+src/evaluation/agent_wrapper.py
+tests/integration/test_lock_renewal.py
+scripts/run_subset_experiments.sh
+scripts/poll_memory_state.py
+```
+
 ### 2026-01-27 - Phase 5 Wrapper + GoodAI Interfaces Implemented 📊
 
 **Status:** ✅ Complete
