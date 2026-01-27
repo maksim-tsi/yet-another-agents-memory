@@ -356,11 +356,19 @@ class UnifiedMemorySystem(HybridMemorySystem):
         # L2: Working Memory (Facts)
         if self.l2_tier and weights.l2_weight > 0:
             try:
-                l2_facts = await self.l2_tier.retrieve(
-                    session_id=session_id,
-                    query=query,
-                    limit=limit
-                )
+                if hasattr(self.l2_tier, "search_facts"):
+                    l2_facts = await self.l2_tier.search_facts(
+                        query=query,
+                        session_id=session_id,
+                        limit=limit
+                    )
+                elif hasattr(self.l2_tier, "query_by_session"):
+                    l2_facts = await self.l2_tier.query_by_session(
+                        session_id=session_id,
+                        limit=limit
+                    )
+                else:
+                    l2_facts = []
                 # Normalize CIAR scores to 0-1 range
                 if l2_facts:
                     l2_scores = [f.ciar_score for f in l2_facts]
@@ -485,10 +493,11 @@ class UnifiedMemorySystem(HybridMemorySystem):
         # Retrieve L1 recent turns
         if self.l1_tier:
             try:
-                turns = await self.l1_tier.retrieve(
-                    session_id=session_id,
-                    limit=max_turns
-                )
+                turns = await self.l1_tier.retrieve(session_id=session_id)
+                if turns is None:
+                    turns = []
+                if max_turns is not None:
+                    turns = turns[:max_turns]
                 context.recent_turns = turns
                 context.turn_count = len(turns)
             except Exception as e:
@@ -497,11 +506,14 @@ class UnifiedMemorySystem(HybridMemorySystem):
         # Retrieve L2 high-CIAR facts
         if self.l2_tier:
             try:
-                facts = await self.l2_tier.retrieve(
-                    session_id=session_id,
-                    min_ciar_score=min_ciar,
-                    limit=max_facts
-                )
+                if hasattr(self.l2_tier, "query_by_session"):
+                    facts = await self.l2_tier.query_by_session(
+                        session_id=session_id,
+                        min_ciar_score=min_ciar,
+                        limit=max_facts
+                    )
+                else:
+                    facts = []
                 context.significant_facts = facts
                 context.fact_count = len(facts)
             except Exception as e:
