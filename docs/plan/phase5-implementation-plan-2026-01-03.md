@@ -52,13 +52,13 @@ Phase 5 executes a rigorous quantitative evaluation of our four-tier hybrid memo
 
 | Component | Status | Target Location |
 |-----------|--------|-----------------|
-| **BaseAgent class** | ❌ Not implemented | `src/agents/base_agent.py` |
-| **MemoryAgent** (UC-01) | ❌ Not implemented | `src/agents/memory_agent.py` |
-| **RAGAgent** (UC-02) | ❌ Not implemented | `src/agents/rag_agent.py` |
-| **FullContextAgent** (UC-03) | ❌ Not implemented | `src/agents/full_context_agent.py` |
+| **BaseAgent class** | ✅ Implemented | `src/agents/base_agent.py` |
+| **MemoryAgent** (UC-01) | 🚧 Baseline implemented | `src/agents/memory_agent.py` |
+| **RAGAgent** (UC-02) | 🚧 Baseline implemented | `src/agents/rag_agent.py` |
+| **FullContextAgent** (UC-03) | 🚧 Baseline implemented | `src/agents/full_context_agent.py` |
 | **LangGraph StateGraph wiring** | ❌ Not implemented | Agent classes above |
-| **Agent Wrapper API** | ❌ Not implemented | `src/evaluation/agent_wrapper.py` |
-| **GoodAI Benchmark Integration** | ❌ Not implemented | `src/evaluation/benchmark_runner.py` |
+| **Agent Wrapper API** | 🚧 Baseline implemented | `src/evaluation/agent_wrapper.py` |
+| **GoodAI Benchmark Integration** | 🚧 Partial (model interfaces registered) | `benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py` |
 | **Instrumentation/Logging** | ❌ Not implemented | `src/evaluation/instrumentation.py` |
 | **Experiment Automation** | ❌ Not implemented | `scripts/run_experiments.sh` |
 | **Analysis Notebook** | ❌ Not implemented | `benchmarks/analysis/analyze_results.ipynb` |
@@ -243,16 +243,16 @@ AGENTS.MD (Protocol 8.1 updated)
 **File**: `scripts/validate_goodai_config.py`
 
 **Tasks**:
-- [ ] Create Pydantic model for GoodAI config schema (memory_span, test_types, etc.)
-- [ ] Implement strict validation (reject unknown fields)
-- [ ] Add CLI: `python scripts/validate_goodai_config.py <config.yaml>`
-- [ ] Return exit code 0 (valid) or 1 (invalid) with detailed error messages
-- [ ] Integrate into `run_subset_experiments.sh` as pre-flight check
+- [x] Create Pydantic model for GoodAI config schema (memory_span, test_types, etc.).
+- [x] Implement strict validation (reject unknown fields).
+- [x] Add CLI: `python scripts/validate_goodai_config.py <config.yaml>`.
+- [x] Return exit code 0 (valid) or 1 (invalid) with detailed error messages.
+- [ ] Integrate into `run_subset_experiments.sh` as pre-flight check.
 
 **Acceptance Criteria**:
-- [ ] Validator catches typos and missing required fields
-- [ ] Validator rejects configs with unknown test types
-- [ ] Clear error messages point to specific validation failures
+- [x] Validator catches typos and missing required fields.
+- [x] Validator rejects configs with unknown test types.
+- [x] Clear error messages point to specific validation failures.
 
 **Deliverables**:
 ```
@@ -271,26 +271,18 @@ tests/scripts/test_validate_goodai_config.py
 **Files**: `src/agents/base_agent.py`, `src/agents/models.py`
 
 **Tasks**:
-- [ ] Define `BaseAgent` abstract class with methods:
-  - `async process_turn(request: RunTurnRequest) -> RunTurnResponse`
-  - `async health_check() -> Dict[str, Any]`
-  - `get_metrics() -> Dict[str, Any]`
-- [ ] Define `RunTurnRequest(BaseModel)` with fields:
-  - `history: List[Dict[str, str]]` (GoodAI format)
-  - `message: str` (current user message)
-  - `session_id: str` (prefixed by agent type)
+- [x] Define `BaseAgent` abstract class with lifecycle and health methods (implemented as `initialize`, `run_turn`, `health_check`, `cleanup_session`).
+- [x] Define `RunTurnRequest(BaseModel)` with fields aligned to wrapper payloads (`session_id`, `role`, `content`, `turn_id`).
 - [ ] Implement Pydantic validator for automatic format coercion:
   - Input: `{user: "...", assistant: "..."}` or `{role: "user", content: "..."}`
   - Output: Standardized `{role: "user", content: "..."}`
-- [ ] Define `RunTurnResponse(BaseModel)` with fields:
-  - `response: str` (agent's response)
-  - `metadata: Dict[str, Any]` (optional instrumentation)
+- [x] Define `RunTurnResponse(BaseModel)` with response fields (`session_id`, `role`, `content`, `turn_id`).
 - [ ] Implement common instrumentation hooks (adapter-level timing)
 
 **Acceptance Criteria**:
-- [ ] Abstract methods enforced (TypeError on direct instantiation)
-- [ ] Format coercion validator handles both input formats
-- [ ] Unit tests for base class and Pydantic models (10+ tests)
+- [x] Abstract methods enforced via `BaseAgent` ABC (verified via class definition).
+- [ ] Format coercion validator handles both input formats.
+- [ ] Unit tests for base class and Pydantic models (10+ tests).
 
 **Deliverables**:
 ```
@@ -309,7 +301,7 @@ tests/agents/test_models.py
 **File**: `src/agents/memory_agent.py`
 
 **Tasks**:
-- [ ] Create `MemoryAgent` class inheriting from `BaseAgent`
+- [x] Create `MemoryAgent` class inheriting from `BaseAgent`.
 - [ ] Implement LangGraph `StateGraph` with nodes:
   - `perceive`: Parse incoming message, load agent state from L1
   - `retrieve`: Query L2/L3/L4 via unified tools
@@ -321,9 +313,9 @@ tests/agents/test_models.py
   - `calculate_ciar_score`, `filter_by_ciar_threshold`
   - `query_working_memory`, `query_episodic_memory`, `query_semantic_memory`
   - `synthesize_knowledge`
-- [ ] Implement `PersonalMemoryState` management (scratchpad, active_goals)
-- [ ] Add circuit breaker for LLM/database failures
-- [ ] Integrate with `UnifiedMemorySystem` from `src/memory/unified_memory_system.py`
+- [ ] Implement `PersonalMemoryState` management (scratchpad, active_goals).
+- [ ] Add circuit breaker for LLM/database failures.
+- [x] Integrate with `UnifiedMemorySystem` via `get_context_block`.
 
 **LangGraph Wiring**:
 ```python
@@ -355,11 +347,11 @@ class MemoryAgent(BaseAgent):
 ```
 
 **Acceptance Criteria**:
-- [ ] Full PERCEIVE→RETRIEVE→REASON→UPDATE→RESPOND cycle works
-- [ ] Integrates with all 4 memory tiers via UnifiedMemorySystem
-- [ ] Handles LLM failures gracefully (circuit breaker triggers)
-- [ ] Adapter-level metrics collected for each storage operation
-- [ ] Unit tests (12+ tests) + integration test with mocked backends
+- [ ] Full PERCEIVE→RETRIEVE→REASON→UPDATE→RESPOND cycle works (LangGraph wiring pending).
+- [ ] Integrates with all 4 memory tiers via UnifiedMemorySystem (currently L1/L2 only).
+- [ ] Handles LLM failures gracefully (circuit breaker triggers).
+- [ ] Adapter-level metrics collected for each storage operation.
+- [ ] Unit tests (12+ tests) + integration test with mocked backends.
 
 **Deliverables**:
 ```
@@ -377,16 +369,16 @@ tests/integration/test_memory_agent_integration.py
 **File**: `src/agents/rag_agent.py`
 
 **Tasks**:
-- [ ] Create `RAGAgent` class inheriting from `BaseAgent`
+- [x] Create `RAGAgent` class inheriting from `BaseAgent`.
 - [ ] Implement turn-by-turn flow:
   - Index current turn into `episodes_mas_rag` Qdrant collection
   - Generate embedding for current message
   - Query same collection (top_k=10, similarity threshold)
   - Concatenate retrieved chunks with message
   - Generate response via LLM
-- [ ] No state management between turns (stateless)
-- [ ] No L1/L2/L3/L4 Operating Memory usage
-- [ ] Add instrumentation for Qdrant indexing and query latency
+- [ ] No state management between turns (stateless).
+- [ ] No L1/L2/L3/L4 Operating Memory usage.
+- [ ] Add instrumentation for Qdrant indexing and query latency.
 
 **Architectural Constraints**:
 - No `PersonalMemoryState` (stateless)
@@ -394,10 +386,10 @@ tests/integration/test_memory_agent_integration.py
 - Single Qdrant collection per agent instance
 
 **Acceptance Criteria**:
-- [ ] Stateless operation verified (no state persists between calls)
-- [ ] Single Qdrant index + query per turn (verified via logs)
-- [ ] Response quality comparable to MemoryAgent on short contexts
-- [ ] Unit tests (8+ tests)
+- [ ] Stateless operation verified (no state persists between calls).
+- [ ] Single Qdrant index + query per turn (verified via logs).
+- [ ] Response quality comparable to MemoryAgent on short contexts.
+- [ ] Unit tests (8+ tests).
 
 **Deliverables**:
 ```
@@ -414,9 +406,9 @@ tests/agents/test_rag_agent.py
 **File**: `src/agents/full_context_agent.py`
 
 **Tasks**:
-- [ ] Create `FullContextAgent` class inheriting from `BaseAgent`
-- [ ] Implement full history concatenation from request
-- [ ] Add token counting (tiktoken or approximate)
+- [x] Create `FullContextAgent` class inheriting from `BaseAgent`.
+- [ ] Implement full history concatenation from request.
+- [ ] Add token counting (tiktoken or approximate).
 - [ ] Implement graceful truncation at 120k tokens:
   - Keep most recent turns up to limit
   - Log context overflow with turn count
@@ -430,10 +422,10 @@ tests/agents/test_rag_agent.py
 - Maximum token consumption per turn
 
 **Acceptance Criteria**:
-- [ ] Full history included in every prompt (up to 120k tokens)
-- [ ] Handles context overflow gracefully (truncation with logging)
-- [ ] Token count metrics accurate
-- [ ] Unit tests (6+ tests)
+- [ ] Full history included in every prompt (up to 120k tokens).
+- [ ] Handles context overflow gracefully (truncation with logging).
+- [ ] Token count metrics accurate.
+- [ ] Unit tests (6+ tests).
 
 **Deliverables**:
 ```
@@ -452,41 +444,41 @@ tests/agents/test_full_context_agent.py
 **File**: `src/evaluation/agent_wrapper.py`
 
 **Tasks**:
-- [ ] Implement FastAPI application with CLI args:
+- [x] Implement FastAPI application with CLI args:
   - `--agent-type {full|rag|full_context}`
   - `--port {8080|8081|8082}`
   - `--model gemini-2.5-flash-lite`
-- [ ] Implement lifespan context manager:
-  - Pre-initialize UnifiedMemorySystem with agent-specific config
-  - Separate Qdrant collections: `episodes_mas_full`, `episodes_mas_rag`, `episodes_mas_full_context`
-  - Redis key prefix: `mas-{agent}:*`
-  - Validate DB connectivity (Redis ping, PostgreSQL tables, Qdrant collections, Neo4j constraints, Typesense schema)
-  - Fail fast with HTTP 500 and detailed error if any DB unavailable
+- [x] Implement lifespan context manager:
+  - Pre-initialize UnifiedMemorySystem with agent-specific config (L1/L2 tiers configured).
+  - Separate Qdrant collections: `episodes_mas_full`, `episodes_mas_rag`, `episodes_mas_full_context` (pending).
+  - Redis key prefix: `mas-{agent}:*` (session prefixing implemented; Redis key prefixing pending).
+  - Validate DB connectivity (Redis ping implemented; full multi-backend validation pending).
+  - Fail fast with HTTP 500 and detailed error if any DB unavailable (partial).
 - [ ] Implement database isolation mechanisms:
-  - PostgreSQL: Table-level locks during writes (`LOCK TABLE facts IN SHARE ROW EXCLUSIVE MODE`)
-  - Redis: Distributed locks for Neo4j operations (`LOCK neo4j:{session_id}`, 30s TTL, auto-renew)
-  - Qdrant: Agent-specific collection routing
-- [ ] Implement endpoints:
+  - PostgreSQL: Table-level locks during writes (`LOCK TABLE facts IN SHARE ROW EXCLUSIVE MODE`).
+  - Redis: Distributed locks for Neo4j operations (`LOCK neo4j:{session_id}`, 30s TTL, auto-renew).
+  - Qdrant: Agent-specific collection routing.
+- [x] Implement endpoints:
   - POST `/run_turn` (main processing endpoint)
   - GET `/sessions` (dynamic session discovery from storage layers)
   - GET `/memory_state?session_id={id}` (returns `{"session_id": "{agent}:{id}", "l1_turns": N, "l2_facts": M, "l3_episodes": K, "l4_docs": P}`)
   - GET `/health` (DB connectivity status)
-- [ ] Implement graceful shutdown:
-  - Close DB connections
-  - Flush metrics
-  - Clean up Redis locks
-  - Target only active sessions from current run
-- [ ] Add structured logging (INFO level):
+- [x] Implement graceful shutdown:
+  - Close DB connections (Redis, L1/L2 adapters).
+  - Flush metrics (pending).
+  - Clean up Redis locks (pending).
+  - Target only active sessions from current run (partial via `/cleanup_force`).
+- [x] Add structured logging (INFO level):
   - Request/response details
   - Adapter-level storage timing
   - Infrastructure errors as HTTP 500
 
 **Acceptance Criteria**:
-- [ ] Startup health checks prevent service start if DB unavailable
-- [ ] All three agent types work with same wrapper code (agent factory pattern)
-- [ ] Session isolation verified (no cross-contamination in unit tests)
-- [ ] Instrumentation captures adapter-level timing
-- [ ] Unit tests for API endpoints (12+ tests)
+- [ ] Startup health checks prevent service start if DB unavailable (partial: Redis only).
+- [x] All three agent types work with same wrapper code (agent factory pattern).
+- [ ] Session isolation verified (no cross-contamination in unit tests).
+- [ ] Instrumentation captures adapter-level timing.
+- [ ] Unit tests for API endpoints (12+ tests).
 
 **Deliverables**:
 ```
@@ -504,23 +496,23 @@ tests/evaluation/test_agent_wrapper.py
 **File**: `benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py`
 
 **Tasks**:
-- [ ] Implement GoodAI agent interface for `mas-full`:
+- [x] Implement GoodAI agent interface for `mas-full`:
   - HTTP POST to `http://localhost:8080/run_turn`
   - Prefix session_id: `full:{goodai_session_id}`
   - Handle HTTP errors gracefully
-- [ ] Implement interface for `mas-rag`:
+- [x] Implement interface for `mas-rag`:
   - HTTP POST to `http://localhost:8081/run_turn`
   - Prefix session_id: `rag:{goodai_session_id}`
-- [ ] Implement interface for `mas-full-context`:
+- [x] Implement interface for `mas-full-context`:
   - HTTP POST to `http://localhost:8082/run_turn`
   - Prefix session_id: `full_context:{goodai_session_id}`
-- [ ] Register agents in GoodAI's agent registry
-- [ ] Add retry logic with exponential backoff for transient HTTP errors
+- [x] Register agents in GoodAI's agent registry.
+- [x] Add retry logic with exponential backoff for transient HTTP errors.
 
 **Acceptance Criteria**:
-- [ ] GoodAI benchmark successfully calls all three agents
-- [ ] Session ID prefixing applied correctly
-- [ ] Error messages from wrappers propagate to GoodAI logs
+- [ ] GoodAI benchmark successfully calls all three agents (pending execution).
+- [x] Session ID prefixing applied correctly.
+- [x] Error messages from wrappers propagate to GoodAI logs.
 
 **Deliverables**:
 ```
@@ -538,7 +530,7 @@ benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py
 **Files**: `benchmarks/goodai-ltm-benchmark/configs/mas_subset_32k.yaml`, `docs/integrations/goodai-benchmark-setup.md`
 
 **Tasks**:
-- [ ] Create `mas_subset_32k.yaml` config:
+- [x] Create subset config (implemented as `benchmarks/goodai-ltm-benchmark/configurations/mas_subset_32k.yml`):
   ```yaml
   memory_span: 32000
   test_types:
@@ -546,8 +538,8 @@ benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py
     - restaurant
   model: mas-full  # Will be overridden by -a flag
   ```
-- [ ] Validate config with `scripts/validate_goodai_config.py`
-- [ ] Document in `docs/integrations/goodai-benchmark-setup.md`:
+- [x] Validate config with `scripts/validate_goodai_config.py`.
+- [x] Document in `docs/integrations/goodai-benchmark-setup.md`:
   - Setup instructions for GoodAI benchmark
   - HTTP API schema (`/run_turn`, `/sessions`, `/memory_state`)
   - Session ID prefixing convention
@@ -558,13 +550,13 @@ benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py
   - Cleanup verification procedure
 
 **Acceptance Criteria**:
-- [ ] Config passes strict validation
-- [ ] Documentation includes complete setup and troubleshooting guide
-- [ ] Result path mapping clearly documented
+- [x] Config passes strict validation.
+- [x] Documentation includes complete setup and troubleshooting guide.
+- [x] Result path mapping clearly documented.
 
 **Deliverables**:
 ```
-benchmarks/goodai-ltm-benchmark/configs/mas_subset_32k.yaml
+benchmarks/goodai-ltm-benchmark/configurations/mas_subset_32k.yml
 docs/integrations/goodai-benchmark-setup.md
 ```
 

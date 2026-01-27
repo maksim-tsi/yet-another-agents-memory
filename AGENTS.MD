@@ -237,17 +237,69 @@ You *must* halt your autonomous operation and escalate to the human user for gui
 
 This protocol ensures your file interactions are portable, safe, and predictable.
 
-### **8.1 Pathing Protocol**
+### 8.1 Pathing Protocol
 
-* **Protocol (Read-Only Operations):** Absolute paths are **permitted** for read-only tool operations (e.g., `read_file`, `grep_search`, `list_dir`) when required by the VSCode tool implementation. Many VSCode tools expect absolute paths starting with `/` to function correctly.
-  
-* **Protocol (Write/Edit Operations):** All file paths used in edit operations (`edit_file`, `replace_string_in_file`, `create_file`) or generated code *must* be relative to the project root (e.g., `src/main.py`, `tests/test_api.py`) to ensure portability.31
+#### 8.1.1 Fundamental Principle
 
-* **Protocol (Terminal Commands):** Terminal commands (via `run_in_terminal`) *must* use absolute paths when referencing the Python virtual environment on the managed remote host (`/home/max/code/mas-memory-layer/.venv/bin/python`) to ensure stateless shell execution works correctly. See Protocol 3.0 for environment setup requirements.
+Agents operate with two path representations:
 
-* **Rationale:** VSCode's Language Server Protocol (LSP) and workspace tools operate with absolute file paths to maintain consistency across multi-folder workspaces and remote SSH sessions. Read-only operations do not affect portability since they do not modify the codebase structure. Edit operations remain restricted to relative paths to preserve cross-platform compatibility.
+- PHYSICAL PATH — required by tooling (may be absolute).
+- LOGICAL REPO PATH — required by repository protocol (must be relative).
 
-* **Forbidden (Legacy Rule):** The blanket prohibition on absolute paths (original Protocol 8.1) is superseded by this context-aware approach. Paths starting with `C:\\`, `\~/`, or other platform-specific prefixes remain forbidden for edit operations only.
+The logical repo path is the authoritative reference for all write operations.
+
+---
+
+#### 8.1.2 Rules by Operation Type
+
+A) READ-ONLY operations  
+Examples: read_file, grep_search, list_dir, IDE/LSP inspection.
+
+Rules:
+- Absolute physical paths are allowed and may be required by tooling.
+- Logical repo paths should be inferred when possible.
+
+B) WRITE / EDIT operations  
+Examples: edit_file, create_file, replace_string_in_file.
+
+Rules:
+- Tooling may use absolute physical paths to locate files.
+- Agents MUST represent and reason about edited files using logical repo paths.
+- All documentation, commit messages, and change descriptions MUST use logical repo paths.
+- Agents MUST NOT introduce absolute paths into source code, configs, or generated files.
+
+C) TERMINAL commands  
+
+Rules:
+- Absolute paths MUST be used for virtual environment executables on the remote host.
+- Relative paths MAY be used locally.
+- Absolute paths MUST NOT be hardcoded into source code.
+
+---
+
+#### 8.1.3 Explicit Prohibitions
+
+For WRITE / EDIT operations, it is forbidden to:
+
+- Hardcode absolute paths into repository files.
+- Generate environment-specific paths in code or configs.
+- Use absolute paths as canonical identifiers of files.
+
+Using absolute paths as tooling inputs is NOT forbidden.
+
+---
+
+#### 8.1.4 Conflict Resolution Rule
+
+If a conflict arises between:
+
+- tooling requirements, and
+- repository portability rules,
+
+THEN:
+
+- Tooling may use absolute physical paths.
+- Repository artifacts MUST remain relative-path-based.
 
 ### **8.2 Protected Files and Directories**
 

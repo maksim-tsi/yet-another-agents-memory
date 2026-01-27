@@ -13,6 +13,20 @@ This benchmark suite measures the performance characteristics of all four storag
 
 The benchmarks use synthetic but realistic workloads that match typical agent memory access patterns.
 
+## GoodAI LTM Benchmark Integration (Phase 5)
+
+The GoodAI LTM Benchmark is executed from `benchmarks/goodai-ltm-benchmark/` using the MAS wrapper
+services defined in [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py). The benchmark
+interfaces are registered in `model_interfaces/mas_agents.py` and expose the following agents:
+
+- `mas-full` → `http://localhost:8080/run_turn`
+- `mas-rag` → `http://localhost:8081/run_turn`
+- `mas-full-context` → `http://localhost:8082/run_turn`
+
+Session IDs are prefixed for isolation (e.g., `full:{session_id}`, `rag:{session_id}`) to avoid
+cross-agent contamination. For execution instructions, refer to
+[docs/integrations/goodai-benchmark-setup.md](docs/integrations/goodai-benchmark-setup.md).
+
 ## Quick Start
 
 ### Prerequisites
