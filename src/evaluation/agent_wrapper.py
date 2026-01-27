@@ -23,7 +23,7 @@ from src.agents.rag_agent import RAGAgent
 from src.memory.tiers import ActiveContextTier, WorkingMemoryTier
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.redis_adapter import RedisAdapter
-from src.utils.llm_client import LLMClient, ProviderConfig
+from src.utils.llm_client import LLMClient, ProviderConfig, ensure_phoenix_instrumentation
 from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
 
 logger = logging.getLogger(__name__)
@@ -98,6 +98,8 @@ SESSION_PREFIXES = {
 
 def build_llm_client() -> LLMClient:
     """Build an LLMClient with providers configured from environment variables."""
+
+    ensure_phoenix_instrumentation()
 
     client = LLMClient(
         provider_configs=[
@@ -352,6 +354,8 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
 
 def build_config(args: argparse.Namespace) -> WrapperConfig:
     """Build wrapper configuration from CLI args and environment variables."""
+
+    os.environ["AGENT_TYPE"] = args.agent_type
 
     redis_url = _read_env_or_raise("REDIS_URL")
     postgres_url = _read_env_or_raise("POSTGRES_URL")

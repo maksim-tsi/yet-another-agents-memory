@@ -165,7 +165,10 @@ class MemoryAgent(BaseAgent):
         user_input = self._extract_user_message(state)
         context_text = self._format_context(state)
         prompt = self._build_prompt(context_text=context_text, user_input=user_input)
-        response_text = await self._generate_response(prompt)
+        response_text = await self._generate_response(
+            prompt,
+            agent_metadata=self._build_agent_metadata(state),
+        )
         state["response"] = response_text
         state["confidence"] = 0.0
         return state
@@ -216,11 +219,19 @@ class MemoryAgent(BaseAgent):
         """Finalize response state."""
         return self._ensure_state_defaults(state)
 
-    async def _generate_response(self, prompt: str) -> str:
+    async def _generate_response(
+        self,
+        prompt: str,
+        agent_metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
         if not self._llm_client:
             logger.warning("No LLM client configured for MemoryAgent '%s'", self.agent_id)
             return "I'm unable to respond right now."
-        llm_response = await self._llm_client.generate(prompt, model=self._model)
+        llm_response = await self._llm_client.generate(
+            prompt,
+            model=self._model,
+            agent_metadata=agent_metadata,
+        )
         return llm_response.text
 
     def _build_prompt(self, context_text: str, user_input: str) -> str:
@@ -343,3 +354,11 @@ class MemoryAgent(BaseAgent):
     def _encode_turn_id(self, turn_id: int, role: str) -> int:
         """Encode turn IDs to avoid user/assistant collisions in L1 storage."""
         return turn_id * 2 if role == "user" else (turn_id * 2) + 1
+
+    def _build_agent_metadata(self, state: AgentState) -> Dict[str, Any]:
+        """Build trace metadata for Phoenix span attributes."""
+        return {
+            "agent.type": "full",
+            "agent.session_id": state.get("session_id"),
+            "agent.turn_id": state.get("turn_id"),
+        }

@@ -1,6 +1,6 @@
 [
   {
-    "fact_id": "100c431c-082e-4743-a27a-486f5f02ab33",
+    "fact_id": "7f60ef45-7ed4-4dcb-9612-80728260d022",
     "content": "Modern supply chain management utilizes network analysis techniques to optimize the flow of goods from manufacturers to consumers.",
     "type": "entity",
     "category": "business",
@@ -9,7 +9,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "1093da86-ff30-404b-9597-f804de3eef0e",
+    "fact_id": "fc7fa597-cd61-41b5-bfda-f0c5d4f0612e",
     "content": "Network optimization helps companies reduce costs, improve delivery times, and enhance overall supply chain resilience.",
     "type": "relationship",
     "category": "business",
@@ -18,7 +18,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "76939be1-cf85-40b2-bb34-dd51ade690c9",
+    "fact_id": "a96c2ec1-28a4-4186-bd64-a4470e039275",
     "content": "Supply chain networks are modeled as complex adaptive systems where nodes represent facilities and edges represent transportation links or business relationships.",
     "type": "entity",
     "category": "technical",
@@ -27,7 +27,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "b7b1c44e-ea49-46a7-bfe3-6bc75c423989",
+    "fact_id": "748396d2-5ee3-4b6d-91f7-6e251e3bce12",
     "content": "Hub-and-spoke configurations enable economies of scale but create potential single points of failure.",
     "type": "constraint",
     "category": "operational",
@@ -36,7 +36,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "0c142b4e-14ed-4a72-ad83-720e4424bf2d",
+    "fact_id": "09b15841-721c-48f8-812c-f6b115124c39",
     "content": "Direct shipping networks provide greater flexibility and resilience but result in higher per-unit transportation costs.",
     "type": "constraint",
     "category": "operational",
@@ -45,7 +45,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "1ba31c26-5b5f-437a-91e6-7fce16020364",
+    "fact_id": "e69cd260-2d61-4a41-a30e-a55a9e6a8a7a",
     "content": "Disruptions at tier-two suppliers can propagate forward through multi-tier networks, affecting multiple downstream manufacturers.",
     "type": "relationship",
     "category": "operational",
@@ -54,7 +54,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "61d52207-d301-4f7d-a8ca-e71ea1645ba0",
+    "fact_id": "3a754810-28db-4de5-92aa-540cc78e8d3e",
     "content": "Network mapping allows for proactive risk management and the development of contingency plans by identifying dependency relationships.",
     "type": "relationship",
     "category": "business",
@@ -63,7 +63,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "4d27044a-bc51-4fda-93ac-e4949cc45e54",
+    "fact_id": "5413c799-facc-43c4-afd8-a2e23e21a55f",
     "content": "Supply chain network optimization involves balancing cost minimization with service level maximization.",
     "type": "constraint",
     "category": "business",

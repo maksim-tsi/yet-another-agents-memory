@@ -61,7 +61,14 @@ class FullContextAgent(BaseAgent):
                 )
 
         prompt = self._build_prompt(context_text=context_text, user_input=request.content)
-        response_text = await self._generate_response(prompt)
+        response_text = await self._generate_response(
+            prompt,
+            agent_metadata={
+                "agent.type": "full_context",
+                "agent.session_id": request.session_id,
+                "agent.turn_id": request.turn_id,
+            },
+        )
 
         return RunTurnResponse(
             session_id=request.session_id,
@@ -87,11 +94,19 @@ class FullContextAgent(BaseAgent):
         if self._memory_system and hasattr(self._memory_system, "cleanup_session"):
             await self._memory_system.cleanup_session(session_id)
 
-    async def _generate_response(self, prompt: str) -> str:
+    async def _generate_response(
+        self,
+        prompt: str,
+        agent_metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
         if not self._llm_client:
             logger.warning("No LLM client configured for FullContextAgent '%s'", self.agent_id)
             return "I'm unable to respond right now."
-        llm_response = await self._llm_client.generate(prompt, model=self._model)
+        llm_response = await self._llm_client.generate(
+            prompt,
+            model=self._model,
+            agent_metadata=agent_metadata,
+        )
         return llm_response.text
 
     def _build_prompt(self, context_text: str, user_input: str) -> str:
