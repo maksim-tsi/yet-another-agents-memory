@@ -169,14 +169,21 @@ To prevent collisions when multiple agents process the same GoodAI session, we p
 
 ### Subset Baseline Config
 
-Location: `benchmarks/goodai-ltm-benchmark/configs/mas_subset_32k.yaml`
+Location: `benchmarks/goodai-ltm-benchmark/configurations/mas_subset_32k.yml`
 
 ```yaml
-memory_span: 32000
-test_types:
-  - prospective_memory
-  - restaurant
-model: mas-full  # Overridden by -a flag during execution
+config:
+  debug: True
+  run_name: "MAS Subset - 32k"
+
+datasets:
+  args:
+    memory_span: 32000
+    dataset_examples: 3
+
+  datasets:
+    - name: "prospective_memory"
+    - name: "restaurant"
 ```
 
 ### Validation
@@ -185,7 +192,7 @@ Run config validator before execution:
 
 ```bash
 /home/max/code/mas-memory-layer/.venv/bin/python scripts/validate_goodai_config.py \
-  benchmarks/goodai-ltm-benchmark/configs/mas_subset_32k.yaml
+  benchmarks/goodai-ltm-benchmark/configurations/mas_subset_32k.yml
 ```
 
 ## Execution
@@ -208,7 +215,7 @@ source .venv-benchmark/bin/activate
 cd goodai-ltm-benchmark
 python -m goodai_ltm_benchmark.run \
   -a mas-full \
-  -c configs/mas_subset_32k.yaml
+  -c configurations/mas_subset_32k.yml
 ```
 
 ### Automated Orchestration
