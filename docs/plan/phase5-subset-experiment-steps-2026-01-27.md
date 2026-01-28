@@ -181,6 +181,50 @@ This script performs all startup checks, launches wrappers, runs the GoodAI subs
 
 ---
 
+## 9. Native Gemini Migration Plan (Subset Run)
+
+### 9.1 Objectives
+
+The subset experiment will use the native Google Gemini client with `gemini-2.5-flash-lite`, replacing the litellm abstraction. The integration must preserve benchmark behavior while enforcing a conservative context budget of 96k tokens per call to maintain throughput under a 4M TPM limit with parallel execution.
+
+### 9.2 Implementation Steps
+
+1. **Validate native Gemini client**
+  - Execute a direct `GeminiProvider` call using `gemini-2.5-flash-lite`.
+  - Confirm response text, model name, and usage metadata are returned.
+
+2. **Replace litellm in benchmark runtime**
+  - Implement `ask_gemini()` in `benchmarks/goodai-ltm-benchmark/utils/llm.py` using `google-genai`.
+  - Provide a `GeminiContextWindowExceededError` exception to mirror the prior overflow behavior.
+
+3. **Enforce context budget**
+  - Set a default budget of 96k tokens per call.
+  - Allow overrides via `MAS_GEMINI_MAX_CONTEXT_TOKENS` for controlled experiments.
+
+4. **Usage-metadata cost accounting**
+  - Derive cost estimates from `usage_metadata` when available.
+  - Log token counts and usage metadata at debug level for traceability.
+
+5. **Update benchmark call sites**
+  - Replace all `ask_llm` invocations with `ask_gemini` across datasets and model interfaces.
+  - Standardize the model to `gemini-2.5-flash-lite` for the planned subset run.
+
+6. **Documentation update**
+  - Update the GoodAI benchmark README to reflect native Gemini usage, token limits, and required environment variables.
+
+### 9.3 Expected Outcomes
+
+- The subset run executes without litellm dependencies.
+- Token budgets are enforced prior to request dispatch.
+- Usage metadata is captured for cost and throughput analysis.
+- The benchmark documentation reflects the native Gemini integration.
+
+### 9.4 Validation Status
+
+The native Gemini client has been validated with `gemini-2.5-flash-lite` on 2026-01-28 using `scripts/test_gemini_flash_lite.py`. The test returned a non-empty response and usage metadata, confirming compatibility with the benchmark integration path.
+
+---
+
 ## 8. Traceability References
 
 - Wrapper: [src/evaluation/agent_wrapper.py](../../src/evaluation/agent_wrapper.py)
