@@ -50,6 +50,7 @@ class MemoryAgent(BaseAgent):
             "messages": [{"role": request.role, "content": request.content}],
             "session_id": request.session_id,
             "turn_id": request.turn_id,
+            "metadata": request.metadata or {},
             "active_context": [],
             "working_facts": [],
             "episodic_chunks": [],
@@ -181,6 +182,9 @@ class MemoryAgent(BaseAgent):
 
         session_id = state.get("session_id", "")
         turn_id = int(state.get("turn_id", 0))
+        metadata = state.get("metadata", {})
+        if metadata.get("skip_l1_write"):
+            return state
         user_message = self._extract_user_message(state)
         assistant_response = state.get("response", "")
 
@@ -250,6 +254,7 @@ class MemoryAgent(BaseAgent):
             "messages": [],
             "session_id": "",
             "turn_id": 0,
+            "metadata": {},
             "active_context": [],
             "working_facts": [],
             "episodic_chunks": [],

@@ -47,6 +47,7 @@ class AgentState(TypedDict):
     messages: Annotated[List[Dict[str, Any]], add_messages]
     session_id: str
     turn_id: int
+    metadata: Dict[str, Any]
 
     # Memory tier content
     active_context: List[str]

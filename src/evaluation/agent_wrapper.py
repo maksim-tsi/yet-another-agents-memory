@@ -320,7 +320,9 @@ def create_app(config: WrapperConfig) -> FastAPI:
         state: AgentWrapperState = app.state.wrapper
         session_id = state.apply_prefix(request.session_id)
         state.track_session(session_id)
-        updated_request = request.model_copy(update={"session_id": session_id})
+        metadata = dict(request.metadata or {})
+        metadata.setdefault("skip_l1_write", True)
+        updated_request = request.model_copy(update={"session_id": session_id, "metadata": metadata})
 
         estimated_input_tokens = _estimate_tokens(updated_request.content)
         await state.rate_limiter.wait_if_needed(estimated_input_tokens)
