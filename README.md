@@ -6,7 +6,7 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 
 ---
 
-## 🚀 **Current Status: Phase 4 Complete (574/586 Tests Passing) | Phase 5 Ready**
+## 🚀 **Current Status: Phase 4 Complete | Phase 5 In Progress (Wrapper + GoodAI Interfaces Implemented)**
 
 **Overall ADR-003 Completion:** Functional implementation ~98% (all tiers + lifecycle engines + storage adapters + agent tools + integration infrastructure complete).
 
@@ -14,7 +14,8 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 **Phase 2 (Memory Tiers + Lifecycle Engines):** ✅ 100% Complete  
 **Phase 3 (Redis Infrastructure + Agent Tools):** ✅ 100% Complete  
 **Phase 4 (Integration Hardening):** ✅ 100% Complete — All lifecycle tests passing, Qdrant scroll() method added  
-**Full Test Suite (2026-01-03):** ✅ **574 passed, 12 skipped, 0 failed** (586 total) in 2m 11s
+**Full Test Suite (2026-01-27):** ✅ **580 passed, 12 skipped, 0 failed** (592 total) in 2m 23s
+**Wrapper Test Run (2026-01-27):** ✅ **19 passed, 0 failed** (17 unit + 2 integration) with XML/HTML reports
 
 **Integration Test Status:**
 - ✅ All 4 lifecycle integration tests passing (L1→L2→L3→L4)
@@ -42,10 +43,10 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 - ✅ **Week 3 BONUS**: Native Gemini structured output (types.Schema), model-to-provider routing, fact extraction validated with real supply chain document (7 facts, zero JSON errors)
 
 **What's Next**: 
-- 🚧 **Phase 3 Week 4**: BaseAgent interface + MemoryAgent (UC-01)
-- 🔧 **Phase 3 Week 5**: RAGAgent + FullContextAgent variants
-- 🔧 **Phase 3 Week 6**: LangGraph orchestration + FastAPI wrapper + E2E integration tests
-- 🚧 Full lifecycle integration tests (L1→L4) with real LLM calls + GoodAI benchmark runs
+- ✅ **Phase 5B**: BaseAgent + Memory/RAG/Full-Context agents (baseline implementations)
+- ✅ **Phase 5C (partial)**: FastAPI wrapper + GoodAI benchmark interfaces
+- 🚧 **Phase 5C (remaining)**: Database isolation locks, instrumentation
+- 🚧 **Phase 5D**: Subset execution orchestration and analysis
 
 **See**: 
 - [Phase 3 Specification v2.1](docs/specs/spec-phase3-agent-integration.md) for validated architecture (updated Dec 29)
@@ -119,6 +120,20 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 - Refresh Gemini API key and re-run provider connectivity scripts; record outcomes in [docs/LLM_PROVIDER_TEST_RESULTS.md](docs/LLM_PROVIDER_TEST_RESULTS.md).
 
 ## Developer Updates
+
+### 2026-01-27 — Phase 5 Wrapper + GoodAI Interfaces Implemented
+
+Implemented the Phase 5 evaluation boundary between the MAS memory system and the GoodAI LTM benchmark.
+Key deliverables include a FastAPI wrapper for MAS agents with session prefixing and a GoodAI model
+interface module that proxies benchmark turns to the wrapper endpoints. See [docs/integrations/goodai-benchmark-setup.md](docs/integrations/goodai-benchmark-setup.md)
+for execution guidance and [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py) for API details.
+
+### 2026-01-27 — Wrapper Test Suite + Reporting Automation
+
+Added unit and integration coverage for the wrapper and GoodAI interface modules, including Redis
+namespace isolation checks and timestamped XML/HTML reporting. Test execution is automated via
+[scripts/run_wrapper_tests.sh](scripts/run_wrapper_tests.sh), with reports emitted to
+tests/reports/unit/ and tests/reports/integration/.
 
 ### 2025-11-15 — Demo: File Output & Test Coverage
 

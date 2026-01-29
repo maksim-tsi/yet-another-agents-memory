@@ -6,16 +6,16 @@ Provides full-text search, faceted filtering, and provenance tracking.
 """
 
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
+from src.memory.models import KnowledgeDocument
 from src.memory.tiers.base_tier import BaseTier
-
-logger = logging.getLogger(__name__)
-from src.storage.typesense_adapter import TypesenseAdapter
 from src.storage.metrics.collector import MetricsCollector
 from src.storage.metrics.timer import OperationTimer
-from src.memory.models import KnowledgeDocument
+from src.storage.typesense_adapter import TypesenseAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class SemanticMemoryTier(BaseTier):

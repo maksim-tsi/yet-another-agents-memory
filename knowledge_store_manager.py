@@ -1,10 +1,12 @@
 # file: knowledge_store_manager.py
 
 from typing import Dict, Any, List, Literal, Optional
-from .vector_store_client import QdrantVectorStore
-from .graph_store_client import Neo4jGraphStore
-from .search_store_client import MeilisearchStore
+
 from qdrant_client import models as qdrant_models
+
+from graph_store_client import Neo4jGraphStore
+from search_store_client import MeilisearchStore
+from vector_store_client import QdrantVectorStore
 
 
 class KnowledgeStoreManager:

@@ -16,6 +16,207 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-01-27 - Phase 5 Step 5-6 Isolation + Orchestration Tooling 📊
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented database isolation mechanisms (PostgreSQL table locks and Redis-backed Neo4j lock renewal) and added
+orchestration tooling for the GoodAI subset baseline run, including memory-state polling and cleanup verification.
+All wrapper services remain compatible with the new isolation layers, and the orchestration script enforces serial
+execution with post-run cleanup checks.
+
+**Key Findings:**
+- L2 writes now support optional table-level locks, enabled for wrapper-managed Postgres adapters.
+- Neo4j operations can be guarded by session-scoped Redis locks with automatic renewal to prevent TTL expiration.
+- Subset orchestration utilities support wrapper health checks, serial GoodAI runs, and memory timeline logging.
+
+**✅ What's Complete:**
+- PostgreSQL write locking option added in [src/storage/postgres_adapter.py](src/storage/postgres_adapter.py).
+- Redis-backed Neo4j lock renewal implemented in [src/storage/neo4j_adapter.py](src/storage/neo4j_adapter.py).
+- Session-scoped Neo4j locking wired into [src/memory/tiers/episodic_memory_tier.py](src/memory/tiers/episodic_memory_tier.py).
+- Wrapper L2 adapter configured for locking in [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py).
+- Lock renewal integration test added in [tests/integration/test_lock_renewal.py](tests/integration/test_lock_renewal.py).
+- Orchestration script added in [scripts/run_subset_experiments.sh](scripts/run_subset_experiments.sh).
+- Memory polling utility added in [scripts/poll_memory_state.py](scripts/poll_memory_state.py).
+
+**❌ What's Missing:**
+- Wrapper instrumentation module for adapter-level timing in [src/evaluation/instrumentation.py](src/evaluation/instrumentation.py).
+- Subset execution run artifacts and analysis report generation.
+
+**Current Project Completion:**
+- **Phase 5**: ~80% 🚧 (isolation + orchestration complete; instrumentation and execution artifacts pending)
+
+**Evidence from Codebase:**
+```bash
+src/storage/postgres_adapter.py
+src/storage/neo4j_adapter.py
+src/memory/tiers/episodic_memory_tier.py
+src/evaluation/agent_wrapper.py
+tests/integration/test_lock_renewal.py
+scripts/run_subset_experiments.sh
+scripts/poll_memory_state.py
+```
+
+### 2026-01-27 - Phase 5 Wrapper + GoodAI Interfaces Implemented 📊
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented the FastAPI wrapper service for MAS agents and the GoodAI LTM Benchmark model interfaces, establishing
+the HTTP boundary required for Phase 5 subset execution. Updated UnifiedMemorySystem retrieval compatibility for
+L1/L2 tiers, wired wrapper session prefixing, and registered MAS agents in the benchmark runner.
+
+**Key Findings:**
+- The wrapper can run independently per agent type and exposes `/run_turn`, `/sessions`, `/memory_state`, `/health`, and `/cleanup_force`.
+- GoodAI benchmark integration is now available through `mas-full`, `mas-rag`, and `mas-full-context` agents.
+- L1/L2 retrieval compatibility required alignment with tier method signatures (fixed in UnifiedMemorySystem).
+
+**✅ What's Complete:**
+- FastAPI wrapper service implemented in [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py).
+- GoodAI interface proxy implemented in [benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py](benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py).
+- MAS agents registered in [benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py](benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py).
+- L1/L2 retrieval compatibility fixes in [memory_system.py](memory_system.py).
+
+**❌ What's Missing:**
+- Wrapper database isolation locks (Redis/Neo4j/Qdrant) and adapter-level instrumentation.
+- Wrapper API unit tests and instrumentation module (`src/evaluation/instrumentation.py`).
+- GoodAI subset orchestration script and full Phase 5D execution artifacts.
+
+**Current Project Completion:**
+- **Phase 5**: ~55% 🚧 (wrapper + interfaces complete; isolation, instrumentation, and orchestration pending)
+
+**Evidence from Codebase:**
+```bash
+src/evaluation/agent_wrapper.py
+benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py
+benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py
+memory_system.py
+```
+
+### 2026-01-27 - Wrapper Test Suite + Reporting Automation ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented comprehensive wrapper unit/integration tests with reusable Redis validation fixtures and
+automated report generation. Added test execution script, enabled HTML reporting, and validated
+session isolation with Redis key assertions. Updated wrapper turn storage to avoid user/assistant
+turn ID collisions in the L1 persistence layer.
+
+**Key Findings:**
+- Wrapper tests now cover HTTP endpoints, session tracking, and GoodAI proxy retry logic.
+- Integration tests validate Redis namespace isolation using L1 key prefixes.
+- Test reports are emitted to timestamped XML/HTML artifacts for traceability.
+
+**✅ What's Complete:**
+- Wrapper unit tests added in [tests/evaluation/test_agent_wrapper.py](tests/evaluation/test_agent_wrapper.py).
+- GoodAI interface unit tests added in [tests/evaluation/test_mas_agents.py](tests/evaluation/test_mas_agents.py).
+- Integration tests with Redis key validation added in [tests/integration/test_wrapper_agents_integration.py](tests/integration/test_wrapper_agents_integration.py).
+- Test runner script added in [scripts/run_wrapper_tests.sh](scripts/run_wrapper_tests.sh).
+- HTML reporting enabled via `pytest-html` and `pytest-mock` for mocking support.
+- Turn ID encoding updated in [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py) to prevent L1 duplicate key collisions.
+
+**❌ What's Missing:**
+- Database isolation locks (PostgreSQL/Redis/Qdrant) and adapter-level instrumentation module.
+- Orchestration script and polling utilities for Phase 5D subset execution.
+
+**Current Project Completion:**
+- **Phase 5**: ~65% 🚧 (wrapper tests complete; isolation, instrumentation, orchestration pending)
+
+**Evidence from Codebase:**
+```bash
+tests/reports/unit/wrapper_unit_20260127_165035.xml
+tests/reports/unit/wrapper_unit_20260127_165035.html
+tests/reports/integration/wrapper_integration_20260127_165035.xml
+tests/reports/integration/wrapper_integration_20260127_165035.html
+```
+
+### 2026-01-26 - Phase 5 Implementation Plan v2.0 + GoodAI Benchmark Setup 🚧
+
+**Status:** 🚧 In Progress (Day 1 of 14)  
+**Duration:** 4 hours  
+**Phase:** 5A Infrastructure Setup
+
+**Summary:**
+Revised Phase 5 plan to 10% subset baseline approach (prospective_memory + restaurant, 32k span). Downloaded GoodAI LTM Benchmark and documented HTTP boundary isolation architecture. Updated AGENTS.MD to permit absolute paths for read-only operations.
+
+**✅ Completed Today:**
+
+1. **Phase 5 Plan Revision** ([docs/plan/phase5-implementation-plan-2026-01-03.md](docs/plan/phase5-implementation-plan-2026-01-03.md)):
+   - Updated to v2.0 with 10% subset baseline strategy
+   - Changed model: gemini-3-flash-preview → gemini-2.5-flash-lite (4K RPM, 4M TPM)
+   - Scope: 2 test types (prospective_memory + restaurant) at 32k span only
+   - Estimated execution: 3-5 hours vs. 30-60 hours for full 12-run suite
+   - Documented database isolation: Redis prefixes, Qdrant separate collections, PostgreSQL table locks, Neo4j distributed locks
+   - Session ID prefixing: `full:{id}`, `rag:{id}`, `full_context:{id}`
+   - Added 6 implementation phases (5A-5F) across 14 days
+
+2. **AGENTS.MD Protocol Update** ([AGENTS.MD](AGENTS.MD)):
+   - Updated Protocol 8.1: Pathing now context-aware
+   - **Permitted**: Absolute paths for read-only operations (`read_file`, `grep_search`, `list_dir`)
+   - **Required**: Relative paths for edit operations (maintains portability)
+   - **Rationale**: VSCode LSP requires absolute paths for workspace operations in remote SSH sessions
+
+3. **GoodAI LTM Benchmark Setup** ([docs/integrations/goodai-benchmark-setup.md](docs/integrations/goodai-benchmark-setup.md)):
+   - Downloaded v3.5 from GitHub (558MB, 584,880,710 bytes)
+   - Extracted to `benchmarks/goodai-ltm-benchmark/`
+   - Verified test types: `prospective_memory.py` and `restaurant.py` present
+   - Added to `.gitignore`: `benchmarks/goodai-ltm-benchmark/`, `benchmarks/.venv-benchmark/`
+   - Documented HTTP API schema for `/run_turn`, `/sessions`, `/memory_state` endpoints
+   - Documented session ID prefixing convention
+   - Documented result file mapping (GoodAI output → analysis input)
+
+**⏳ Pending (Next Steps):**
+
+1. **Complete Infrastructure Setup** (Phase 5A - Days 1-2):
+   - ✅ Install GoodAI benchmark in isolated venv (dependencies installed via requirements.txt)
+   - ❌ Create config validator: `scripts/validate_goodai_config.py`
+   - ❌ Create subset config: `benchmarks/goodai-ltm-benchmark/configs/mas_subset_32k.yaml`
+
+2. **Agent Implementation** (Phase 5B - Days 3-5):
+   - ❌ BaseAgent abstract class: `src/agents/base_agent.py`
+   - ❌ Data models: `src/agents/models.py` (RunTurnRequest, RunTurnResponse)
+   - ❌ MemoryAgent with LangGraph StateGraph: `src/agents/memory_agent.py`
+   - ❌ RAGAgent with incremental indexing: `src/agents/rag_agent.py`
+   - ❌ FullContextAgent with truncation: `src/agents/full_context_agent.py`
+
+3. **Wrapper Services** (Phase 5C - Days 6-8):
+   - ❌ FastAPI wrapper: `src/evaluation/agent_wrapper.py` (CLI args, DB isolation, endpoints)
+   - ❌ GoodAI interfaces: `benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py`
+   - ❌ Instrumentation: `src/evaluation/instrumentation.py` (adapter-level timing)
+
+**Key Decisions:**
+
+| Decision | Rationale | Impact |
+|----------|-----------|--------|
+| 10% Subset Baseline | Full 12-run execution risks quota exhaustion and delays AIMS 2025 submission | Validates workflow in 3-5 hours, identifies bottlenecks early |
+| gemini-2.5-flash-lite | 4K RPM (vs. 10 RPM for gemini-3-flash-preview) | Enables serial execution without rate limit stalls |
+| Isolated FastAPI Services | Prevents database contention with parallel agents | Three services on ports 8080/8081/8082 enable future parallelization |
+| Session ID Prefixing | GoodAI generates session IDs without agent context | `full:`, `rag:`, `full_context:` prefixes ensure uniqueness |
+| HTTP Boundary Isolation | GoodAI requires Python 3.10+, has conflicting dependencies | Separate venv prevents contamination of main project environment |
+
+**Files Modified:**
+- [docs/plan/phase5-implementation-plan-2026-01-03.md](docs/plan/phase5-implementation-plan-2026-01-03.md) - Comprehensive revision to v2.0
+- [AGENTS.MD](AGENTS.MD) - Protocol 8.1 updated for context-aware pathing
+- [docs/integrations/goodai-benchmark-setup.md](docs/integrations/goodai-benchmark-setup.md) - Complete setup guide
+- [.gitignore](.gitignore) - Added GoodAI benchmark exclusions
+
+**Files Created:**
+- `benchmarks/goodai-ltm-benchmark/` - Downloaded benchmark (558MB)
+
+**Test Status:**
+- No test changes (infrastructure-only session)
+- Full test suite: 574 passed, 12 skipped (from 2026-01-03)
+
+**Next Session Goals:**
+1. Install `python3-venv` system package (requires sudo)
+2. Create isolated venv for GoodAI benchmark
+3. Create config validator script
+4. Begin BaseAgent implementation
+
+---
+
 ### 2026-01-03 (Session 2) - Qdrant Scroll vs Search Fix + Full Test Suite Pass ✅
 
 **Status:** ✅ Complete  

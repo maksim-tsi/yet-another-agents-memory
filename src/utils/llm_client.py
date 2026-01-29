@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 PHOENIX_DEFAULT_PROJECT = "mlm-mas-dev"
 PHOENIX_SERVICE_NAME = "mas-memory-layer"
 
+_PHOENIX_INITIALIZED = False
+_PHOENIX_PROJECT_NAME: Optional[str] = None
+
 
 # Phoenix/OpenTelemetry auto-instrumentation (optional)
 def _init_phoenix_instrumentation() -> None:
@@ -52,7 +55,9 @@ def _init_phoenix_instrumentation() -> None:
         )
         return
     
-    project_name = os.environ.get("PHOENIX_PROJECT_NAME", PHOENIX_DEFAULT_PROJECT)
+    agent_type = os.environ.get("AGENT_TYPE")
+    default_project = f"{PHOENIX_DEFAULT_PROJECT}-{agent_type}" if agent_type else PHOENIX_DEFAULT_PROJECT
+    project_name = os.environ.get("PHOENIX_PROJECT_NAME", default_project)
     
     try:
         from phoenix.otel import register
@@ -69,6 +74,11 @@ def _init_phoenix_instrumentation() -> None:
             project_name,
             endpoint
         )
+
+        global _PHOENIX_INITIALIZED
+        global _PHOENIX_PROJECT_NAME
+        _PHOENIX_INITIALIZED = True
+        _PHOENIX_PROJECT_NAME = project_name
         
         # Explicitly instrument Google GenAI if auto_instrument missed it
         try:
@@ -93,8 +103,21 @@ def _init_phoenix_instrumentation() -> None:
         logger.warning("Failed to initialize Phoenix instrumentation: %s", e)
 
 
+def ensure_phoenix_instrumentation() -> None:
+    """Ensure Phoenix instrumentation is initialized for current environment."""
+    global _PHOENIX_INITIALIZED
+    agent_type = os.environ.get("AGENT_TYPE")
+    desired_project = os.environ.get(
+        "PHOENIX_PROJECT_NAME",
+        f"{PHOENIX_DEFAULT_PROJECT}-{agent_type}" if agent_type else PHOENIX_DEFAULT_PROJECT,
+    )
+    if _PHOENIX_INITIALIZED and _PHOENIX_PROJECT_NAME == desired_project:
+        return
+    _init_phoenix_instrumentation()
+
+
 # Initialize at module load time (idempotent)
-_init_phoenix_instrumentation()
+ensure_phoenix_instrumentation()
 
 
 @dataclass(frozen=True)
@@ -191,6 +214,9 @@ class LLMClient:
     ) -> LLMResponse:
         """Attempt generation with the preferred provider order and fallback if necessary."""
 
+        agent_metadata = kwargs.pop("agent_metadata", None)
+        self._annotate_span(agent_metadata)
+
         # Route to correct provider based on model name if not explicitly specified
         if model and not provider_order:
             # Check if model requires specific provider
@@ -228,6 +254,22 @@ class LLMClient:
                 continue
 
         raise last_exc or RuntimeError("No healthy LLM provider available")
+
+    def _annotate_span(self, agent_metadata: Optional[Dict[str, Any]]) -> None:
+        """Attach agent metadata to the active trace span if available."""
+        if not agent_metadata:
+            return
+        try:
+            from opentelemetry import trace
+        except Exception:  # pragma: no cover - optional dependency
+            return
+        span = trace.get_current_span()
+        if not span or not span.is_recording():
+            return
+        for key, value in agent_metadata.items():
+            if value is None:
+                continue
+            span.set_attribute(str(key), value)
 
     async def health_check(self) -> Dict[str, ProviderHealth]:
         """Return health reports for every registered provider."""

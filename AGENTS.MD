@@ -237,10 +237,69 @@ You *must* halt your autonomous operation and escalate to the human user for gui
 
 This protocol ensures your file interactions are portable, safe, and predictable.
 
-### **8.1 Pathing Protocol**
+### 8.1 Pathing Protocol
 
-* **Protocol:** All file paths used in tool calls (read\_file 22, edit\_file 30) or generated code *must* be relative to the project root (e.g., src/main.py, tests/test\_api.py). This is a documented best practice for agent instructions.31  
-* **Forbidden:** Paths starting with /, \~/, C:\\, or any other absolute path identifier are strictly forbidden. Using absolute paths makes the instructions non-portable and will cause failures when running in different environments.32
+#### 8.1.1 Fundamental Principle
+
+Agents operate with two path representations:
+
+- PHYSICAL PATH — required by tooling (may be absolute).
+- LOGICAL REPO PATH — required by repository protocol (must be relative).
+
+The logical repo path is the authoritative reference for all write operations.
+
+---
+
+#### 8.1.2 Rules by Operation Type
+
+A) READ-ONLY operations  
+Examples: read_file, grep_search, list_dir, IDE/LSP inspection.
+
+Rules:
+- Absolute physical paths are allowed and may be required by tooling.
+- Logical repo paths should be inferred when possible.
+
+B) WRITE / EDIT operations  
+Examples: edit_file, create_file, replace_string_in_file.
+
+Rules:
+- Tooling may use absolute physical paths to locate files.
+- Agents MUST represent and reason about edited files using logical repo paths.
+- All documentation, commit messages, and change descriptions MUST use logical repo paths.
+- Agents MUST NOT introduce absolute paths into source code, configs, or generated files.
+
+C) TERMINAL commands  
+
+Rules:
+- Absolute paths MUST be used for virtual environment executables on the remote host.
+- Relative paths MAY be used locally.
+- Absolute paths MUST NOT be hardcoded into source code.
+
+---
+
+#### 8.1.3 Explicit Prohibitions
+
+For WRITE / EDIT operations, it is forbidden to:
+
+- Hardcode absolute paths into repository files.
+- Generate environment-specific paths in code or configs.
+- Use absolute paths as canonical identifiers of files.
+
+Using absolute paths as tooling inputs is NOT forbidden.
+
+---
+
+#### 8.1.4 Conflict Resolution Rule
+
+If a conflict arises between:
+
+- tooling requirements, and
+- repository portability rules,
+
+THEN:
+
+- Tooling may use absolute physical paths.
+- Repository artifacts MUST remain relative-path-based.
 
 ### **8.2 Protected Files and Directories**
 

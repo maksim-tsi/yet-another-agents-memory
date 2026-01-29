@@ -5,6 +5,10 @@
 *.env.local
 .env.*.local
 
+# External Benchmarks
+benchmarks/goodai-ltm-benchmark/
+benchmarks/.venv-benchmark/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -57,6 +61,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+tests/reports/
+!tests/reports/.gitkeep
+!tests/reports/**/.gitkeep
 
 # Translations
 *.mo
