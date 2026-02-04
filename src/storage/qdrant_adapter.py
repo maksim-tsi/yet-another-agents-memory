@@ -503,6 +503,15 @@ class QdrantAdapter(StorageAdapter):
         Returns:
             Qdrant Filter object or None if no conditions
         """
+        type FilterConditionType = (
+            FieldCondition
+            | IsEmptyCondition
+            | IsNullCondition
+            | HasIdCondition
+            | NestedCondition
+            | Filter
+        )
+
         if not filter_dict:
             return None
 
@@ -510,14 +519,6 @@ class QdrantAdapter(StorageAdapter):
         if isinstance(filter_dict, dict) and any(
             key in filter_dict for key in ["must", "should", "must_not"]
         ):
-            FilterConditionType = (
-                FieldCondition
-                | IsEmptyCondition
-                | IsNullCondition
-                | HasIdCondition
-                | NestedCondition
-                | Filter
-            )
             must_conditions: list[FilterConditionType] = []
             should_conditions: list[FilterConditionType] = []
             must_not_conditions: list[FilterConditionType] = []
@@ -590,33 +591,30 @@ class QdrantAdapter(StorageAdapter):
                     ]
                 )
 
-            FilterConditionType = (
-                FieldCondition
-                | IsEmptyCondition
-                | IsNullCondition
-                | HasIdCondition
-                | NestedCondition
-                | Filter
-            )
-            must_conditions: list[FilterConditionType] = []
-            should_conditions: list[FilterConditionType] = []
+            simple_must_conditions: list[FilterConditionType] = []
+            simple_should_conditions: list[FilterConditionType] = []
 
             for key, value in filter_dict.items():
                 if isinstance(value, dict | list):
                     continue
 
                 if key == "session_id":
-                    should_conditions.append(
+                    simple_should_conditions.append(
                         FieldCondition(key="session_id", match=MatchValue(value=value))
                     )
-                    should_conditions.append(
+                    simple_should_conditions.append(
                         FieldCondition(key="metadata.session_id", match=MatchValue(value=value))
                     )
                 else:
-                    must_conditions.append(FieldCondition(key=key, match=MatchValue(value=value)))
+                    simple_must_conditions.append(
+                        FieldCondition(key=key, match=MatchValue(value=value))
+                    )
 
-            if must_conditions or should_conditions:
-                return Filter(must=must_conditions or None, should=should_conditions or None)
+            if simple_must_conditions or simple_should_conditions:
+                return Filter(
+                    must=simple_must_conditions or None,
+                    should=simple_should_conditions or None,
+                )
 
         return None
 

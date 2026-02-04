@@ -16,7 +16,7 @@ import logging
 import uuid
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC
-from typing import Any
+from typing import Any, cast
 
 import redis.asyncio as redis
 from neo4j import AsyncDriver, AsyncGraphDatabase
@@ -278,7 +278,8 @@ class Neo4jAdapter(StorageAdapter):
 
         async with self.driver.session(database=self.database) as session:
             result = await session.run(cypher, params or {})
-            return await result.data()
+            records = await result.data()
+            return cast(list[dict[str, Any]], records)
 
     async def store(self, data: dict[str, Any]) -> str:
         """
@@ -421,7 +422,7 @@ class Neo4jAdapter(StorageAdapter):
                     async with self.driver.session(database=self.database) as session:
                         result = await session.run(cypher, **params)
                         records = await result.data()
-                        return records
+                        return cast(list[dict[str, Any]], records)
                 return []
 
             except Exception as e:
@@ -441,7 +442,8 @@ class Neo4jAdapter(StorageAdapter):
                     async with self.driver.session(database=self.database) as session:
                         result = await session.run(cypher, id=id)
                         summary = await result.consume()
-                        return summary.counters.nodes_deleted > 0
+                        deleted = int(summary.counters.nodes_deleted)
+                        return deleted > 0
                 return False
 
             except Exception as e:
@@ -531,7 +533,7 @@ class Neo4jAdapter(StorageAdapter):
 
                     return batch_ids
 
-                ids = await session.execute_write(_batch_store)
+                ids = cast(list[str], await session.execute_write(_batch_store))
 
             logger.debug(f"Stored {len(ids)} items in batch transaction")
             return ids

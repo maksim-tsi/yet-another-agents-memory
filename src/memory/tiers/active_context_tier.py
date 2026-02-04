@@ -13,9 +13,11 @@ Architecture:
 
 import json
 import logging
+import warnings
 from datetime import UTC, datetime
-from inspect import isawaitable
 from typing import Any
+
+from pydantic import ValidationError
 
 from src.memory.models import TurnData
 from src.memory.tiers.base_tier import BaseTier, TierOperationError
@@ -110,12 +112,12 @@ class ActiveContextTier(BaseTier[TurnData]):
             f"ttl_hours={self.ttl_hours}, postgres_backup={self.enable_postgres_backup}"
         )
 
-    async def store(self, data: dict[str, Any]) -> str:
+    async def store(self, data: TurnData | dict[str, Any]) -> str:
         """
         Store a conversational turn in L1.
 
         Args:
-            data: Turn data with required fields:
+            data: TurnData model or dict (deprecated) with required fields:
                 - session_id: str - Session identifier
                 - turn_id: str - Unique turn identifier
                 - role: str - 'user' or 'assistant'
@@ -132,11 +134,21 @@ class ActiveContextTier(BaseTier[TurnData]):
         """
         async with OperationTimer(self.metrics, "l1_store"):
             try:
-                # Validate required fields
-                required = ["session_id", "turn_id", "role", "content"]
-                validate_required_fields(data, required)
+                turn: TurnData
+                if isinstance(data, dict):
+                    warnings.warn(
+                        "Passing dict to ActiveContextTier.store() is deprecated. "
+                        "Use TurnData model directly.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    # Validate required fields for dict input
+                    required = ["session_id", "turn_id", "role", "content"]
+                    validate_required_fields(data, required)
+                    turn = TurnData.model_validate(data)
+                else:
+                    turn = data
 
-                turn = TurnData.model_validate(data)
                 session_id = turn.session_id
                 turn_id = turn.turn_id
                 timestamp = turn.timestamp
@@ -189,6 +201,8 @@ class ActiveContextTier(BaseTier[TurnData]):
                 # Metrics are tracked by OperationTimer
                 return turn_id
 
+            except ValidationError:
+                raise
             except StorageDataError:
                 # Re-raise validation errors as-is
                 raise
@@ -228,7 +242,7 @@ class ActiveContextTier(BaseTier[TurnData]):
                 if isinstance(metadata, str):
                     metadata = json.loads(metadata)
 
-                turn = TurnData.model_validate(
+                turn: TurnData = TurnData.model_validate(
                     {
                         "turn_id": row["turn_id"],
                         "session_id": row["session_id"],
@@ -427,15 +441,12 @@ class ActiveContextTier(BaseTier[TurnData]):
                 # Delete from PostgreSQL
                 if self.enable_postgres_backup:
                     if isinstance(self.postgres, PostgresAdapter):
-                        postgres_result = self.postgres.delete_by_filters(
+                        postgres_result = await self.postgres.delete_by_filters(
                             "active_context",
                             filters={"session_id": session_id, "tier": "L1"},
                         )
                     else:
-                        postgres_result = self.postgres.delete(session_id)
-
-                    if isawaitable(postgres_result):
-                        postgres_result = await postgres_result
+                        postgres_result = await self.postgres.delete(session_id)
 
                     if bool(postgres_result):
                         deleted = True

@@ -220,9 +220,7 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense retrieve failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Retrieve failed: {e}") from e
 
-    async def get_document(
-        self, collection_name: str, document_id: str
-    ) -> dict[str, Any] | None:
+    async def get_document(self, collection_name: str, document_id: str) -> dict[str, Any] | None:
         """Retrieve a document by ID from a specified collection."""
         async with OperationTimer(self.metrics, "get_document"):
             if not self._connected or not self.client:
@@ -271,7 +269,7 @@ class TypesenseAdapter(StorageAdapter):
                     json=document,
                 )
                 await self._raise_for_status(response)
-                return response.status_code == 200
+                return bool(response.status_code == 200)
 
             except httpx.HTTPStatusError as e:
                 logger.error(f"Typesense update_document failed: {e}", exc_info=True)
@@ -290,7 +288,7 @@ class TypesenseAdapter(StorageAdapter):
                 response = await self.client.delete(
                     f"{self.url}/collections/{collection_name}/documents/{document_id}"
                 )
-                return response.status_code == 200
+                return bool(response.status_code == 200)
 
             except Exception as e:
                 logger.error(f"Typesense delete_document failed: {e}", exc_info=True)
@@ -395,10 +393,9 @@ class TypesenseAdapter(StorageAdapter):
                 response = await self.client.delete(
                     f"{self.url}/collections/{self.collection_name}/documents/{id}"
                 )
-                return response.status_code == 200
+                return bool(response.status_code == 200)
             except Exception as e:
                 logger.error(f"Typesense delete failed: {e}", exc_info=True)
-                return False
                 return False
 
     # Batch operations (optimized for Typesense)

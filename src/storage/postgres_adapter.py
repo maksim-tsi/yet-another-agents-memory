@@ -552,7 +552,8 @@ class PostgresAdapter(StorageAdapter):
             async with self.pool.connection() as conn, conn.cursor() as cur:
                 await cur.execute(query, (int(id),))
                 await conn.commit()
-                deleted = cur.rowcount > 0
+                rowcount = int(cur.rowcount)
+                deleted = rowcount > 0
 
             if deleted:
                 logger.debug(f"Deleted record {id} from {self.table}")
@@ -584,7 +585,7 @@ class PostgresAdapter(StorageAdapter):
             async with self.pool.connection() as conn, conn.cursor() as cur:
                 await cur.execute(query)
                 await conn.commit()
-                count = cur.rowcount
+                count = int(cur.rowcount)
 
             if count > 0:
                 logger.info(f"Deleted {count} expired records from {self.table}")
@@ -747,15 +748,16 @@ class PostgresAdapter(StorageAdapter):
                 sql.SQL("{} = %s").format(sql.Identifier(column)) for column in filters
             )
 
-            query = sql.SQL("UPDATE {} SET {} WHERE {}")
-            query = query.format(sql.Identifier(table), set_clause, where_clause)
+            query = sql.SQL("UPDATE {} SET {} WHERE {}").format(
+                sql.Identifier(table), set_clause, where_clause
+            )
 
             params = list(data.values()) + list(filters.values())
 
             async with self.pool.connection() as conn, conn.cursor() as cur:
                 await cur.execute(query, params)
                 await conn.commit()
-                return cur.rowcount > 0
+                return int(cur.rowcount) > 0
 
         except psycopg.Error as e:
             logger.error(f"PostgreSQL update failed: {e}", exc_info=True)
@@ -787,14 +789,13 @@ class PostgresAdapter(StorageAdapter):
             where_clause = sql.SQL(" AND ").join(
                 sql.SQL("{} = %s").format(sql.Identifier(column)) for column in filters
             )
-            query = sql.SQL("DELETE FROM {} WHERE {}")
-            query = query.format(sql.Identifier(table), where_clause)
+            query = sql.SQL("DELETE FROM {} WHERE {}").format(sql.Identifier(table), where_clause)
             params = list(filters.values())
 
             async with self.pool.connection() as conn, conn.cursor() as cur:
                 await cur.execute(query, params)
                 await conn.commit()
-                return cur.rowcount > 0
+                return int(cur.rowcount) > 0
 
         except psycopg.Error as e:
             logger.error(f"PostgreSQL delete-by-filters failed: {e}", exc_info=True)

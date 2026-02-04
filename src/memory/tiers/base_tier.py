@@ -102,16 +102,18 @@ class BaseTier[TModel: BaseModel](ABC):
         )
 
     @abstractmethod
-    async def store(self, data: dict[str, Any]) -> str:
+    async def store(self, data: TModel | dict[str, Any]) -> str:
         """
         Store data in this tier.
 
         Args:
-            data: Data to store (format varies by tier)
-                L1: {'session_id', 'turn_id', 'role', 'content', ...}
-                L2: {'fact_id', 'content', 'ciar_score', ...}
-                L3: {'episode_id', 'summary', 'embedding', ...}
-                L4: {'knowledge_id', 'pattern', 'confidence', ...}
+            data: Pydantic model instance or dict (deprecated).
+                Passing dict is deprecated and will emit a warning.
+                Use the tier's model type directly:
+                - L1: TurnData
+                - L2: Fact
+                - L3: Episode (or EpisodeStoreInput for full payload)
+                - L4: KnowledgeDocument
 
         Returns:
             Unique identifier for stored data
@@ -119,6 +121,7 @@ class BaseTier[TModel: BaseModel](ABC):
         Raises:
             TierOperationError: If storage operation fails
             StorageError: If underlying storage fails
+            ValidationError: If dict data fails model validation
         """
         pass
 

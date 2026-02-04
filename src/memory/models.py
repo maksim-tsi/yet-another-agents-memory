@@ -297,6 +297,28 @@ class Episode(BaseModel):
         }
 
 
+class EpisodeStoreInput(BaseModel):
+    """
+    Input model for L3 EpisodicMemoryTier.store().
+
+    Encapsulates the Episode model plus vector embedding and entity/relationship
+    data required for dual-index storage (Qdrant + Neo4j).
+    """
+
+    episode: Episode
+    embedding: list[float] = Field(..., min_length=1)
+    entities: list[dict[str, Any]] = Field(default_factory=list)
+    relationships: list[dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("embedding")
+    @classmethod
+    def validate_embedding_dimension(cls, value: list[float]) -> list[float]:
+        """Ensure embedding has reasonable dimensions."""
+        if len(value) < 64 or len(value) > 4096:
+            raise ValueError(f"Embedding dimension {len(value)} outside valid range [64, 4096]")
+        return value
+
+
 class KnowledgeDocument(BaseModel):
     """
     Represents distilled knowledge in L4 Semantic Memory.

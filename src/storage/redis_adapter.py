@@ -301,13 +301,13 @@ class RedisAdapter(StorageAdapter):
                 # Use pipeline for atomic operations
                 async with self.client.pipeline(transaction=True) as pipe:
                     # Add to head of list (most recent first)
-                    await pipe.lpush(key, serialized)
+                    await cast(Awaitable[Any], pipe.lpush(key, serialized))
 
                     # Trim to window size (keep only N most recent)
-                    await pipe.ltrim(key, 0, self.window_size - 1)
+                    await cast(Awaitable[Any], pipe.ltrim(key, 0, self.window_size - 1))
 
                     # Set/refresh TTL
-                    await pipe.expire(key, self.ttl_seconds)
+                    await cast(Awaitable[Any], pipe.expire(key, self.ttl_seconds))
 
                     # Execute pipeline
                     await pipe.execute()
@@ -377,9 +377,7 @@ class RedisAdapter(StorageAdapter):
                 turn_id = int(parts[1])
 
                 # Get all items from list
-                items = list(
-                    await cast(Awaitable[list[str]], self.client.lrange(key, 0, -1))
-                )
+                items = list(await cast(Awaitable[list[str]], self.client.lrange(key, 0, -1)))
 
                 # Optional: Refresh TTL on access
                 if self.refresh_ttl_on_read and items:
@@ -460,9 +458,7 @@ class RedisAdapter(StorageAdapter):
                 end = offset + limit - 1
 
                 # Get items from list
-                items = list(
-                    await cast(Awaitable[list[str]], self.client.lrange(key, start, end))
-                )
+                items = list(await cast(Awaitable[list[str]], self.client.lrange(key, start, end)))
 
                 if not items:
                     logger.debug(f"No turns found for session {session_id}")

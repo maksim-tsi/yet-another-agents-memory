@@ -6,6 +6,7 @@ Provides full-text search, faceted filtering, and provenance tracking.
 """
 
 import logging
+import warnings
 from datetime import UTC, datetime
 from typing import Any
 
@@ -47,19 +48,29 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
         # Call parent initialize to connect adapter
         await super().initialize()
 
-    async def store(self, data: dict[str, Any]) -> str:
+    async def store(self, data: KnowledgeDocument | dict[str, Any]) -> str:
         """
         Store a knowledge document in L4.
 
         Args:
-            data: KnowledgeDocument object or dict
+            data: KnowledgeDocument object or dict (deprecated)
 
         Returns:
             Knowledge identifier
         """
         async with OperationTimer(self.metrics, "l4_store"):
             # Convert to KnowledgeDocument for validation
-            knowledge = KnowledgeDocument(**data) if isinstance(data, dict) else data
+            knowledge: KnowledgeDocument
+            if isinstance(data, dict):
+                warnings.warn(
+                    "Passing dict to SemanticMemoryTier.store() is deprecated. "
+                    "Use KnowledgeDocument model directly.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                knowledge = KnowledgeDocument.model_validate(data)
+            else:
+                knowledge = data
 
             document = knowledge.to_typesense_document()
 
@@ -122,7 +133,11 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             return knowledge
 
     async def search(
-        self, query_text: str, filters: dict[str, Any] | None = None, limit: int = 10
+        self,
+        query_text: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 10,
+        filter_by: str | None = None,
     ) -> list[KnowledgeDocument]:
         """
         Full-text search for knowledge documents.
@@ -131,30 +146,33 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             query_text: Search query
             filters: Optional filters (knowledge_type, category, tags, min_confidence)
             limit: Max results
+            filter_by: Optional raw Typesense filter string (advanced use)
 
         Returns:
             List of matching knowledge documents
         """
         async with OperationTimer(self.metrics, "l4_search"):
             # Build filter string
-            filter_by = []
-            if filters:
+            filter_terms: list[str] = []
+            if filter_by is None and filters:
                 if "knowledge_type" in filters:
-                    filter_by.append(f"knowledge_type:={filters['knowledge_type']}")
+                    filter_terms.append(f"knowledge_type:={filters['knowledge_type']}")
                 if "category" in filters:
-                    filter_by.append(f"category:={filters['category']}")
+                    filter_terms.append(f"category:={filters['category']}")
                 if "min_confidence" in filters:
-                    filter_by.append(f"confidence_score:>={filters['min_confidence']}")
+                    filter_terms.append(f"confidence_score:>={filters['min_confidence']}")
                 if "tags" in filters:
                     tag_filter = " || ".join([f"tags:={tag}" for tag in filters["tags"]])
-                    filter_by.append(f"({tag_filter})")
+                    filter_terms.append(f"({tag_filter})")
+
+            resolved_filter_by = filter_by or (" && ".join(filter_terms) if filter_terms else None)
 
             # Execute search
             results = await self.typesense.search(
                 collection_name=self.collection_name,
                 query=query_text,
                 query_by="title,content",
-                filter_by=" && ".join(filter_by) if filter_by else None,
+                filter_by=resolved_filter_by,
                 limit=limit,
                 sort_by="usefulness_score:desc",
             )

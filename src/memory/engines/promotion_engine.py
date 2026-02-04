@@ -261,8 +261,8 @@ class PromotionEngine(BaseEngine):
             # Ensure at least one fact is promoted even when LLM paths fail
             if (
                 self.enable_final_fallback
-                and stats["facts_promoted"] == 0
-                and stats["turns_retrieved"] > 0
+                and int(stats.get("facts_promoted", 0)) == 0
+                and int(stats.get("turns_retrieved", 0)) > 0
             ):
                 fallback_fact = Fact(
                     fact_id=f"fallback-{uuid4().hex}",

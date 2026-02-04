@@ -16,9 +16,9 @@ import logging
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from ...storage.metrics.collector import MetricsCollector
 from ...utils.llm_client import LLMClient
@@ -112,8 +112,14 @@ class DistillationEngine(BaseEngine):
 
             with open(path) as f:
                 config = yaml.safe_load(f)
-                logger.info(f"Loaded domain config: {config.get('domain', {}).get('name')}")
-                return config
+                if isinstance(config, dict):
+                    logger.info(
+                        "Loaded domain config: %s",
+                        config.get("domain", {}).get("name"),
+                    )
+                    return cast(dict[str, Any], config)
+                logger.warning("Domain config is not a dict: %s", config_path)
+                return self._get_default_config()
         except Exception as e:
             logger.error(f"Failed to load domain config: {e}")
             return self._get_default_config()
@@ -455,7 +461,7 @@ Provide a structured response with the following fields:
         Returns:
             Metadata dictionary with domain-specific fields
         """
-        metadata = {}
+        metadata: dict[str, Any] = {}
 
         # Get metadata schema from domain config
         schema = self.domain_config.get("metadata_schema", {})
@@ -463,7 +469,7 @@ Provide a structured response with the following fields:
         # Extract each metadata field from episodes
         for field_name, field_config in schema.items():
             # Aggregate field values across episodes
-            values = []
+            values: list[Any] = []
             for episode in episodes:
                 if episode.metadata and field_name in episode.metadata:
                     value = episode.metadata[field_name]
@@ -514,22 +520,27 @@ Provide a structured response with the following fields:
         Returns:
             Health status dictionary
         """
-        health = {"service": "DistillationEngine", "status": "healthy", "checks": {}}
+        checks: dict[str, bool] = {}
+        health: dict[str, Any] = {
+            "service": "DistillationEngine",
+            "status": "healthy",
+            "checks": checks,
+        }
 
         try:
             # Check L3 tier connectivity
             l3_health = await self.episodic_tier.health_check()
-            health["checks"]["episodic_tier"] = l3_health.get("status") == "healthy"
+            checks["episodic_tier"] = l3_health.get("status") == "healthy"
 
             # Check L4 tier connectivity
             l4_health = await self.semantic_tier.health_check()
-            health["checks"]["semantic_tier"] = l4_health.get("status") == "healthy"
+            checks["semantic_tier"] = l4_health.get("status") == "healthy"
 
             # Check LLM client availability
-            health["checks"]["llm_client"] = self.llm_client is not None
+            checks["llm_client"] = self.llm_client is not None
 
             # Overall status
-            if not all(health["checks"].values()):
+            if not all(checks.values()):
                 health["status"] = "degraded"
 
         except Exception as e:

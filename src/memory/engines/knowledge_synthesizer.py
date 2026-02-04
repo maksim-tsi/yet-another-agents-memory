@@ -16,9 +16,9 @@ import hashlib
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from ...storage.metrics.collector import MetricsCollector
 from ...utils.llm_client import LLMClient
@@ -95,8 +95,14 @@ class KnowledgeSynthesizer:
 
             with open(path) as f:
                 config = yaml.safe_load(f)
-                logger.info(f"Loaded domain config: {config.get('domain', {}).get('name')}")
-                return config
+                if isinstance(config, dict):
+                    logger.info(
+                        "Loaded domain config: %s",
+                        config.get("domain", {}).get("name"),
+                    )
+                    return cast(dict[str, Any], config)
+                logger.warning("Domain config is not a dict: %s", config_path)
+                return self._get_default_config()
         except Exception as e:
             logger.error(f"Failed to load domain config: {e}")
             return self._get_default_config()

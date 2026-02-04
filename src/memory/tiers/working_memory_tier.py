@@ -15,10 +15,12 @@ Key Features:
 
 import json
 import logging
+import warnings
 from collections import deque
 from datetime import UTC, datetime, timedelta
-from inspect import isawaitable
 from typing import Any
+
+from pydantic import ValidationError
 
 from src.memory.models import Fact, FactType
 from src.memory.tiers.base_tier import BaseTier, TierOperationError
@@ -124,14 +126,14 @@ class WorkingMemoryTier(BaseTier[Fact]):
             f"ttl_days={self.ttl_days}"
         )
 
-    async def store(self, data: dict[str, Any]) -> str:
+    async def store(self, data: Fact | dict[str, Any]) -> str:
         """
         Store a fact in L2 Working Memory.
 
         Only stores facts that meet the CIAR threshold requirement.
 
         Args:
-            data: Fact data (dict or Fact model) with required fields:
+            data: Fact model or dict (deprecated) with required fields:
                 - fact_id: str - Unique identifier
                 - session_id: str - Session identifier
                 - content: str - Fact content
@@ -149,7 +151,17 @@ class WorkingMemoryTier(BaseTier[Fact]):
         async with OperationTimer(self.metrics, "l2_store"):
             try:
                 # Convert to Fact model for validation
-                fact = Fact(**data) if isinstance(data, dict) else data
+                fact: Fact
+                if isinstance(data, dict):
+                    warnings.warn(
+                        "Passing dict to WorkingMemoryTier.store() is deprecated. "
+                        "Use Fact model directly.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    fact = Fact.model_validate(data)
+                else:
+                    fact = data
 
                 # Check CIAR threshold
                 if fact.ciar_score < self.ciar_threshold:
@@ -173,6 +185,8 @@ class WorkingMemoryTier(BaseTier[Fact]):
                 logger.debug(f"Fact {fact.fact_id} stored successfully in L2")
                 return fact.fact_id
 
+            except ValidationError:
+                raise
             except ValueError:
                 # Re-raise CIAR threshold errors
                 raise
@@ -509,15 +523,12 @@ class WorkingMemoryTier(BaseTier[Fact]):
         async with OperationTimer(self.metrics, "l2_delete"):
             try:
                 if isinstance(self.postgres, PostgresAdapter):
-                    result = self.postgres.delete_by_filters(
+                    result = await self.postgres.delete_by_filters(
                         "working_memory",
                         filters={"fact_id": fact_id},
                     )
                 else:
-                    result = self.postgres.delete(fact_id)
-
-                if isawaitable(result):
-                    result = await result
+                    result = await self.postgres.delete(fact_id)
 
                 result = bool(result)
 

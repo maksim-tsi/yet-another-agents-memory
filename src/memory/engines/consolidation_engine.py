@@ -160,7 +160,7 @@ class ConsolidationEngine(BaseEngine):
             logger.info(f"Wake-Up Sweep: Found {len(unconsolidated)} unconsolidated facts")
 
             # Group facts by session
-            sessions = {}
+            sessions: dict[str, list[Fact]] = {}
             for fact in unconsolidated:
                 session_id = fact.session_id
                 if session_id not in sessions:
@@ -218,6 +218,9 @@ class ConsolidationEngine(BaseEngine):
         Forces immediate consolidation for the session regardless of buffer size.
         """
         session_id = event.get("session_id")
+        if not isinstance(session_id, str) or not session_id:
+            logger.warning("Session end event missing session_id: %s", event)
+            return
         logger.info(f"Session end event: Forcing consolidation for {session_id}")
 
         # Force consolidation for this session
@@ -553,7 +556,8 @@ Format as JSON:
             return self._fallback_embedding(text)
 
         try:
-            return await provider.get_embedding(text=text, model=self.embedding_model)
+            embedding = await provider.get_embedding(text=text, model=self.embedding_model)
+            return [float(value) for value in embedding]
         except Exception as e:
             logger.warning("Embedding generation failed (%s); using fallback", e)
             return self._fallback_embedding(text)

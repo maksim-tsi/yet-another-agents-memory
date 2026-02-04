@@ -11,11 +11,12 @@ This enables both "find similar experiences" (Qdrant) and
 
 import json
 import uuid
+import warnings
 from datetime import datetime
 from typing import Any
 
-from src.memory.models import Episode
-from src.memory.tiers.base_tier import BaseTier
+from src.memory.models import Episode, EpisodeStoreInput
+from src.memory.tiers.base_tier import BaseTier, TierOperationError
 from src.storage.metrics.collector import MetricsCollector
 from src.storage.metrics.timer import OperationTimer
 from src.storage.neo4j_adapter import Neo4jAdapter
@@ -71,12 +72,12 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             if "already exists" not in str(e).lower():
                 raise
 
-    async def store(self, data: dict[str, Any]) -> str:
+    async def store(self, data: EpisodeStoreInput | Episode | dict[str, Any]) -> str:
         """
         Store an episode with dual indexing.
 
         Args:
-            data: Episode data including:
+            data: EpisodeStoreInput model or dict (deprecated) including:
                 - episode: Episode object
                 - embedding: Vector embedding (list of floats)
                 - entities: List of entity dicts
@@ -86,14 +87,27 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             Episode identifier
         """
         async with OperationTimer(self.metrics, "l3_store"):
-            # Extract components
-            episode = data.get("episode")
-            if isinstance(episode, dict):
-                episode = Episode(**episode)
+            if isinstance(data, dict):
+                warnings.warn(
+                    "Passing dict to EpisodicMemoryTier.store() is deprecated. "
+                    "Use EpisodeStoreInput model directly.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                payload = EpisodeStoreInput.model_validate(data)
+            elif isinstance(data, Episode):
+                raise TierOperationError(
+                    "EpisodicMemoryTier.store() requires EpisodeStoreInput with embedding and "
+                    "entities/relationships."
+                )
+            else:
+                payload = data
 
-            embedding = data.get("embedding")
-            entities = data.get("entities", [])
-            relationships = data.get("relationships", [])
+            # Extract components
+            episode: Episode = payload.episode
+            embedding = payload.embedding
+            entities = payload.entities
+            relationships = payload.relationships
 
             # Validate and align embedding length
             if embedding is None or len(embedding) == 0:
@@ -305,7 +319,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
           AND (e.factValidTo IS NULL OR e.factValidTo > $query_time)
         """
 
-        params = {"query_time": query_time.isoformat()}
+        params: dict[str, Any] = {"query_time": query_time.isoformat()}
 
         if session_id:
             query += " AND e.sessionId = $session_id"
