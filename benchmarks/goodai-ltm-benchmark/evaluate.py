@@ -60,9 +60,9 @@ def _main(run_name: str, agent_name: str, dataset_name: str, y: bool):
         result_path = make_result_path(
             run_name, agent_name, example.dataset_name, example.example_id, 0
         )
-        assert result_path.exists(), (
-            f"Can't re-evaluate without an existing result file: {result_path}"
-        )
+        assert (
+            result_path.exists()
+        ), f"Can't re-evaluate without an existing result file: {result_path}"
         colour_print("yellow", f"Evaluating {result_path}")
         result = TestResult.from_file(result_path)
         if not example.uses_callback:

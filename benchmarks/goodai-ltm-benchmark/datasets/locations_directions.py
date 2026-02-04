@@ -76,13 +76,13 @@ class LocationsDirectionsDataset(LocationsDataset):
                             break
                     assert d[k].lower() in allowed_locations, f"Location {d[k]!r} is unknown."
                     d[k] = LOCATIONS[allowed_locations.index(d[k].lower())]
-                assert d["direction"].lower() in allowed_directions, (
-                    f"Direction {d[k]!r} is unknown."
-                )
+                assert (
+                    d["direction"].lower() in allowed_directions
+                ), f"Direction {d[k]!r} is unknown."
                 d["direction"] = DIRECTIONS[allowed_directions.index(d["direction"].lower())]
-                assert isinstance(d["kilometers"], int) and d["kilometers"] > 0, (
-                    f"{d['kilometers']} is not a positive int."
-                )
+                assert (
+                    isinstance(d["kilometers"], int) and d["kilometers"] > 0
+                ), f"{d['kilometers']} is not a positive int."
                 d["distance"] = d.pop("kilometers")
         except (JSONDecodeError, ValueError, KeyError, AssertionError, AttributeError) as exc:
             raise LLMJSONError(

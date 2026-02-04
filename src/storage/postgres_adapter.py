@@ -390,6 +390,30 @@ class PostgresAdapter(StorageAdapter):
             conditions = []
             params = []
 
+            allowed_columns = {
+                "active_context": {
+                    "id",
+                    "session_id",
+                    "turn_id",
+                    "content",
+                    "metadata",
+                    "created_at",
+                    "ttl_expires_at",
+                },
+                "working_memory": {
+                    "id",
+                    "session_id",
+                    "fact_type",
+                    "content",
+                    "confidence",
+                    "source_turn_ids",
+                    "created_at",
+                    "updated_at",
+                    "ttl_expires_at",
+                    "content_tsv",
+                },
+            }
+
             # Session filter
             if "session_id" in query:
                 conditions.append("session_id = %s")
@@ -408,14 +432,46 @@ class PostgresAdapter(StorageAdapter):
             where_clause = " AND ".join(conditions) if conditions else "1=1"
 
             # Sorting
-            if self.table == "active_context":
-                sort_field = query.get("sort", "turn_id")
-            else:
-                sort_field = query.get("sort", "created_at")
+            order_by = query.get("order_by")
+            if order_by:
+                order_clause_parts: list[sql.Composable] = []
+                for entry in str(order_by).split(","):
+                    entry = entry.strip()
+                    if not entry:
+                        continue
+                    tokens = entry.split()
+                    column = tokens[0]
+                    if self.table in allowed_columns and column not in allowed_columns[self.table]:
+                        continue
+                    if not column.replace("_", "").isalnum():
+                        raise StorageDataError(f"Invalid order_by column: {column}")
+                    direction = tokens[1].upper() if len(tokens) > 1 else "DESC"
+                    if direction not in ["ASC", "DESC"]:
+                        direction = "DESC"
+                    order_clause_parts.append(
+                        sql.SQL("{} {}").format(
+                            sql.Identifier(column),
+                            sql.SQL(direction),
+                        )
+                    )
+                if order_clause_parts:
+                    order_by_sql = sql.SQL(", ").join(order_clause_parts)
+                else:
+                    order_by = None
 
-            order = query.get("order", "desc").upper()
-            if order not in ["ASC", "DESC"]:
-                order = "DESC"
+            if not order_by:
+                if self.table == "active_context":
+                    sort_field = query.get("sort", "turn_id")
+                else:
+                    sort_field = query.get("sort", "created_at")
+
+                order = query.get("order", "desc").upper()
+                if order not in ["ASC", "DESC"]:
+                    order = "DESC"
+                order_by_sql = sql.SQL("{} {}").format(
+                    sql.Identifier(sort_field),
+                    sql.SQL(order),
+                )
 
             # Pagination
             limit = query.get("limit", 10)
@@ -425,13 +481,12 @@ class PostgresAdapter(StorageAdapter):
             sql_query = sql.SQL("""
                 SELECT * FROM {}
                 WHERE {}
-                ORDER BY {} {}
+                ORDER BY {}
                 LIMIT %s OFFSET %s
             """).format(
                 sql.Identifier(self.table),
                 sql.SQL(where_clause),
-                sql.Identifier(sort_field),
-                sql.SQL(order),
+                order_by_sql,
             )
             params.extend([limit, offset])
 
@@ -554,6 +609,7 @@ class PostgresAdapter(StorageAdapter):
             raise StorageConnectionError("Not connected to PostgreSQL")
 
         try:
+            params: tuple[Any, ...]
             if session_id:
                 query = sql.SQL("""
                     SELECT COUNT(*) FROM {}
@@ -606,11 +662,150 @@ class PostgresAdapter(StorageAdapter):
         finally:
             self.table = original_table
 
+    async def execute(self, sql_query: str, *params: Any) -> list[dict[str, Any]]:
+        """
+        Execute a raw SQL query and return rows as dictionaries.
+
+        Args:
+            sql_query: Raw SQL string with parameter placeholders
+            *params: Query parameters
+
+        Returns:
+            List of result rows as dictionaries
+
+        Raises:
+            StorageConnectionError: If not connected
+            StorageQueryError: If query fails
+        """
+        if not self._connected or not self.pool:
+            raise StorageConnectionError("Not connected to PostgreSQL")
+
+        try:
+            async with self.pool.connection() as conn, conn.cursor() as cur:
+                await cur.execute(sql_query, params)
+                rows = await cur.fetchall()
+
+                if not rows or not cur.description:
+                    return []
+
+                columns = [desc[0] for desc in cur.description]
+                results: list[dict[str, Any]] = []
+                for row in rows:
+                    result = dict(zip(columns, row, strict=False))
+                    if result.get("metadata"):
+                        result["metadata"] = (
+                            json.loads(result["metadata"])
+                            if isinstance(result["metadata"], str)
+                            else result["metadata"]
+                        )
+                    for key, value in result.items():
+                        if isinstance(value, datetime):
+                            result[key] = value.isoformat()
+                    results.append(result)
+
+                return results
+
+        except psycopg.Error as e:
+            logger.error(f"PostgreSQL execute failed: {e}", exc_info=True)
+            raise StorageQueryError(f"Execute failed: {e}") from e
+
+    async def update(
+        self,
+        table: str,
+        filters: dict[str, Any],
+        data: dict[str, Any],
+    ) -> bool:
+        """
+        Update records in a specified table.
+
+        Args:
+            table: Table name
+            filters: Filter conditions for rows to update
+            data: Column values to update
+
+        Returns:
+            True if any rows were updated
+
+        Raises:
+            StorageConnectionError: If not connected
+            StorageDataError: If filters or data are empty
+            StorageQueryError: If update fails
+        """
+        if not self._connected or not self.pool:
+            raise StorageConnectionError("Not connected to PostgreSQL")
+
+        if not filters:
+            raise StorageDataError("Update filters cannot be empty")
+        if not data:
+            raise StorageDataError("Update data cannot be empty")
+
+        try:
+            set_clause = sql.SQL(", ").join(
+                sql.SQL("{} = %s").format(sql.Identifier(column)) for column in data
+            )
+            where_clause = sql.SQL(" AND ").join(
+                sql.SQL("{} = %s").format(sql.Identifier(column)) for column in filters
+            )
+
+            query = sql.SQL("UPDATE {} SET {} WHERE {}")
+            query = query.format(sql.Identifier(table), set_clause, where_clause)
+
+            params = list(data.values()) + list(filters.values())
+
+            async with self.pool.connection() as conn, conn.cursor() as cur:
+                await cur.execute(query, params)
+                await conn.commit()
+                return cur.rowcount > 0
+
+        except psycopg.Error as e:
+            logger.error(f"PostgreSQL update failed: {e}", exc_info=True)
+            raise StorageQueryError(f"Update failed: {e}") from e
+
+    async def delete_by_filters(self, table: str, filters: dict[str, Any]) -> bool:
+        """
+        Delete records in a specified table using filter conditions.
+
+        Args:
+            table: Table name
+            filters: Filter conditions for rows to delete
+
+        Returns:
+            True if any rows were deleted
+
+        Raises:
+            StorageConnectionError: If not connected
+            StorageDataError: If filters are empty
+            StorageQueryError: If delete fails
+        """
+        if not self._connected or not self.pool:
+            raise StorageConnectionError("Not connected to PostgreSQL")
+
+        if not filters:
+            raise StorageDataError("Delete filters cannot be empty")
+
+        try:
+            where_clause = sql.SQL(" AND ").join(
+                sql.SQL("{} = %s").format(sql.Identifier(column)) for column in filters
+            )
+            query = sql.SQL("DELETE FROM {} WHERE {}")
+            query = query.format(sql.Identifier(table), where_clause)
+            params = list(filters.values())
+
+            async with self.pool.connection() as conn, conn.cursor() as cur:
+                await cur.execute(query, params)
+                await conn.commit()
+                return cur.rowcount > 0
+
+        except psycopg.Error as e:
+            logger.error(f"PostgreSQL delete-by-filters failed: {e}", exc_info=True)
+            raise StorageQueryError(f"Delete by filters failed: {e}") from e
+
     async def query(
         self,
         table: str,
         filters: dict[str, Any] | None = None,
         limit: int | None = None,
+        order_by: str | None = None,
         **kwargs,
     ) -> list[dict[str, Any]]:
         """
@@ -638,6 +833,8 @@ class PostgresAdapter(StorageAdapter):
             query_params = filters.copy() if filters else {}
             if limit:
                 query_params["limit"] = limit
+            if order_by:
+                query_params["order_by"] = order_by
             query_params.update(kwargs)
             return await self.search(query_params)
         finally:
