@@ -41,7 +41,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 | 3 | Qdrant adapter signature enhancements | `src/storage/qdrant_adapter.py` | Complete |
 | 4 | Redis/Neo4j type fixes | `src/storage/redis_adapter.py`, `src/storage/neo4j_adapter.py` | Complete |
 | 5 | Tier alignment to new adapters | `src/memory/tiers/*` | Complete |
-| 6 | Engine and model typing fixes | `src/memory/engines/*`, `src/memory/models.py`, `src/memory/ciar_scorer.py` | Not Started |
+| 6 | Engine and model typing fixes | `src/memory/engines/*`, `src/memory/models.py`, `src/memory/ciar_scorer.py` | Complete |
 | 7 | Per-module mypy override | `pyproject.toml` | Not Started |
 
 ### Batch 1: Postgres Adapter Methods
@@ -98,12 +98,12 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 **Goal:** Correct typing for LLM responses, optional tier access, and remove stale ignores.
 
 **Checklist:**
-- [ ] Add explicit `llm_client` type annotations
-- [ ] Add null guards for optional tier attributes
-- [ ] Fix `LLMResponse` usage (use `.content` or equivalent)
-- [ ] Fix `models.py` validator return type
-- [ ] Remove unused `# type: ignore` comments
-- [ ] Commit: `fix(memory): engine and model type annotations`
+- [x] Add explicit `llm_client` type annotations
+- [x] Add null guards for optional tier attributes
+- [x] Fix `LLMResponse` usage (use `.content` or equivalent)
+- [x] Fix `models.py` validator return type
+- [x] Remove unused `# type: ignore` comments
+- [x] Commit: `fix(memory): engine and model type annotations`
 
 ### Batch 7: Per-Module Mypy Override
 **Goal:** Resolve `AssertionError: Cannot find module for google` via per-module override.

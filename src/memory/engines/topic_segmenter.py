@@ -86,7 +86,7 @@ class TopicSegmenter:
         min_turns: int = DEFAULT_MIN_TURNS,
         max_turns: int = DEFAULT_MAX_TURNS,
     ):
-        self.llm_client = llm_client
+        self.llm_client: LLMClient = llm_client
         self.model_name = model_name or self.DEFAULT_MODEL
         self.min_turns = min_turns
         self.max_turns = max_turns

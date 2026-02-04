@@ -48,7 +48,7 @@ class DistillationEngine(BaseEngine):
         self,
         episodic_tier: EpisodicMemoryTier | None = None,
         semantic_tier: SemanticMemoryTier | None = None,
-        llm_provider: BaseProvider | None = None,
+        llm_provider: BaseProvider | LLMClient | None = None,
         domain_config_path: str | None = None,
         episode_threshold: int = 5,
         metrics_enabled: bool = True,
@@ -74,15 +74,17 @@ class DistillationEngine(BaseEngine):
         metrics_config = {"enabled": resolved_metrics_enabled}
         collector = MetricsCollector(config=metrics_config)
         super().__init__(metrics_collector=collector)
-        self.episodic_tier = episodic_tier or l3_tier
-        self.semantic_tier = semantic_tier or l4_tier
-        if self.episodic_tier is None or self.semantic_tier is None or llm_provider is None:
+        episodic_tier_resolved = episodic_tier or l3_tier
+        semantic_tier_resolved = semantic_tier or l4_tier
+        if episodic_tier_resolved is None or semantic_tier_resolved is None or llm_provider is None:
             raise ValueError(
                 "episodic_tier/l3_tier, semantic_tier/l4_tier, and llm_provider are required"
             )
+        self.episodic_tier: EpisodicMemoryTier = episodic_tier_resolved
+        self.semantic_tier: SemanticMemoryTier = semantic_tier_resolved
         # Accept either a provider or a fully-configured LLMClient
         if isinstance(llm_provider, LLMClient):
-            self.llm_client = llm_provider
+            self.llm_client: LLMClient = llm_provider
         else:
             self.llm_client = LLMClient()
             self.llm_client.register_provider(llm_provider)

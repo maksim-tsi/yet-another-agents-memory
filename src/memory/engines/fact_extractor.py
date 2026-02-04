@@ -40,7 +40,7 @@ class FactExtractor:
     """
 
     def __init__(self, llm_client: LLMClient, model_name: str | None = None):
-        self.llm_client = llm_client
+        self.llm_client: LLMClient = llm_client
         self.model_name = model_name or "gemini-3-flash-preview"
 
     async def extract_facts(self, text: str, metadata: dict[str, Any] | None = None) -> list[Fact]:

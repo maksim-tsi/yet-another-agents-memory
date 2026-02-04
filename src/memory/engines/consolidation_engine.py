@@ -63,7 +63,7 @@ class ConsolidationEngine(BaseEngine):
         self.l2 = l2_tier
         self.l3 = l3_tier
         if llm_provider is not None:
-            self.llm = llm_provider
+            self.llm: LLMClient = llm_provider
         elif gemini_provider is not None:
             if not getattr(gemini_provider, "name", None):
                 gemini_provider.name = "gemini"
@@ -143,7 +143,10 @@ class ConsolidationEngine(BaseEngine):
 
         def inc(key: str, amount: int = 1) -> None:
             """Increment a stats counter."""
-            stats[key] = int(stats.get(key, 0)) + amount  # type: ignore[arg-type]
+            current = stats.get(key, 0)
+            if isinstance(current, str):
+                current = 0
+            stats[key] = int(current) + amount
 
         try:
             # Query L2 for all unconsolidated facts
@@ -323,7 +326,10 @@ class ConsolidationEngine(BaseEngine):
 
         def inc(key: str, amount: int = 1) -> None:
             """Increment a stats counter."""
-            stats[key] = int(stats.get(key, 0)) + amount  # type: ignore[arg-type]
+            current = stats.get(key, 0)
+            if isinstance(current, str):
+                current = 0
+            stats[key] = int(current) + amount
 
         try:
             # Ensure downstream tier is initialized so collections/constraints exist

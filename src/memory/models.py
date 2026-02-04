@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 
 class FactType(str, Enum):
@@ -56,9 +56,9 @@ class TurnData(BaseModel):
     @classmethod
     def coerce_turn_id(cls, value: Any) -> str:
         """Normalize turn_id to string for consistent identifiers."""
-        if isinstance(value, int):
-            return str(value)
-        return value
+        if value is None:
+            raise ValueError("turn_id cannot be None")
+        return str(value)
 
 
 class Fact(BaseModel):
@@ -119,7 +119,7 @@ class Fact(BaseModel):
 
     @field_validator("ciar_score")
     @classmethod
-    def validate_ciar_score(cls, v: float, info) -> float:
+    def validate_ciar_score(cls, v: float, info: ValidationInfo) -> float:
         """Ensure CIAR score is consistent with components if all are present."""
         values = info.data
         if all(k in values for k in ["certainty", "impact", "age_decay", "recency_boost"]):
@@ -402,7 +402,7 @@ class SearchWeights(BaseModel):
 
     @field_validator("l4_weight")
     @classmethod
-    def validate_weights_sum(cls, v: float, info) -> float:
+    def validate_weights_sum(cls, v: float, info: ValidationInfo) -> float:
         """Ensure weights sum to 1.0."""
         values = info.data
         if "l2_weight" in values and "l3_weight" in values:

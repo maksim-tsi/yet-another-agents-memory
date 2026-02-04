@@ -112,7 +112,10 @@ class PromotionEngine(BaseEngine):
 
         def inc(key: str, amount: int = 1) -> None:
             """Increment a stats counter."""
-            stats[key] = int(stats.get(key, 0)) + amount  # type: ignore[arg-type]
+            current = stats.get(key, 0)
+            if isinstance(current, str):
+                current = 0
+            stats[key] = int(current) + amount
 
         try:
             # 1. Retrieve turns from L1

@@ -63,7 +63,7 @@ class KnowledgeSynthesizer:
             metrics_enabled: Enable metrics collection
         """
         self.semantic_tier = semantic_tier
-        self.llm_client = LLMClient()
+        self.llm_client: LLMClient = LLMClient()
         self.llm_client.register_provider(llm_provider)
         self.similarity_threshold = similarity_threshold
         self.cache_ttl_seconds = cache_ttl_seconds
@@ -467,7 +467,7 @@ Synthesized Response:"""
                 temperature=0.4,  # Balanced between factual and coherent
             )
 
-            return response.strip()
+            return response.text.strip()
 
         except Exception as e:
             logger.error(f"LLM synthesis failed: {e}")
