@@ -25,5 +25,8 @@ The absence of headless progress reporting and per-turn metrics renders long-run
 ## 5. Diagnostic Direction
 A minimal diagnostic run is required to validate the interaction between the benchmark runner and the MAS wrapper. This diagnostic will confirm whether `/run_turn` requests are being issued and whether timing and error information can be collected for each turn.
 
+### 5.1 Diagnostic Attempt (2026-02-04)
+The initial diagnostic execution was blocked because `GOOGLE_API_KEY` was not set in the environment. As a result, the benchmark runner could not be exercised and wrapper request activity could not be validated. A subsequent diagnostic run is required once the environment variable is configured.
+
 ## 6. Summary
 The current transparency deficit is primarily attributable to a GUI-only progress mechanism and the absence of structured telemetry. These gaps are remediable through CLI progress reporting, JSONL metrics emission, and a watchdog-based stall detector, as described in the improvement plan.
