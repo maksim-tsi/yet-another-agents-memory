@@ -40,7 +40,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 | 2 | Typesense adapter methods | `src/storage/typesense_adapter.py` | Complete |
 | 3 | Qdrant adapter signature enhancements | `src/storage/qdrant_adapter.py` | Complete |
 | 4 | Redis/Neo4j type fixes | `src/storage/redis_adapter.py`, `src/storage/neo4j_adapter.py` | Complete |
-| 5 | Tier alignment to new adapters | `src/memory/tiers/*` | Not Started |
+| 5 | Tier alignment to new adapters | `src/memory/tiers/*` | Complete |
 | 6 | Engine and model typing fixes | `src/memory/engines/*`, `src/memory/models.py`, `src/memory/ciar_scorer.py` | Not Started |
 | 7 | Per-module mypy override | `pyproject.toml` | Not Started |
 
@@ -53,7 +53,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 - [x] Add `delete_by_filters(table: str, filters: dict[str, Any]) -> bool`
 - [x] Extend `query()` with `order_by: str | None`
 - [x] Fix tuple assignment type mismatch (line ~569)
-- [ ] Commit: `feat(storage): add postgres adapter CRUD methods`
+- [x] Commit: `feat(storage): add postgres adapter CRUD methods`
 
 ### Batch 2: Typesense Adapter Methods
 **Goal:** Implement document-level wrappers and a keyword-args search overload to match tier usage.
@@ -64,7 +64,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 - [x] Add `delete_document(collection_name: str, document_id: str) -> bool`
 - [x] Add keyword-args `search()` overload returning raw response with `hits`
 - [x] Fix return typing at lines ~180, ~207, ~209
-- [ ] Commit: `feat(storage): add typesense adapter document methods`
+- [x] Commit: `feat(storage): add typesense adapter document methods`
 
 ### Batch 3: Qdrant Adapter Signature Enhancements
 **Goal:** Accept both dict-style and keyword-args search/delete calls, with correct filter typing.
@@ -74,7 +74,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 - [x] Update `delete()` to accept `collection_name` and `point_ids`
 - [x] Fix filter union typing at lines ~527-529, ~563
 - [x] Fix results list typing at lines ~682-687
-- [ ] Commit: `feat(storage): enhance qdrant adapter search/delete signatures`
+- [x] Commit: `feat(storage): enhance qdrant adapter search/delete signatures`
 
 ### Batch 4: Redis and Neo4j Type Fixes
 **Goal:** Resolve awaitable union types and optional attribute access patterns.
@@ -82,17 +82,17 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 **Checklist:**
 - [x] Add explicit casts on Redis await results (e.g., `int(await ...)`, `bool(...)`)
 - [x] Ensure `self.client` and `self.driver` null guards before access
-- [ ] Commit: `fix(storage): redis/neo4j type annotations`
+- [x] Commit: `fix(storage): redis/neo4j type annotations`
 
 ### Batch 5: Tier Alignment
 **Goal:** Align tier calls to new adapter methods without altering domain logic.
 
 **Checklist:**
-- [ ] Update `working_memory_tier.py` to use new Postgres adapter methods
-- [ ] Update `semantic_memory_tier.py` to use new Typesense adapter methods
-- [ ] Update `episodic_memory_tier.py` to use updated Qdrant adapter methods
-- [ ] Update `active_context_tier.py` to use Postgres delete wrapper
-- [ ] Commit: `fix(memory): align tier calls with adapter methods`
+- [x] Update `working_memory_tier.py` to use new Postgres adapter methods
+- [x] Update `semantic_memory_tier.py` to use new Typesense adapter methods
+- [x] Update `episodic_memory_tier.py` to use updated Qdrant adapter methods
+- [x] Update `active_context_tier.py` to use Postgres delete wrapper
+- [x] Commit: `fix(memory): align tier calls with adapter methods`
 
 ### Batch 6: Engines and Models
 **Goal:** Correct typing for LLM responses, optional tier access, and remove stale ignores.

@@ -17,6 +17,7 @@ import json
 import logging
 from collections import deque
 from datetime import UTC, datetime, timedelta
+from inspect import isawaitable
 from typing import Any
 
 from src.memory.models import Fact, FactType
@@ -507,7 +508,18 @@ class WorkingMemoryTier(BaseTier[Fact]):
         """
         async with OperationTimer(self.metrics, "l2_delete"):
             try:
-                result = await self.postgres.delete("working_memory", filters={"fact_id": fact_id})
+                if isinstance(self.postgres, PostgresAdapter):
+                    result = self.postgres.delete_by_filters(
+                        "working_memory",
+                        filters={"fact_id": fact_id},
+                    )
+                else:
+                    result = self.postgres.delete(fact_id)
+
+                if isawaitable(result):
+                    result = await result
+
+                result = bool(result)
 
                 if result:
                     logger.debug(f"Deleted fact {fact_id} from L2")

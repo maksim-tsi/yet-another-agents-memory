@@ -14,6 +14,7 @@ Architecture:
 import json
 import logging
 from datetime import UTC, datetime
+from inspect import isawaitable
 from typing import Any
 
 from src.memory.models import TurnData
@@ -425,10 +426,18 @@ class ActiveContextTier(BaseTier[TurnData]):
 
                 # Delete from PostgreSQL
                 if self.enable_postgres_backup:
-                    postgres_result = await self.postgres.delete(
-                        "active_context", filters={"session_id": session_id, "tier": "L1"}
-                    )
-                    if postgres_result:
+                    if isinstance(self.postgres, PostgresAdapter):
+                        postgres_result = self.postgres.delete_by_filters(
+                            "active_context",
+                            filters={"session_id": session_id, "tier": "L1"},
+                        )
+                    else:
+                        postgres_result = self.postgres.delete(session_id)
+
+                    if isawaitable(postgres_result):
+                        postgres_result = await postgres_result
+
+                    if bool(postgres_result):
                         deleted = True
                         logger.debug(f"Deleted session {session_id} from PostgreSQL")
 
