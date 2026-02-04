@@ -50,7 +50,9 @@ class GPTGenerated(DatasetInterface, ABC):
             correct = False
             for _ in range(self.max_attempts):
                 try:
-                    result = ask_llm(context, temperature=self.temperature, model=self.generation_model)
+                    result = ask_llm(
+                        context, temperature=self.temperature, model=self.generation_model
+                    )
                     generated = sanitize_and_parse_json(result)
                     correct = True
                     break
@@ -69,7 +71,9 @@ class GPTGenerated(DatasetInterface, ABC):
                 script.append(q)
                 expected_responses.append(a)
 
-            example_class: type[TestExample] = CallBackTestExample if self.uses_callback else TestExample
+            example_class: type[TestExample] = (
+                CallBackTestExample if self.uses_callback else TestExample
+            )
 
             example = example_class(
                 dataset_generator=self,

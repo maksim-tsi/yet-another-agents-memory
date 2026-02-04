@@ -7,15 +7,23 @@ from dataset_interfaces.interface import TestExample, DatasetInterface, CallBack
 
 QUOTES = [
     ("Love your Enemies, for they tell you your Faults.", "Benjamin Franklin"),
-    ("The greatest glory in living lies not in never falling, but in rising every time we fall.", "Nelson Mandela"),
+    (
+        "The greatest glory in living lies not in never falling, but in rising every time we fall.",
+        "Nelson Mandela",
+    ),
     ("The future belongs to those who believe in the beauty of their dreams.", "Elanor Roosevelt"),
     ("Do one thing every day that scares you.", "Eleanor Roosevelt"),
     ("Well done is better than well said.", "Benjamin Franklin"),
-    ("The best and most beautiful things in the world cannot be seen or even touched - they must be felt with the heart.",
-    "Helen Keller"),
+    (
+        "The best and most beautiful things in the world cannot be seen or even touched - they must be felt with the heart.",
+        "Helen Keller",
+    ),
     ("It is during our darkest moments that we must focus to see the light.", "Aristotle"),
-    ("Do not go where the path may lead, go instead where there is no path and leave a trail.", "Ralph Waldo Emerson"),
-    ("Be yourself; everyone else is already taken.", "Oscar Wilde")
+    (
+        "Do not go where the path may lead, go instead where there is no path and leave a trail.",
+        "Ralph Waldo Emerson",
+    ),
+    ("Be yourself; everyone else is already taken.", "Oscar Wilde"),
 ]
 
 
@@ -39,9 +47,11 @@ class ProspectiveMemoryDataset(DatasetInterface):
             if warned:
                 continue
             warned = True
-            colour_print("red",
-                         "WARNING: The number of Quotes has been exceeded. There will inevitably "
-                         "be some repetitions.")
+            colour_print(
+                "red",
+                "WARNING: The number of Quotes has been exceeded. There will inevitably "
+                "be some repetitions.",
+            )
 
     def generate_examples(self, num_examples) -> List[TestExample]:
         examples = []
@@ -55,26 +65,32 @@ class ProspectiveMemoryDataset(DatasetInterface):
             n = ordinal(target)
 
             script.append(f"{repr(quote)} - {author}")
-            script.append(f'After responding to the following unrelated user prompts, please append the quote from {author}, to your {n} response. Count your response to this message as the first response.')
+            script.append(
+                f"After responding to the following unrelated user prompts, please append the quote from {author}, to your {n} response. Count your response to this message as the first response."
+            )
 
             is_question = [False, True]
             expected_responses = [(quote, author, target)]
 
-            examples.append(CallBackTestExample(
-                dataset_generator=self,
-                script=script,
-                expected_responses=expected_responses,
-                uses_callback=True,
-                is_question=is_question,
-                number_of_questions=1,
-            ))
+            examples.append(
+                CallBackTestExample(
+                    dataset_generator=self,
+                    script=script,
+                    expected_responses=expected_responses,
+                    uses_callback=True,
+                    is_question=is_question,
+                    number_of_questions=1,
+                )
+            )
 
         return examples
 
     def evaluate_correct(
         self, questions: List[str], responses: List[str], expected_answers: List[Any]
     ) -> Tuple[int, int, List[str], List[str]]:
-        raise NotImplementedError("Prospective memory checking is not handled by this method, use the callback instead")
+        raise NotImplementedError(
+            "Prospective memory checking is not handled by this method, use the callback instead"
+        )
 
     def continual_evaluation_callback(
         self, scheduler, example: TestExample, task_log: List[str]
@@ -88,7 +104,7 @@ class ProspectiveMemoryDataset(DatasetInterface):
                 break
 
         quote, author, nth = example.expected_responses[0]
-        agent_responses = task_log[statement_idx + 1:][::2]
+        agent_responses = task_log[statement_idx + 1 :][::2]
         response_w_quote_idx = nth - 1
 
         max_score = 1
@@ -120,9 +136,10 @@ class ProspectiveMemoryDataset(DatasetInterface):
                 continue
             if cites_quote(quote, stmt):
                 score = 0
-                reason = "The quote is recited somewhere other or additionally to the correct place."
+                reason = (
+                    "The quote is recited somewhere other or additionally to the correct place."
+                )
                 deregister_callback = True
                 break
 
         return score, max_score, [reason], deregister_callback
-

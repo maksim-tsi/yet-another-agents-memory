@@ -40,8 +40,12 @@ Respond in JSON with the following format:
 """.strip()
 
 
-def normalize_scores(evaluate_correct_fn: Callable[[List[str], List[str], List[Any]], Tuple[int, int, List[str]]],
-                     questions: List[str], responses: List[str], expected_answers: List[Any]) -> Tuple[float, int, List[str]]:
+def normalize_scores(
+    evaluate_correct_fn: Callable[[List[str], List[str], List[Any]], Tuple[int, int, List[str]]],
+    questions: List[str],
+    responses: List[str],
+    expected_answers: List[Any],
+) -> Tuple[float, int, List[str]]:
     correct, total, feedback = evaluate_correct_fn(questions, responses, expected_answers)
     normalized_score = float(correct) / total if total > 0 else 0.0
     return normalized_score, 1, feedback
@@ -80,7 +84,9 @@ class WaitAction(TestAction):
 
 class WaitCreator:
     @classmethod
-    def create_wait(cls, tokens: int = None, time: timedelta = None, percentage_finished: float = None):
+    def create_wait(
+        cls, tokens: int = None, time: timedelta = None, percentage_finished: float = None
+    ):
         w_dict = {"tokens": tokens, "time": time, "percentage_finished": percentage_finished}
         return {k: v for k, v in w_dict.items() if v is not None}
 
@@ -129,13 +135,21 @@ class TestExample:
         return self.dataset_generator.reset_message
 
     @property
-    def evaluation_fn(self) -> Callable[[List[str], List[str], List[Any]], Tuple[float, int, List[str]]]:
+    def evaluation_fn(
+        self,
+    ) -> Callable[[List[str], List[str], List[Any]], Tuple[float, int, List[str]]]:
         """
         Returns a callable that evaluates and normalizes the scores between 0 and 1.
         The returned tuple consists of the normalized score, the max score (always 1 for normalized scores), and feedback.
         """
-        def evaluator(questions: List[str], responses: List[str], expected_answers: List[Any]) -> Tuple[float, int, List[str]]:
-            return normalize_scores(self.dataset_generator.evaluate_correct, questions, responses, expected_answers)
+
+        def evaluator(
+            questions: List[str], responses: List[str], expected_answers: List[Any]
+        ) -> Tuple[float, int, List[str]]:
+            return normalize_scores(
+                self.dataset_generator.evaluate_correct, questions, responses, expected_answers
+            )
+
         return evaluator
 
     @property
@@ -194,7 +208,6 @@ class TestExample:
 
     @classmethod
     def load(cls, dataset_generator: "DatasetInterface", file_path: Path | str) -> "TestExample":
-
         file_path = Path(file_path)
         assert file_path.exists(), f"Test file doesn't exist: {file_path}"
         assert file_path.name.endswith(".def.json")
@@ -208,7 +221,6 @@ class TestExample:
         return dataset_generator.create_example(**d)
 
     def default_waits(self):
-
         if isinstance(self, DynamicExample):
             return
 
@@ -222,7 +234,9 @@ class TestExample:
         )
 
         assert sum(self.is_question) >= 1, "There are no questions for this test"
-        num_script_lines = len(self.is_question)  # self.script might not be updated just yet [e.g. create_question()]
+        num_script_lines = len(
+            self.is_question
+        )  # self.script might not be updated just yet [e.g. create_question()]
         if len(self.waits) == num_script_lines:
             return  # Do not overwrite waits
         assert len(self.waits) == 0, "Current waits should be empty in order to apply the defaults."
@@ -231,10 +245,10 @@ class TestExample:
         self.waits = [
             WaitCreator.create_wait(
                 percentage_finished=(i + 1) * perc_fraction,
-            ) for i in range(num_script_lines - 1)
+            )
+            for i in range(num_script_lines - 1)
         ]
         self.waits.append(WaitCreator.create_wait())
-
 
 
 @dataclass
@@ -261,7 +275,9 @@ class DynamicExample(TestExample):
     master_log: MasterLog = None  # Set by runner to cache llm calls
 
     @property
-    def evaluation_fn(self) -> Callable[[List[str], list[str], List[Any]], tuple[float, int, List[str]]]:
+    def evaluation_fn(
+        self,
+    ) -> Callable[[List[str], list[str], List[Any]], tuple[float, int, List[str]]]:
         return self.evaluate
 
     def __post_init__(self):
@@ -336,13 +352,25 @@ class DatasetInterface(ABC):
         self, questions: List[str], responses: List[str], expected_answers: List[Any]
     ) -> Tuple[int, int, List[str]]:
         pass
-    
-    def evaluation_fn(self) -> Callable[[List[str], List[str], List[Any]], Tuple[float, int, List[str]]]:
-        def evaluator(questions: List[str], responses: List[str], expected_answers: List[Any]) -> Tuple[float, int, List[str]]:
+
+    def evaluation_fn(
+        self,
+    ) -> Callable[[List[str], List[str], List[Any]], Tuple[float, int, List[str]]]:
+        def evaluator(
+            questions: List[str], responses: List[str], expected_answers: List[Any]
+        ) -> Tuple[float, int, List[str]]:
             return normalize_scores(self.evaluate_correct, questions, responses, expected_answers)
+
         return evaluator
 
-    def ask_llm(self, context: LLMContext, model: str, temperature: float = 0, max_tokens: int = 256, **kwargs) -> str:
+    def ask_llm(
+        self,
+        context: LLMContext,
+        model: str,
+        temperature: float = 0,
+        max_tokens: int = 256,
+        **kwargs,
+    ) -> str:
         return ask_llm(
             context=context,
             model=model,
@@ -358,33 +386,36 @@ class DatasetInterface(ABC):
         provided_answer: List[str],
         expected_answer: Any,
     ) -> Tuple[int, int, List[str]]:
-        return self.evaluate_correct_gpt_impl(questions, provided_answer, expected_answer, self.cost_callback)
+        return self.evaluate_correct_gpt_impl(
+            questions, provided_answer, expected_answer, self.cost_callback
+        )
 
     @staticmethod
     def evaluate_correct_gpt_impl(
-            questions: List[str],
-            provided_answer: List[str],
-            expected_answer: Any,
-            cost_callback: Callable[[float], Any] = None,
+        questions: List[str],
+        provided_answer: List[str],
+        expected_answer: Any,
+        cost_callback: Callable[[float], Any] = None,
     ) -> Tuple[int, int, List[str]]:
         max_score = len(expected_answer)
 
         q_list = []
         for idx, (q, e, p) in enumerate(zip(questions, expected_answer, provided_answer)):
-            q_list.append({"question_nr": idx, "question": q, "expected_answer": e, "answer_given": p})
+            q_list.append(
+                {"question_nr": idx, "question": q, "expected_answer": e, "answer_given": p}
+            )
 
         ctx = [
             {
                 "role": "system",
                 "content": _match_system_prompt,
             },
-            {
-                "role": "user",
-                "content": json.dumps(q_list)
-            },
+            {"role": "user", "content": json.dumps(q_list)},
         ]
 
-        response = ask_llm(context=ctx, model=GEMINI_DEFAULT_MODEL, temperature=0.01, cost_callback=cost_callback)
+        response = ask_llm(
+            context=ctx, model=GEMINI_DEFAULT_MODEL, temperature=0.01, cost_callback=cost_callback
+        )
         score = 0
         reasoning = []
         try:
@@ -420,7 +451,12 @@ class DatasetInterface(ABC):
             **kwargs,
         )
 
-    def tokens_to_answer(self, test_context: List[Dict[str, Any]], full_context: List[Dict[str, str]], example: TestExample):
+    def tokens_to_answer(
+        self,
+        test_context: List[Dict[str, Any]],
+        full_context: List[Dict[str, str]],
+        example: TestExample,
+    ):
         encoding = tiktoken.get_encoding("cl100k_base")
         num_tokens = num_characters = 0
 
@@ -444,7 +480,9 @@ class DatasetInterface(ABC):
     def continual_evaluation_callback(
         self, scheduler, example: TestExample, task_log: List[str]
     ) -> Tuple[int, int, List[str], bool]:
-        raise NotImplementedError("This dataset does not have a callback implemented. Use evaluate_correct instead.")
+        raise NotImplementedError(
+            "This dataset does not have a callback implemented. Use evaluate_correct instead."
+        )
 
 
 @dataclass
@@ -460,7 +498,9 @@ class DynamicDataset(DatasetInterface, ABC):
         return self.cost_callback(cost_usd)
 
     def evaluate_correct(self, *args):
-        raise NotImplementedError("This method should not be called. Each test example has its own evaluation function.")
+        raise NotImplementedError(
+            "This method should not be called. Each test example has its own evaluation function."
+        )
 
     def create_example(self, **kwargs) -> DynamicExample:
         return self.example_cls(dataset_generator=self, **kwargs)
@@ -468,5 +508,7 @@ class DynamicDataset(DatasetInterface, ABC):
     def generate_examples(self, num_examples: int) -> List[TestExample]:
         return [self.create_example() for _ in range(num_examples)]
 
-    def default_waits(self, script: list[str], is_question: list[bool], current_waits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def default_waits(
+        self, script: list[str], is_question: list[bool], current_waits: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         return []

@@ -24,13 +24,20 @@ from model_interfaces.mas_agents import MASFullSession, MASRAGSession, MASFullCo
 from runner.config import RunConfig
 from runner.scheduler import TestRunner
 from utils.ui import ask_yesno, colour_print
-from utils.files import gather_testdef_files, gather_result_files, make_run_path, make_config_path, \
-    gather_persistence_files
+from utils.files import (
+    gather_testdef_files,
+    gather_result_files,
+    make_run_path,
+    make_config_path,
+    gather_persistence_files,
+)
 from utils.llm import GPT_4_TURBO_BEST
 from utils.constants import MAIN_DIR, TESTS_DIR
 
 
-def get_chat_session(name: str, max_prompt_size: Optional[int], run_name: str, is_local=False) -> ChatSession:
+def get_chat_session(
+    name: str, max_prompt_size: Optional[int], run_name: str, is_local=False
+) -> ChatSession:
     kwargs = {"max_prompt_size": max_prompt_size} if max_prompt_size is not None else {}
     kwargs["run_name"] = run_name
     kwargs["is_local"] = is_local
@@ -52,6 +59,7 @@ def get_chat_session(name: str, max_prompt_size: Optional[int], run_name: str, i
 
     if name.startswith("ltm_agent_"):
         from model_interfaces.ltm_agent_wrapper import LTMAgentWrapper, LTMAgentVariant
+
         match = re.match(r"^ltm_agent_(?P<variant>\d)(?:\((?P<model>.+)\))?$", name)
         if match is None:
             raise ValueError(f"Unrecognized LTM Agent {repr(name)}.")
@@ -68,7 +76,10 @@ def get_chat_session(name: str, max_prompt_size: Optional[int], run_name: str, i
     if name == "length_bias":
         return LengthBiasAgent(model=GPT_4_TURBO_BEST, **kwargs)
     if name.startswith("cost("):
-        in_cost, out_cost = [float(p.strip()) / 1_000 for p in name.removeprefix("cost(").removesuffix(")").split(",")]
+        in_cost, out_cost = [
+            float(p.strip()) / 1_000
+            for p in name.removeprefix("cost(").removesuffix(")").split(",")
+        ]
         return CostEstimationChatSession(cost_in_token=in_cost, cost_out_token=out_cost, **kwargs)
     if name == "human":
         return HumanChatSession(**kwargs)
@@ -128,7 +139,6 @@ def generate_test_examples(
 
 
 def load_test_examples(yaml_configuration, test_definition_paths: list[str]) -> list[TestExample]:
-
     examples = []
     for p in test_definition_paths:
         dataset = DatasetFactory.create_dataset_for_example(yaml_configuration, p)
@@ -137,7 +147,9 @@ def load_test_examples(yaml_configuration, test_definition_paths: list[str]) -> 
     return examples
 
 
-def check_result_files(run_name: str, agent_name: str, force_removal: bool = False, pass_default: bool = False):
+def check_result_files(
+    run_name: str, agent_name: str, force_removal: bool = False, pass_default: bool = False
+):
     result_files = gather_result_files(run_name, agent_name)
     persistence_files = gather_persistence_files(run_name, agent_name)
     all_files = result_files + persistence_files
@@ -149,7 +161,8 @@ def check_result_files(run_name: str, agent_name: str, force_removal: bool = Fal
     if len(all_files) > 0:
         if not pass_default:
             if not ask_yesno(
-                f"There are {len(all_files)} existing file that have been found for run name '{run_name}' " f"and agent '{agent_name}'.",
+                f"There are {len(all_files)} existing file that have been found for run name '{run_name}' "
+                f"and agent '{agent_name}'.",
                 question="Do you want to resume the run?",
             ):
                 if not ask_yesno(
@@ -176,20 +189,42 @@ def check_result_files(run_name: str, agent_name: str, force_removal: bool = Fal
 )
 @click.option("-a", "--agent-name", required=True, type=str)
 @click.option("-m", "--max-prompt-size", required=False, type=int, default=None)
-@click.option("-y", required=False, is_flag=True, default=False, help="Automatically assent to questions")
-@click.option("-l", "--local", required=False, is_flag=True, default=False, help="Do not try to retrieve costs.")
-@click.option("-i", "--isolated", required=False, is_flag=True, default=False, help=(
-        "Run tests separately, without interleaving and clearing up the context between tests."
-))
+@click.option(
+    "-y", required=False, is_flag=True, default=False, help="Automatically assent to questions"
+)
+@click.option(
+    "-l",
+    "--local",
+    required=False,
+    is_flag=True,
+    default=False,
+    help="Do not try to retrieve costs.",
+)
+@click.option(
+    "-i",
+    "--isolated",
+    required=False,
+    is_flag=True,
+    default=False,
+    help=("Run tests separately, without interleaving and clearing up the context between tests."),
+)
 def main(
-    configuration: str, agent_name: str, max_prompt_size: Optional[int], y: bool = False, local: bool = False,
+    configuration: str,
+    agent_name: str,
+    max_prompt_size: Optional[int],
+    y: bool = False,
+    local: bool = False,
     isolated: bool = False,
 ):
     _main(configuration, agent_name, max_prompt_size, y, local, isolated)
 
 
 def _main(
-    configuration: str, agent_name: str, max_prompt_size: Optional[int], y: bool = False, is_local: bool = False,
+    configuration: str,
+    agent_name: str,
+    max_prompt_size: Optional[int],
+    y: bool = False,
+    is_local: bool = False,
     isolated: bool = False,
 ):
     config_path = Path(configuration)
@@ -215,14 +250,18 @@ def _main(
     else:
         print(f"Maximum prompt size: {max_prompt_size}")
 
-    agent = get_chat_session(agent_name, max_prompt_size=max_prompt_size, run_name=config['run_name'], is_local=is_local)
+    agent = get_chat_session(
+        agent_name, max_prompt_size=max_prompt_size, run_name=config["run_name"], is_local=is_local
+    )
 
     examples = generate_test_examples(loaded_yaml, agent.max_message_size, pass_default=y)
     resume = check_result_files(conf.run_name, agent.name, pass_default=y)
     if resume:
         agent.load()
 
-    runner = TestRunner(config=conf, agent=agent, tests=examples, skip_evaluations=agent_name.startswith("cost("))
+    runner = TestRunner(
+        config=conf, agent=agent, tests=examples, skip_evaluations=agent_name.startswith("cost(")
+    )
     time1 = time.time()
     runner.run()
 

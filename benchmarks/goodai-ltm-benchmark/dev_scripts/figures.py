@@ -19,7 +19,10 @@ def main():
         # ("LTMAgentWrapper - gpt-4-turbo - 16384 - SEMANTIC_ONLY", "A2(GPT4)"),
         ("LTMAgentWrapper - claude-3-opus - 16384 - QG_JSON_USER_INFO", "A1(Claude)"),
         # ("LTMAgentWrapper - claude-3-opus - 16384 - SEMANTIC_ONLY", "A2(Claude)"),
-        ("LTMAgentWrapper - together_ai-meta-llama-Llama-3-70b-chat-hf - 8000 - QG_JSON_USER_INFO", "A1(Llama)"),
+        (
+            "LTMAgentWrapper - together_ai-meta-llama-Llama-3-70b-chat-hf - 8000 - QG_JSON_USER_INFO",
+            "A1(Llama)",
+        ),
         # ("LTMAgentWrapper - together_ai-meta-llama-Llama-3-70b-chat-hf - 8000 - SEMANTIC_ONLY", "A2(Llama)"),
     ]
     metrics = ["score", "cost", "speed"]
@@ -53,7 +56,7 @@ def main():
     for m in metrics:
         m_std = f"{m}_std"
         for name, short in agent_names:
-            #if not name.startswith("LLMChatSession"):
+            # if not name.startswith("LLMChatSession"):
             #    continue
             values = data[name][m]
             kwargs = dict()

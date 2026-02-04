@@ -34,8 +34,7 @@ def gold_values(root_keys: list[str], kv_pairs: dict[str, str]) -> tuple[str, st
 class KVPairsDataset(DatasetInterface):
     name: str = "Key-Value Pairs"
     description: str = (
-        "Ask the agent to retrieve the leaf value corresponding to a key in the "
-        "provided JSON."
+        "Ask the agent to retrieve the leaf value corresponding to a key in the provided JSON."
     )
     question: str = ""
     nested_levels: int = 0
@@ -68,4 +67,3 @@ class KVPairsDataset(DatasetInterface):
     ) -> Tuple[int, int, List[str]]:
         reasoning = getsource(KVPairsDataset.evaluate_correct)
         return int(expected_answers[0] in responses[0]), 1, [reasoning]
-

@@ -38,7 +38,10 @@ def are_compatible(a: TestExample, b: TestExample, incompatibilities: list[set[t
 
 
 def create_question(example: TestExample, master_log: MasterLog) -> str:
-    statement_times = [e.timestamp for e in master_log.test_events(example.unique_id, event_type=EventType.SEND_MESSAGE)]
+    statement_times = [
+        e.timestamp
+        for e in master_log.test_events(example.unique_id, event_type=EventType.SEND_MESSAGE)
+    ]
     return example.dataset_generator.create_question(
         example,
         statement_times,
@@ -92,9 +95,9 @@ class TestRunner:
     def load(self):
         if not self.runstats_path.exists():
             return
-        assert (
-                self.agent_benchmark_duration == 0
-        ), "Attempted to load test scheduler in a non-initial state."
+        assert self.agent_benchmark_duration == 0, (
+            "Attempted to load test scheduler in a non-initial state."
+        )
         with open(self.runstats_path) as fd:
             d = json.load(fd)
         self.agent_token_count = d["agent_tokens"]
@@ -117,7 +120,9 @@ class TestRunner:
         if self.config.debug:
             colour_print("green", f"Time jump by {t_jump}")
         target_date = datetime.now() + t_jump
-        assert target_date > datetime.now(), "Can only move forward in time. Going back is problematic."
+        assert target_date > datetime.now(), (
+            "Can only move forward in time. Going back is problematic."
+        )
         self.travel_to_dt(target_date)
 
     def reset_time(self):
@@ -143,7 +148,9 @@ class TestRunner:
         # A nominal wait is 1 token, so skip this next step if that is what the token wait is.
         if token_wait > 1:
             # When waiting, we want to take the reply to the previous statement into account.
-            test_message_responses = list(self.master_log.test_events(unique_id, EventType.RESPONSE_MESSAGE))
+            test_message_responses = list(
+                self.master_log.test_events(unique_id, EventType.RESPONSE_MESSAGE)
+            )
             # Last response is what we want
             previous_reply = test_message_responses[-1].data["message"]
 
@@ -164,13 +171,21 @@ class TestRunner:
 
     def send_message(self, test_id: str, action: SendMessageAction) -> int:
         agent_reply = None if not action.is_filling else action.filler_response
-        action.reply, action.sent_ts, action.reply_ts = self.agent.message_to_agent(action.message, agent_reply)
+        action.reply, action.sent_ts, action.reply_ts = self.agent.message_to_agent(
+            action.message, agent_reply
+        )
         self.debug_message(action.message, action.reply, action.sent_ts, action.reply_ts)
         self.master_log.add_send_message(
-            test_id=test_id, message=action.message, timestamp=action.sent_ts, is_question=action.is_question,
+            test_id=test_id,
+            message=action.message,
+            timestamp=action.sent_ts,
+            is_question=action.is_question,
         )
         self.master_log.add_response_message(
-            test_id=test_id, message=action.reply, timestamp=action.reply_ts,  is_question=action.is_question
+            test_id=test_id,
+            message=action.reply,
+            timestamp=action.reply_ts,
+            is_question=action.is_question,
         )
         self.agent_benchmark_duration += (action.reply_ts - action.sent_ts).total_seconds()
         message_tokens = self.agent.token_len(action.message)
@@ -210,7 +225,6 @@ class TestRunner:
         return True
 
     def pick_next_test_id(self, tests: dict[str, TestExample]) -> str:
-
         # See first if any waiting test has met its waiting conditions in the meantime.
         if len(self.wait_list) > 0:
             waiting_ids = list(self.wait_list.keys())
@@ -257,7 +271,9 @@ class TestRunner:
                 self.random, num_filler_tokens, self.agent.max_message_size, self.agent.token_len
             )
             agent_response = agent_response if len(self.result_callbacks) == 0 else None
-            tokens_spent = self.send_message("", SendMessageAction(msg, is_filling=True, filler_response=agent_response))
+            tokens_spent = self.send_message(
+                "", SendMessageAction(msg, is_filling=True, filler_response=agent_response)
+            )
             num_filler_tokens -= tokens_spent
 
     def fast_forward_tests(self, tests: dict[str, TestExample]):
@@ -265,12 +281,19 @@ class TestRunner:
         finished_tests = {evt.test_id for evt in self.master_log.log if evt.type == EventType.END}
         action = None
         for evt in self.master_log.log:
-            if evt.type not in {EventType.BEGIN, EventType.SEND_MESSAGE, EventType.RESPONSE_MESSAGE, EventType.WAIT}:
+            if evt.type not in {
+                EventType.BEGIN,
+                EventType.SEND_MESSAGE,
+                EventType.RESPONSE_MESSAGE,
+                EventType.WAIT,
+            }:
                 continue
             if evt.test_id in finished_tests:
                 continue
             test = tests[evt.test_id]
-            self.wait_list.pop(evt.test_id, None)  # Since the test is performing an action, it can't be waiting.
+            self.wait_list.pop(
+                evt.test_id, None
+            )  # Since the test is performing an action, it can't be waiting.
             match evt.type:
                 case EventType.BEGIN:
                     result, skip = self.initialise_result(test)
@@ -329,7 +352,9 @@ class TestRunner:
         # Set up the tests that are to be iterated through, fast forwarding where appropriate
         tests = self.setup_iterator(test_group)
 
-        assert len(tests) == len(test_group), f"There are tests with identical IDs: {[t.unique_id for t in test_group]}"
+        assert len(tests) == len(test_group), (
+            f"There are tests with identical IDs: {[t.unique_id for t in test_group]}"
+        )
         while len(tests) > 0:
             run_id = self.pick_next_test_id(tests)
             example = tests[run_id]
@@ -362,21 +387,27 @@ class TestRunner:
 
         # Introduce the benchmark, if running from the start.
         if len(self.master_log.log) == 0 and not self.config.isolated:
-            self.send_message("", SendMessageAction(message=(
-                "I am going to subject you to a Long-Term Memory benchmark. In the following, I will be giving you "
-                "different kinds of information and I expect you to answer extremely briefly, only providing the "
-                "responses that you are required to provide. Otherwise, provide just short confirmations. Understood?"
-            )))
+            self.send_message(
+                "",
+                SendMessageAction(
+                    message=(
+                        "I am going to subject you to a Long-Term Memory benchmark. In the following, I will be giving you "
+                        "different kinds of information and I expect you to answer extremely briefly, only providing the "
+                        "responses that you are required to provide. Otherwise, provide just short confirmations. Understood?"
+                    )
+                ),
+            )
 
         for example in self.iter_tests(self.tests):
-
             skip = False
             if example.unique_id not in self.in_progress_results:
                 result, skip = self.initialise_result(example)
                 self.in_progress_results[example.unique_id] = result
                 example.finished = skip
                 if not skip:
-                    self.master_log.begin_test(example.unique_id, datetime.now(), self.total_token_count)
+                    self.master_log.begin_test(
+                        example.unique_id, datetime.now(), self.total_token_count
+                    )
                     if example.start_token == 0:
                         example.start_token = self.total_token_count
 
@@ -384,7 +415,6 @@ class TestRunner:
 
             test_is_waiting = False
             while not (example.finished or test_is_waiting):
-
                 action = example.step()
                 if action is None:
                     break
@@ -447,7 +477,9 @@ class TestRunner:
     def check_result_callbacks(self):
         deregistered_cb = []
         for callback, example in self.result_callbacks:
-            score, max_score, reasons, deregister = callback(self, example, self.master_log.messages())
+            score, max_score, reasons, deregister = callback(
+                self, example, self.master_log.messages()
+            )
             result = self.in_progress_results[example.unique_id]
             result.score = score
             result.max_score = max_score
@@ -456,7 +488,9 @@ class TestRunner:
             self.update_result(example, result, self.master_log)
 
             if deregister:
-                assert example.finished, "Callback has been deregistered, but example is not set as finished!"
+                assert example.finished, (
+                    "Callback has been deregistered, but example is not set as finished!"
+                )
                 deregistered_cb.append((callback, example))
 
         for tup in deregistered_cb:
@@ -492,7 +526,6 @@ class TestRunner:
         result: TestResult,
         master_log: MasterLog,
     ):
-
         if example.uses_callback:
             task_log = master_log.messages_past_question(example.unique_id)
         else:
@@ -501,14 +534,15 @@ class TestRunner:
         questions, question_responses = master_log.get_questions_and_responses(example.unique_id)
 
         characters, tokens = example.dataset_generator.tokens_to_answer(
-            master_log.as_context(example.unique_id),
-            master_log.as_context(),
-            example
+            master_log.as_context(example.unique_id), master_log.as_context(), example
         )
 
         if tokens > example.dataset_generator.memory_span:
-            colour_print("RED", f"WARN: This test passed the memory_span threshold. The threshold was {example.dataset_generator.memory_span} tokens, while the memory span of the test was {tokens} tokens."
-                  " If you are relying on the test being inside of the memory span, then any test failures could be caused by this overrun.")
+            colour_print(
+                "RED",
+                f"WARN: This test passed the memory_span threshold. The threshold was {example.dataset_generator.memory_span} tokens, while the memory span of the test was {tokens} tokens."
+                " If you are relying on the test being inside of the memory span, then any test failures could be caused by this overrun.",
+            )
 
         if not self.skip_evaluations:
             if not example.uses_callback:
@@ -526,7 +560,9 @@ class TestRunner:
         result.task_log = task_log
         result.actual_responses = question_responses
         result.tokens = tokens
-        result.full_log = self.master_log.human_readable_full_log(example.unique_id, example.script[0])
+        result.full_log = self.master_log.human_readable_full_log(
+            example.unique_id, example.script[0]
+        )
         result.characters = characters
         result.save()
         self.save_runstats()

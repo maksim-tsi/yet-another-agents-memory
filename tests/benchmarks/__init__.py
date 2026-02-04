@@ -17,9 +17,9 @@ from .bench_storage_adapters import StorageBenchmark
 from .results_analyzer import BenchmarkAnalyzer
 
 __all__ = [
-    'WorkloadGenerator',
-    'WorkloadOperation',
-    'create_workload_config',
-    'StorageBenchmark',
-    'BenchmarkAnalyzer',
+    "WorkloadGenerator",
+    "WorkloadOperation",
+    "create_workload_config",
+    "StorageBenchmark",
+    "BenchmarkAnalyzer",
 ]

@@ -13,12 +13,14 @@ TRIVIA_CACHE = None
 def get_trivia():
     global TRIVIA_CACHE
     if TRIVIA_CACHE is None:
-        with (open(DATA_DIR.joinpath("trivia/trivia.json"), "r", encoding="utf8") as file):
+        with open(DATA_DIR.joinpath("trivia/trivia.json"), "r", encoding="utf8") as file:
             TRIVIA_CACHE = json.load(file)["Data"]
     return TRIVIA_CACHE
 
 
-def filler_no_response_tokens_shakespeare(rnd: Random, num_tokens: int, encoding_name="cl100k_base"):
+def filler_no_response_tokens_shakespeare(
+    rnd: Random, num_tokens: int, encoding_name="cl100k_base"
+):
     filler_messages = []
     current_tokens = 0
     encoding = tiktoken.get_encoding(encoding_name)
@@ -39,7 +41,9 @@ def filler_no_response_tokens_shakespeare(rnd: Random, num_tokens: int, encoding
     return filler_messages
 
 
-def filler_no_response_tokens_trivia(rnd: Random, num_tokens: int, max_message_size: int, token_len_function: Callable[[str], int]):
+def filler_no_response_tokens_trivia(
+    rnd: Random, num_tokens: int, max_message_size: int, token_len_function: Callable[[str], int]
+):
     data = get_trivia()
     message = (
         "Here are some trivia questions and answers for you to process."
@@ -55,7 +59,7 @@ def filler_no_response_tokens_trivia(rnd: Random, num_tokens: int, max_message_s
     while not at_least_one_trivia or (total_tokens + est_response_tokens) < tokens_to_return:
         trivia = rnd.choice(data)
         trivia_msg = f"Q: {trivia['Question']}, A: {trivia['AnswerValue']}\n"
-        answers.append(trivia['AnswerValue'])
+        answers.append(trivia["AnswerValue"])
         total_tokens += token_len_function(trivia_msg)
         est_response_tokens = token_len_function(str(answers))
         messages.append(trivia_msg)
@@ -73,7 +77,9 @@ def filler_task_characters(rnd: Random, agent: ChatSession, num_characters: int)
         pos = int(b * rnd.random()) - num_characters
         f.seek(pos)
         print("Filler: I am going to give you some passages of information now.")
-        response = agent.message_to_agent("I am going to give you some passages of information now.")
+        response = agent.message_to_agent(
+            "I am going to give you some passages of information now."
+        )
         print(f"Agent: {response}")
         max_chars_for_message = num_characters // 3
         while current_characters < num_characters:
@@ -85,5 +91,7 @@ def filler_task_characters(rnd: Random, agent: ChatSession, num_characters: int)
             current_characters += len(message) + len(response)
 
     print(f"Filler: The information has ended. Please summarise the above passages for me.")
-    response = agent.message_to_agent("The information has ended. Please summarise the above passages for me.")
+    response = agent.message_to_agent(
+        "The information has ended. Please summarise the above passages for me."
+    )
     print(f"Agent: {response}")

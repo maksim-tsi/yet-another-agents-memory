@@ -13,16 +13,18 @@ class ChatSession(ABC):
     is_local: bool = False
     max_message_size: int = 4096
 
-    def message_to_agent(self, user_message: str, agent_response: Optional[str] = None) -> Tuple[str, datetime, datetime]:
+    def message_to_agent(
+        self, user_message: str, agent_response: Optional[str] = None
+    ) -> Tuple[str, datetime, datetime]:
         sent_ts = datetime.now()
         old_costs = self.costs_usd
         response = self.reply(user_message, agent_response=agent_response)
         reply_ts = datetime.now()
         # If we are supplying a response from the agent, then don't count costs.
         if agent_response is None:
-            assert (
-                self.is_local or old_costs < self.costs_usd
-            ), "The agent implementation is not providing any cost information."
+            assert self.is_local or old_costs < self.costs_usd, (
+                "The agent implementation is not providing any cost information."
+            )
         return response, sent_ts, reply_ts
 
     def __post_init__(self):

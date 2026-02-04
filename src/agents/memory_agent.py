@@ -142,7 +142,9 @@ class MemoryAgent(BaseAgent):
             state["episodic_chunks"] = list(context_block.episode_summaries)
             state["semantic_knowledge"] = list(context_block.knowledge_snippets)
         elif context_block and hasattr(context_block, "recent_turns"):
-            state["active_context"] = self._format_recent_turns(getattr(context_block, "recent_turns", []))
+            state["active_context"] = self._format_recent_turns(
+                getattr(context_block, "recent_turns", [])
+            )
             state["working_facts"] = list(getattr(context_block, "significant_facts", []))
             state["episodic_chunks"] = list(getattr(context_block, "episode_summaries", []))
             state["semantic_knowledge"] = list(getattr(context_block, "knowledge_snippets", []))

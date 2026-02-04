@@ -4,21 +4,21 @@ Tests for Gemini's native structured output with types.Schema.
 This test verifies that our Gemini provider can use the native structured
 output API with thinking_config and response_schema.
 """
+
 import os
 import json
 import pytest
 
 # Skip all tests if GOOGLE_API_KEY not available
 pytestmark = pytest.mark.skipif(
-    not os.environ.get("GOOGLE_API_KEY"),
-    reason="GOOGLE_API_KEY not set"
+    not os.environ.get("GOOGLE_API_KEY"), reason="GOOGLE_API_KEY not set"
 )
 
 
 @pytest.mark.asyncio
 async def test_fact_extraction_with_native_schema():
     """Test fact extraction using Gemini's native types.Schema format.
-    
+
     This test validates that:
     1. The native types.Schema format works correctly
     2. System instructions are properly applied
@@ -27,10 +27,10 @@ async def test_fact_extraction_with_native_schema():
     """
     from google import genai
     from google.genai import types
-    
+
     # Initialize client
     client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
-    
+
     # User content (conversation to analyze)
     user_content = """Extract significant facts from the following supply chain conversation:
 
@@ -45,7 +45,7 @@ async def test_fact_extraction_with_native_schema():
 [2024-12-15 09:40] Alice: Perfect. Also, please update the ETA in our system to Friday 17:00 and notify the customer.
 
 Extract all significant facts including preferences, constraints, entities, relationships, and events."""
-    
+
     # Build content with proper types
     contents = [
         types.Content(
@@ -53,7 +53,7 @@ Extract all significant facts including preferences, constraints, entities, rela
             parts=[types.Part.from_text(text=user_content)],
         ),
     ]
-    
+
     # Define response schema using native Gemini types
     response_schema = types.Schema(
         type=types.Type.OBJECT,
@@ -73,7 +73,14 @@ Extract all significant facts including preferences, constraints, entities, rela
                         "type": types.Schema(
                             type=types.Type.STRING,
                             description="Type of fact: preference (user likes/dislikes), constraint (limitation/requirement), entity (person/place/thing), mention (reference to something), relationship (connection between entities), event (something that happened).",
-                            enum=["preference", "constraint", "entity", "mention", "relationship", "event"],
+                            enum=[
+                                "preference",
+                                "constraint",
+                                "entity",
+                                "mention",
+                                "relationship",
+                                "event",
+                            ],
                         ),
                         "category": types.Schema(
                             type=types.Type.STRING,
@@ -93,10 +100,11 @@ Extract all significant facts including preferences, constraints, entities, rela
             ),
         },
     )
-    
+
     # System instruction as Parts (task-specific)
     system_instruction = [
-        types.Part.from_text(text="""You are an expert fact extractor for a supply chain memory system.
+        types.Part.from_text(
+            text="""You are an expert fact extractor for a supply chain memory system.
 
 Your task: Extract significant facts from conversation turns.
 
@@ -118,9 +126,10 @@ Guidelines:
 Impact scoring:
 - High (0.7-1.0): Critical decisions, urgent requests, cancellation threats
 - Medium (0.4-0.7): Status updates, process changes
-- Low (0.0-0.4): Routine information, acknowledgments"""),
+- Low (0.0-0.4): Routine information, acknowledgments"""
+        ),
     ]
-    
+
     # Configure generation with structured output
     generate_config = types.GenerateContentConfig(
         response_mime_type="application/json",
@@ -128,24 +137,24 @@ Impact scoring:
         system_instruction=system_instruction,
         temperature=0.0,  # Deterministic for structured output
     )
-    
+
     # Generate (non-streaming for test)
     response = client.models.generate_content(
         model="gemini-3-flash-preview",
         contents=contents,
         config=generate_config,
     )
-    
+
     # Parse response
     response_text = response.text
     assert response_text, "Response text should not be empty"
-    
+
     # Validate JSON structure
     result = json.loads(response_text)
     assert "facts" in result, "Response should contain 'facts' key"
     assert isinstance(result["facts"], list), "facts should be a list"
     assert len(result["facts"]) > 0, "Should extract at least one fact"
-    
+
     # Validate fact structure
     for fact in result["facts"]:
         assert "content" in fact, "Each fact should have 'content'"
@@ -153,29 +162,42 @@ Impact scoring:
         assert "category" in fact, "Each fact should have 'category'"
         assert "certainty" in fact, "Each fact should have 'certainty'"
         assert "impact" in fact, "Each fact should have 'impact'"
-        
+
         # Validate types
         assert isinstance(fact["content"], str), "content should be string"
-        assert fact["type"] in ["preference", "constraint", "entity", "mention", "relationship", "event"], \
-            f"Invalid type: {fact['type']}"
-        assert fact["category"] in ["personal", "business", "technical", "operational"], \
-            f"Invalid category: {fact['category']}"
+        assert fact["type"] in [
+            "preference",
+            "constraint",
+            "entity",
+            "mention",
+            "relationship",
+            "event",
+        ], f"Invalid type: {fact['type']}"
+        assert fact["category"] in [
+            "personal",
+            "business",
+            "technical",
+            "operational",
+        ], f"Invalid category: {fact['category']}"
         assert isinstance(fact["certainty"], (int, float)), "certainty should be numeric"
         assert isinstance(fact["impact"], (int, float)), "impact should be numeric"
         assert 0.0 <= fact["certainty"] <= 1.0, "certainty should be between 0.0 and 1.0"
         assert 0.0 <= fact["impact"] <= 1.0, "impact should be between 0.0 and 1.0"
-    
+
     # Validate expected facts are present
     fact_contents = [f["content"].lower() for f in result["facts"]]
-    
+
     # Check for key facts from conversation
-    assert any("shanghai" in content or "shipment" in content for content in fact_contents), \
+    assert any("shanghai" in content or "shipment" in content for content in fact_contents), (
         "Should extract fact about Shanghai shipment"
-    assert any("friday" in content or "deadline" in content for content in fact_contents), \
+    )
+    assert any("friday" in content or "deadline" in content for content in fact_contents), (
         "Should extract fact about Friday deadline"
-    assert any("fasttrack" in content or "customs broker" in content for content in fact_contents), \
-        "Should extract fact about FastTrack Logistics"
-    
+    )
+    assert any(
+        "fasttrack" in content or "customs broker" in content for content in fact_contents
+    ), "Should extract fact about FastTrack Logistics"
+
     print(f"\n✓ Successfully extracted {len(result['facts'])} facts")
     print("\nSample facts:")
     for i, fact in enumerate(result["facts"][:3], 1):
@@ -185,13 +207,13 @@ Impact scoring:
 @pytest.mark.asyncio
 async def test_gemini_structured_output_compatibility():
     """Test that Pydantic schemas can be converted to Gemini native format.
-    
+
     This validates that our existing Pydantic models for other providers
     can be aligned with Gemini's native schema format.
     """
     from pydantic import BaseModel, Field
     from typing import List, Literal
-    
+
     # Define Pydantic model (for other providers)
     class Fact(BaseModel):
         content: str = Field(description="The actual fact content")
@@ -199,19 +221,19 @@ async def test_gemini_structured_output_compatibility():
         category: Literal["personal", "business", "technical", "operational"]
         certainty: float = Field(ge=0.0, le=1.0)
         impact: float = Field(ge=0.0, le=1.0)
-    
+
     class FactExtractionResult(BaseModel):
         facts: List[Fact]
-    
+
     # Get Pydantic JSON schema
     pydantic_schema = FactExtractionResult.model_json_schema()
-    
+
     # Validate structure matches Gemini expectations
     assert "properties" in pydantic_schema
     assert "facts" in pydantic_schema["properties"]
     assert "type" in pydantic_schema["properties"]["facts"]
     assert pydantic_schema["properties"]["facts"]["type"] == "array"
-    
+
     # Get items definition (may be in $defs or inline)
     items = pydantic_schema["properties"]["facts"].get("items")
     if "$ref" in items:
@@ -222,21 +244,25 @@ async def test_gemini_structured_output_compatibility():
     else:
         # Inline definition
         items_props = items.get("properties", {})
-    
+
     assert items_props, "Should have fact properties defined"
-    
+
     # Validate enum constraints
-    assert "anyOf" in items_props["type"] or "enum" in items_props["type"], "type field should have enum constraint"
-    assert "anyOf" in items_props["category"] or "enum" in items_props["category"], "category field should have enum constraint"
-    
+    assert "anyOf" in items_props["type"] or "enum" in items_props["type"], (
+        "type field should have enum constraint"
+    )
+    assert "anyOf" in items_props["category"] or "enum" in items_props["category"], (
+        "category field should have enum constraint"
+    )
+
     # Validate numeric constraints (they may be nested in anyOf for Optional fields)
     certainty_schema = items_props["certainty"]
     impact_schema = items_props["impact"]
-    
+
     # Check if constraints exist (may be in anyOf structure)
     assert certainty_schema, "certainty field should exist"
     assert impact_schema, "impact field should exist"
-    
+
     print("\n✓ Pydantic schema is compatible with Gemini native format")
     print(f"✓ Schema has {len(items_props)} properties per fact")
     print("✓ Required fields: content, type, category, certainty, impact")
@@ -244,15 +270,15 @@ async def test_gemini_structured_output_compatibility():
 
 if __name__ == "__main__":
     import asyncio
-    
+
     print("Running Gemini Structured Output Tests...")
     print("=" * 60)
-    
+
     # Run fact extraction test
     asyncio.run(test_fact_extraction_with_native_schema())
-    
+
     # Run compatibility test
     asyncio.run(test_gemini_structured_output_compatibility())
-    
+
     print("\n" + "=" * 60)
     print("All tests passed!")

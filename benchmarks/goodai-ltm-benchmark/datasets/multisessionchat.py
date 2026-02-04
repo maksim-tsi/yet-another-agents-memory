@@ -104,9 +104,7 @@ def reconstruct_test_chats(tar_dict: dict) -> dict:
     to_speaker = {"bot_0": "Speaker 1", "bot_1": "Speaker 2"}
     msc_summary = tar_dict["msc"]["msc_personasummary"]
     for chat in msc_summary["session_1"]["test"]:
-        dialog = [
-            {"id": to_speaker[m["id"]], "text": m["text"]} for m in chat["dialog"]
-        ]
+        dialog = [{"id": to_speaker[m["id"]], "text": m["text"]} for m in chat["dialog"]]
         chats_dict[chat["initial_data_id"]] = [
             dict(
                 dialog=dialog,
@@ -204,4 +202,3 @@ class MultiSessionChatDataset(DatasetInterface):
             return score, 1, [json_dict["reasoning"]]
         except (json.JSONDecodeError, KeyError) as exc:
             return 0, 1, [str(exc)]
-

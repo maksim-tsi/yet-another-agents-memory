@@ -3,7 +3,16 @@ from matplotlib.patches import Patch
 
 
 PLOT_STD = False
-CUSTOM_COLORS = ["#ff9999", "#66b3ff", "#99ff99", "#ffcc99", "#76d7c4", "#ffb3e6", "#c4e17f", "#c2c2f0"]
+CUSTOM_COLORS = [
+    "#ff9999",
+    "#66b3ff",
+    "#99ff99",
+    "#ffcc99",
+    "#76d7c4",
+    "#ffb3e6",
+    "#c4e17f",
+    "#c2c2f0",
+]
 
 aliases = {
     "Mixtral-8x7B-Instruct-v0.1": "Mixtral 8x7B",
@@ -16,7 +25,7 @@ aliases = {
     "Gemini 1.5 Pro": "Gemini 1.5 Pro",
     "LTM Agent 1 Meta Llama 3 70B Instruct": "LTM Llama 3 70B",
     "LTM Agent 1 gpt-4-turbo-2024-04-09": "LTM GPT-4 turbo",
-    "LTM Agent 1 Opus": "LTM Claude 3 Opus"
+    "LTM Agent 1 Opus": "LTM Claude 3 Opus",
 }
 
 model_order = [
@@ -89,12 +98,15 @@ def main():
         current_pos += 1
 
     # Manual legend
-    plt.legend(handles=[
-        Patch(color=llm_colors[name], label=name) for name in llm_names
-    ] + [
-        Patch(facecolor="white", edgecolor="black", label="Only LLM"),
-        Patch(facecolor="white", edgecolor="black", hatch="//", label="LLM + LTM"),
-    ], bbox_to_anchor=(1, 0, 0.5, 1), loc="center left")
+    plt.legend(
+        handles=[Patch(color=llm_colors[name], label=name) for name in llm_names]
+        + [
+            Patch(facecolor="white", edgecolor="black", label="Only LLM"),
+            Patch(facecolor="white", edgecolor="black", hatch="//", label="LLM + LTM"),
+        ],
+        bbox_to_anchor=(1, 0, 0.5, 1),
+        loc="center left",
+    )
 
     plt.ylabel("Score")
     plt.xticks(x_ticks_pos, x_ticks_labels)

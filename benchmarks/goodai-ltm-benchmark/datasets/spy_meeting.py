@@ -28,8 +28,14 @@ CODED_INFO_TIME = [
 
 CODED_INFO_THING = [
     ("a way to get across a river", ["boat", "bridge", "raft", "kayak"]),
-    ("a quiet way to open locked doors", ["pick", "picks", "key", "lockpicks", "lockpicking", "slim jim"]),
-    ("a way to persuade the border guards to let us through", ["bribe", "credentials", "paperwork", "passport"]),
+    (
+        "a quiet way to open locked doors",
+        ["pick", "picks", "key", "lockpicks", "lockpicking", "slim jim"],
+    ),
+    (
+        "a way to persuade the border guards to let us through",
+        ["bribe", "credentials", "paperwork", "passport"],
+    ),
     ("a way to escape quickly over land", ["motorbike", "motorcycle", "car", "fast vehicle"]),
 ]
 
@@ -53,8 +59,14 @@ class SpyMeetingDataset(DatasetInterface):
                 names.append(faker.unique.name())
 
             is_question = [False]
-            script = [f"You will be given three messages from different people {names[0]}, {names[1]}, and {names[2]}."]
-            topic_list = [(CODED_INFO_TIME, TIME_TEMPLATE), (CODED_INFO_THING, THING_TEMPLATE), (CODED_INFO_PLACE, PLACE_TEMPLATE)]
+            script = [
+                f"You will be given three messages from different people {names[0]}, {names[1]}, and {names[2]}."
+            ]
+            topic_list = [
+                (CODED_INFO_TIME, TIME_TEMPLATE),
+                (CODED_INFO_THING, THING_TEMPLATE),
+                (CODED_INFO_PLACE, PLACE_TEMPLATE),
+            ]
 
             for k in range(3):
                 name = self.random.choice(names)
@@ -74,19 +86,20 @@ class SpyMeetingDataset(DatasetInterface):
             script.append(self.question)
             is_question.append(True)
 
-            examples.append(TestExample(
-                dataset_generator=self,
-                script=script,
-                is_question=is_question,
-                expected_responses=expected_responses,
-            ))
+            examples.append(
+                TestExample(
+                    dataset_generator=self,
+                    script=script,
+                    is_question=is_question,
+                    expected_responses=expected_responses,
+                )
+            )
 
         return examples
 
     def evaluate_correct(
-            self, questions: List[str], responses: List[str], expected_answers: List[str]
+        self, questions: List[str], responses: List[str], expected_answers: List[str]
     ) -> Tuple[float, int, List[str]]:
-
         reasoning = []
         response = responses[0]
         correct_score = 0
@@ -110,7 +123,9 @@ class SpyMeetingDataset(DatasetInterface):
         for incorrect_term in incorrect_set:
             regex = re.compile(rf"\b{incorrect_term}\b")
             if len(regex.findall(response)) > 0:
-                reasoning.append(f"Answer also contains `{incorrect_term}`, which indicates that the agent has recalled something incorrect.")
+                reasoning.append(
+                    f"Answer also contains `{incorrect_term}`, which indicates that the agent has recalled something incorrect."
+                )
                 confusion_score = 1
 
             # You only get marked down once for this

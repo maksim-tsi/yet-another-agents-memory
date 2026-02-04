@@ -77,4 +77,3 @@ class ColourDataset(DatasetInterface):
         if color in responses[-1].lower():
             return 1, 1, [f'"{color}" is in the response.']
         return 0, 1, [f'"{color}" is NOT in the response.']
-

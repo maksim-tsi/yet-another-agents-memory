@@ -9,9 +9,9 @@ from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.semantic_memory_tier import SemanticMemoryTier
 
 __all__ = [
-    'BaseTier',
-    'ActiveContextTier', 
-    'WorkingMemoryTier',
-    'EpisodicMemoryTier',
-    'SemanticMemoryTier'
+    "BaseTier",
+    "ActiveContextTier",
+    "WorkingMemoryTier",
+    "EpisodicMemoryTier",
+    "SemanticMemoryTier",
 ]

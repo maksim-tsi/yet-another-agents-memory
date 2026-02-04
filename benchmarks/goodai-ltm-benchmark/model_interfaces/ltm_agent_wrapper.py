@@ -12,8 +12,14 @@ _log_prompts = os.environ.get("LTM_BENCH_PROMPT_LOGGING", "False").lower() in ["
 
 
 class LTMAgentWrapper(ChatSession):
-    def __init__(self, model: str, max_prompt_size: int,
-                 variant: LTMAgentVariant, run_name: str = "", is_local: bool = False):
+    def __init__(
+        self,
+        model: str,
+        max_prompt_size: int,
+        variant: LTMAgentVariant,
+        run_name: str = "",
+        is_local: bool = False,
+    ):
         super().__init__(run_name=run_name)
         self.model = model
         self.max_prompt_size = max_prompt_size
@@ -23,8 +29,12 @@ class LTMAgentWrapper(ChatSession):
         internal_max_context = max_prompt_size
         if "claude" in model or "llama" in model:
             internal_max_context = int(0.9 * max_prompt_size)
-        self.agent = LTMAgent(variant=variant, model=model, max_prompt_size=internal_max_context,
-                              prompt_callback=self._prompt_callback)
+        self.agent = LTMAgent(
+            variant=variant,
+            model=model,
+            max_prompt_size=internal_max_context,
+            prompt_callback=self._prompt_callback,
+        )
         self.costs_usd = 0
 
     def _prompt_callback(self, session_id: str, label: str, context: list[dict], completion: str):

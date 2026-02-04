@@ -34,7 +34,17 @@ TOPIC_SEGMENTATION_SCHEMA = types.Schema(
             description="List of topic segments identified in the conversation.",
             items=types.Schema(
                 type=types.Type.OBJECT,
-                required=["topic", "summary", "key_points", "turn_indices", "certainty", "impact", "participant_count", "message_count", "temporal_context"],
+                required=[
+                    "topic",
+                    "summary",
+                    "key_points",
+                    "turn_indices",
+                    "certainty",
+                    "impact",
+                    "participant_count",
+                    "message_count",
+                    "temporal_context",
+                ],
                 properties={
                     "topic": types.Schema(
                         type=types.Type.STRING,

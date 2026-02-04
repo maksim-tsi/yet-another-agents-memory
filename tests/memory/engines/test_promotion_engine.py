@@ -68,11 +68,7 @@ def engine(mock_l1, mock_l2, mock_segmenter, mock_extractor, mock_scorer):
         topic_segmenter=mock_segmenter,
         fact_extractor=mock_extractor,
         ciar_scorer=mock_scorer,
-        config={
-            "promotion_threshold": 0.5,
-            "batch_min_turns": 10,
-            "batch_max_turns": 20
-        }
+        config={"promotion_threshold": 0.5, "batch_min_turns": 10, "batch_max_turns": 20},
     )
 
 
@@ -80,16 +76,44 @@ def engine(mock_l1, mock_l2, mock_segmenter, mock_extractor, mock_scorer):
 def sample_turns():
     """Sample conversation turns for testing."""
     return [
-        {"role": "user", "content": "What's the ETA for container MSCU123?", "timestamp": "2025-12-28T10:00:00Z"},
+        {
+            "role": "user",
+            "content": "What's the ETA for container MSCU123?",
+            "timestamp": "2025-12-28T10:00:00Z",
+        },
         {"role": "assistant", "content": "Let me check.", "timestamp": "2025-12-28T10:00:05Z"},
-        {"role": "assistant", "content": "ETA is Dec 30 at Port of LA.", "timestamp": "2025-12-28T10:00:10Z"},
+        {
+            "role": "assistant",
+            "content": "ETA is Dec 30 at Port of LA.",
+            "timestamp": "2025-12-28T10:00:10Z",
+        },
         {"role": "user", "content": "Thanks!", "timestamp": "2025-12-28T10:01:00Z"},
-        {"role": "user", "content": "Can you send customs docs?", "timestamp": "2025-12-28T10:01:10Z"},
-        {"role": "assistant", "content": "I'll email them to you.", "timestamp": "2025-12-28T10:01:20Z"},
+        {
+            "role": "user",
+            "content": "Can you send customs docs?",
+            "timestamp": "2025-12-28T10:01:10Z",
+        },
+        {
+            "role": "assistant",
+            "content": "I'll email them to you.",
+            "timestamp": "2025-12-28T10:01:20Z",
+        },
         {"role": "user", "content": "Perfect!", "timestamp": "2025-12-28T10:01:30Z"},
-        {"role": "user", "content": "I need to update delivery address.", "timestamp": "2025-12-28T10:02:00Z"},
-        {"role": "assistant", "content": "What's the new address?", "timestamp": "2025-12-28T10:02:05Z"},
-        {"role": "user", "content": "123 Warehouse Lane, Commerce, CA", "timestamp": "2025-12-28T10:02:20Z"}
+        {
+            "role": "user",
+            "content": "I need to update delivery address.",
+            "timestamp": "2025-12-28T10:02:00Z",
+        },
+        {
+            "role": "assistant",
+            "content": "What's the new address?",
+            "timestamp": "2025-12-28T10:02:05Z",
+        },
+        {
+            "role": "user",
+            "content": "123 Warehouse Lane, Commerce, CA",
+            "timestamp": "2025-12-28T10:02:20Z",
+        },
     ]
 
 
@@ -97,17 +121,14 @@ def sample_turns():
 async def test_process_session_below_threshold(engine, mock_l1, mock_segmenter):
     """Test that processing skips when turn count is below minimum threshold."""
     # Mock L1 with only 5 turns (below min of 10)
-    mock_l1.retrieve.return_value = [
-        {"role": "user", "content": f"Message {i}"}
-        for i in range(5)
-    ]
-    
+    mock_l1.retrieve.return_value = [{"role": "user", "content": f"Message {i}"} for i in range(5)]
+
     stats = await engine.process(session_id="123")
-    
+
     assert stats["turns_retrieved"] == 5
     assert stats["segments_created"] == 0
     assert stats["facts_promoted"] == 0
-    
+
     # Segmenter should not be called
     mock_segmenter.segment_turns.assert_not_called()
 
@@ -119,7 +140,7 @@ async def test_process_session_batch_success(
     """Test successful batch processing with topic segmentation and fact promotion."""
     # Mock L1 returns 10 turns (meets threshold)
     mock_l1.retrieve.return_value = sample_turns
-    
+
     # Mock TopicSegmenter returns 2 segments
     segment1 = TopicSegment(
         segment_id="seg-1",
@@ -130,9 +151,9 @@ async def test_process_session_batch_success(
         certainty=0.9,
         impact=0.8,
         participant_count=2,
-        message_count=4
+        message_count=4,
     )
-    
+
     segment2 = TopicSegment(
         segment_id="seg-2",
         topic="Delivery Address Update",
@@ -142,11 +163,11 @@ async def test_process_session_batch_success(
         certainty=0.95,
         impact=0.9,
         participant_count=2,
-        message_count=3
+        message_count=3,
     )
-    
+
     mock_segmenter.segment_turns.return_value = [segment1, segment2]
-    
+
     # Mock FactExtractor returns facts for each segment
     fact1 = Fact(
         fact_id="fact-1",
@@ -162,9 +183,9 @@ async def test_process_session_batch_success(
         age_decay=1.0,
         recency_boost=1.0,
         topic_segment_id="seg-1",
-        topic_label="Container ETA Query"
+        topic_label="Container ETA Query",
     )
-    
+
     fact2 = Fact(
         fact_id="fact-2",
         session_id="123",
@@ -179,30 +200,30 @@ async def test_process_session_batch_success(
         age_decay=1.0,
         recency_boost=1.0,
         topic_segment_id="seg-2",
-        topic_label="Delivery Address Update"
+        topic_label="Delivery Address Update",
     )
-    
+
     # First call returns facts for segment1, second call for segment2
     mock_extractor.extract_facts.side_effect = [[fact1], [fact2]]
-    
+
     # Mock Scorer returns high scores for both facts
     mock_scorer.calculate.side_effect = [0.85, 0.90]
-    
+
     stats = await engine.process(session_id="123")
-    
+
     assert stats["turns_retrieved"] == 10
     assert stats["segments_created"] == 2
     assert stats["segments_promoted"] == 2
     assert stats["facts_extracted"] == 2
     assert stats["facts_promoted"] == 2
     assert stats["errors"] == 0
-    
+
     # Verify segmenter was called with chronological turns
     mock_segmenter.segment_turns.assert_called_once()
-    
+
     # Verify extractor was called twice (once per segment)
     assert mock_extractor.extract_facts.call_count == 2
-    
+
     # Verify L2 store was called twice
     assert mock_l2.store.call_count == 2
 
@@ -213,7 +234,7 @@ async def test_process_session_segment_below_threshold(
 ):
     """Test that low-scoring segments are filtered out."""
     mock_l1.retrieve.return_value = sample_turns
-    
+
     # Create segment with low certainty/impact -> low CIAR score
     low_segment = TopicSegment(
         segment_id="seg-low",
@@ -222,20 +243,20 @@ async def test_process_session_segment_below_threshold(
         key_points=["Hello", "Thanks"],
         turn_indices=[0, 1],
         certainty=0.3,  # Low certainty
-        impact=0.2,     # Low impact
+        impact=0.2,  # Low impact
         participant_count=2,
-        message_count=2
+        message_count=2,
     )
-    
+
     mock_segmenter.segment_turns.return_value = [low_segment]
-    
+
     stats = await engine.process(session_id="123")
-    
+
     # Segment created but not promoted (score = 0.3 * 0.2 = 0.06, below threshold 0.5)
     assert stats["segments_created"] == 1
     assert stats["segments_promoted"] == 0
     assert stats["facts_promoted"] == 0
-    
+
     # Extractor should not be called for low-scoring segments
     mock_extractor.extract_facts.assert_not_called()
     mock_l2.store.assert_not_called()
@@ -246,9 +267,9 @@ async def test_process_session_no_segments(engine, mock_l1, mock_segmenter, samp
     """Test handling when segmenter returns no segments."""
     mock_l1.retrieve.return_value = sample_turns
     mock_segmenter.segment_turns.return_value = []
-    
+
     stats = await engine.process(session_id="123")
-    
+
     assert stats["turns_retrieved"] == 10
     assert stats["segments_created"] == 0
     assert stats["facts_promoted"] == 0
@@ -266,9 +287,9 @@ async def test_process_no_session_id(engine):
 async def test_process_no_turns(engine, mock_l1):
     """Test handling when L1 returns no turns."""
     mock_l1.retrieve.return_value = []
-    
+
     stats = await engine.process(session_id="123")
-    
+
     assert stats["turns_retrieved"] == 0
     assert stats["facts_promoted"] == 0
 
@@ -277,7 +298,7 @@ async def test_process_no_turns(engine, mock_l1):
 async def test_health_check(engine):
     """Test health check includes configuration."""
     health = await engine.health_check()
-    
+
     assert health["status"] == "healthy"
     assert health["l1"]["status"] == "healthy"
     assert health["l2"]["status"] == "healthy"
@@ -289,15 +310,10 @@ async def test_health_check(engine):
 @pytest.mark.asyncio
 async def test_score_segment(engine):
     """Test segment-level CIAR scoring."""
-    segment = TopicSegment(
-        topic="Test Topic",
-        summary="Test summary",
-        certainty=0.8,
-        impact=0.9
-    )
-    
+    segment = TopicSegment(topic="Test Topic", summary="Test summary", certainty=0.8, impact=0.9)
+
     score = await engine._score_segment(segment)
-    
+
     # For fresh segments: age_decay=1.0, recency_boost=1.0
     # CIAR = (0.8 × 0.9) × 1.0 × 1.0 = 0.72
     assert score == 0.72
@@ -310,11 +326,11 @@ async def test_format_segment_for_extraction(engine, sample_turns):
         topic="Container ETA",
         summary="User asked about container ETA.",
         key_points=["Container tracking", "ETA query"],
-        turn_indices=[0, 1, 2]
+        turn_indices=[0, 1, 2],
     )
-    
+
     formatted = engine._format_segment_for_extraction(segment, sample_turns)
-    
+
     assert "Topic: Container ETA" in formatted
     assert "Summary: User asked about container ETA." in formatted
     assert "Key Points:" in formatted

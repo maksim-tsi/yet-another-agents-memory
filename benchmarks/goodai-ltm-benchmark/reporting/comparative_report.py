@@ -8,11 +8,30 @@ from reporting.generate import generate_summary_report
 
 @click.command("comparative-report")
 @click.argument("run_name", type=str)
-@click.option("-a", "--agents", type=str, multiple=True, required=False, help="List of agents (at least two elements)")
-@click.option("-l", "--labels", type=str, multiple=True, required=False, help="Labels to use for the agents given.")
-@click.option("-o", "--output", type=str, required=False, help="Name of the resulting report, without extension.")
+@click.option(
+    "-a",
+    "--agents",
+    type=str,
+    multiple=True,
+    required=False,
+    help="List of agents (at least two elements)",
+)
+@click.option(
+    "-l",
+    "--labels",
+    type=str,
+    multiple=True,
+    required=False,
+    help="Labels to use for the agents given.",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=str,
+    required=False,
+    help="Name of the resulting report, without extension.",
+)
 def main(run_name: str, agents: list[str] | None, labels: list[str] | None, output: str | None):
-
     if agents is None or len(agents) < 2:
         labels = None  # Invalidate any provided label
         print("This report can only be generated for two agents or more.")
@@ -34,7 +53,9 @@ def main(run_name: str, agents: list[str] | None, labels: list[str] | None, outp
                 pass
 
     if labels is None:
-        if ask_yesno(question="Do you wish to provide labels for the selected agents?", default_yes=False):
+        if ask_yesno(
+            question="Do you wish to provide labels for the selected agents?", default_yes=False
+        ):
             print("Please enter the labels one by one.")
             labels = list()
             for name in agents:

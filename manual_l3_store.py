@@ -10,18 +10,22 @@ from src.memory.models import Episode
 
 async def main() -> None:
     session_id = "manual-session"
-    q = QdrantAdapter({
-        "url": os.getenv("QDRANT_URL", "http://192.168.107.187:6333"),
-        "collection_name": os.getenv("QDRANT_COLLECTION", "episodes"),
-        "vector_size": int(os.getenv("QDRANT_VECTOR_SIZE", EpisodicMemoryTier.VECTOR_SIZE)),
-    })
+    q = QdrantAdapter(
+        {
+            "url": os.getenv("QDRANT_URL", "http://192.168.107.187:6333"),
+            "collection_name": os.getenv("QDRANT_COLLECTION", "episodes"),
+            "vector_size": int(os.getenv("QDRANT_VECTOR_SIZE", EpisodicMemoryTier.VECTOR_SIZE)),
+        }
+    )
     await q.connect()
 
-    n = Neo4jAdapter({
-        "uri": os.getenv("NEO4J_URI", "bolt://192.168.107.187:7687"),
-        "user": os.getenv("NEO4J_USER", "neo4j"),
-        "password": os.getenv("NEO4J_PASSWORD", "password"),
-    })
+    n = Neo4jAdapter(
+        {
+            "uri": os.getenv("NEO4J_URI", "bolt://192.168.107.187:7687"),
+            "user": os.getenv("NEO4J_USER", "neo4j"),
+            "password": os.getenv("NEO4J_PASSWORD", "password"),
+        }
+    )
     await n.connect()
     tier = EpisodicMemoryTier(q, n)
 
@@ -47,19 +51,23 @@ async def main() -> None:
     # simple deterministic embedding of correct size
     embedding = [0.01] * tier.vector_size
 
-    await tier.store({
-        "episode": episode,
-        "embedding": embedding,
-        "entities": [],
-        "relationships": [],
-    })
+    await tier.store(
+        {
+            "episode": episode,
+            "embedding": embedding,
+            "entities": [],
+            "relationships": [],
+        }
+    )
 
-    results = await q.search({
-        "vector": embedding,
-        "filter": {"session_id": session_id},
-        "limit": 5,
-        "collection_name": "episodes",
-    })
+    results = await q.search(
+        {
+            "vector": embedding,
+            "filter": {"session_id": session_id},
+            "limit": 5,
+            "collection_name": "episodes",
+        }
+    )
     print("Stored and queried results count:", len(results))
     if results:
         print("First payload keys:", list(results[0].keys()))

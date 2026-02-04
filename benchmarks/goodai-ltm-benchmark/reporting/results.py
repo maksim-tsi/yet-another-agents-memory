@@ -36,7 +36,7 @@ class TestResult:
             "characters",
             "full_log",
             "expected_responses",
-            "needles"
+            "needles",
         ]
 
     def __str__(self):
@@ -62,7 +62,9 @@ class TestResult:
 
     @property
     def path(self) -> Path:
-        return make_result_path(self.run_name, self.agent_name, self.dataset_name, self.example_id, self.repetition)
+        return make_result_path(
+            self.run_name, self.agent_name, self.dataset_name, self.example_id, self.repetition
+        )
 
     def save(self):
         file_path = self.path
@@ -82,5 +84,3 @@ class TestResult:
         result.description = DATASETS_BY_NAME[result.dataset_name].description
         result.load()
         return result
-    
-

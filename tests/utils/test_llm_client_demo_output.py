@@ -7,7 +7,9 @@ import pytest
 
 
 def _load_demo_module(project_root: Path):
-    spec = importlib.util.spec_from_file_location("llm_client_demo", str(project_root / "scripts/llm_client_demo.py"))
+    spec = importlib.util.spec_from_file_location(
+        "llm_client_demo", str(project_root / "scripts/llm_client_demo.py")
+    )
     module = importlib.util.module_from_spec(spec)
     # Insert the module into sys.modules so monkeypatching works with importlib
     sys.modules[spec.name] = module
@@ -33,7 +35,7 @@ class FakeClient:
 
     async def generate(self, prompt, provider_order=None, model=None):
         # Respect the first provider in provider_order
-        chosen = (provider_order[0] if provider_order else self._providers[0])
+        chosen = provider_order[0] if provider_order else self._providers[0]
         return FakeResp(provider=chosen)
 
 
@@ -64,7 +66,18 @@ async def test_ndjson_overwrite_and_append(tmp_path, monkeypatch):
     output_file = project_root / output_rel
 
     # Run with overwrite mode
-    monkeypatch.setattr(sys, "argv", ["llm_client_demo.py", "--json", f"--output-file={output_rel}", "--output-format=ndjson", "--output-mode=overwrite", "--skip-health-check"])  # type: ignore
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "llm_client_demo.py",
+            "--json",
+            f"--output-file={output_rel}",
+            "--output-format=ndjson",
+            "--output-mode=overwrite",
+            "--skip-health-check",
+        ],
+    )  # type: ignore
     await demo_module.demo()
 
     assert output_file.exists()
@@ -74,7 +87,18 @@ async def test_ndjson_overwrite_and_append(tmp_path, monkeypatch):
     assert obj["provider"] == "gemini"
 
     # Run again in append mode to add another line
-    monkeypatch.setattr(sys, "argv", ["llm_client_demo.py", "--json", f"--output-file={output_rel}", "--output-format=ndjson", "--output-mode=append", "--skip-health-check"])  # type: ignore
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "llm_client_demo.py",
+            "--json",
+            f"--output-file={output_rel}",
+            "--output-format=ndjson",
+            "--output-mode=append",
+            "--skip-health-check",
+        ],
+    )  # type: ignore
     await demo_module.demo()
 
     lines = output_file.read_text(encoding="utf-8").strip().splitlines()
@@ -102,7 +126,18 @@ async def test_json_array_overwrite_and_append(tmp_path, monkeypatch):
     output_file = project_root / output_rel
 
     # Overwrite write mode: empty array, then write single element
-    monkeypatch.setattr(sys, "argv", ["llm_client_demo.py", "--json", f"--output-file={output_rel}", "--output-format=json-array", "--output-mode=overwrite", "--skip-health-check"])  # type: ignore
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "llm_client_demo.py",
+            "--json",
+            f"--output-file={output_rel}",
+            "--output-format=json-array",
+            "--output-mode=overwrite",
+            "--skip-health-check",
+        ],
+    )  # type: ignore
     await demo_module.demo()
 
     assert output_file.exists()
@@ -112,13 +147,25 @@ async def test_json_array_overwrite_and_append(tmp_path, monkeypatch):
     assert arr[0]["provider"] == "gemini"
 
     # Append mode: start with an existing array and append new item
-    output_file.write_text(json.dumps([{"provider": "existing"}], ensure_ascii=False), encoding="utf-8")
+    output_file.write_text(
+        json.dumps([{"provider": "existing"}], ensure_ascii=False), encoding="utf-8"
+    )
 
-    monkeypatch.setattr(sys, "argv", ["llm_client_demo.py", "--json", f"--output-file={output_rel}", "--output-format=json-array", "--output-mode=append", "--skip-health-check"])  # type: ignore
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "llm_client_demo.py",
+            "--json",
+            f"--output-file={output_rel}",
+            "--output-format=json-array",
+            "--output-mode=append",
+            "--skip-health-check",
+        ],
+    )  # type: ignore
     await demo_module.demo()
 
     arr = json.loads(output_file.read_text(encoding="utf-8"))
     # It should now contain the existing element + the newly appended element
     assert any(item.get("provider") == "existing" for item in arr)
     assert any(item.get("provider") == "gemini" for item in arr)
-

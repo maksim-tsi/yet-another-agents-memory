@@ -7,7 +7,6 @@ from model_interfaces.interface import ChatSession
 import requests
 
 
-
 def try_extract_session_cookie(cj):
     user_name = ""
     session_token = ""
@@ -81,9 +80,7 @@ class CharlieMnemonic(ChatSession):
             "value": self.max_prompt_size,
         }
 
-        update = requests.post(
-            self.endpoint + "/update_settings/", headers=headers, json=body
-        )
+        update = requests.post(self.endpoint + "/update_settings/", headers=headers, json=body)
 
     def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
         headers = {
@@ -119,9 +116,7 @@ class CharlieMnemonic(ChatSession):
         }
         body = {"username": self.user_name}
 
-        settings = requests.post(
-            self.endpoint + "/load_settings/", headers=headers, json=body
-        )
+        settings = requests.post(self.endpoint + "/load_settings/", headers=headers, json=body)
         return json.loads(settings.text)
 
     def reset(self):
@@ -134,7 +129,6 @@ class CharlieMnemonic(ChatSession):
         delete_req = requests.post(
             self.endpoint + "/delete_data_keep_settings", headers=headers, json=body
         )
-
 
     def load(self):
         # Charlie mnemonic is web based and so doesn't need to be manually told to resume a conversation

@@ -10,7 +10,7 @@ from utils.json_utils import CustomEncoder
 from utils.llm import make_system_message, make_user_message
 
 _logger = logging.getLogger("exp_agent")
-_log_prompts = os.environ.get('LTM_BENCH_PROMPT_LOGGING', 'False').lower() in ['true', 'yes', '1']
+_log_prompts = os.environ.get("LTM_BENCH_PROMPT_LOGGING", "False").lower() in ["true", "yes", "1"]
 _default_system_message = """
 You are a helpful AI assistant with a long-term memory. Prior interactions with the user are tagged with a timestamp. Current time: {datetime}.
 """
@@ -24,9 +24,17 @@ class LengthBiasAgent(BaseLTMAgent):
     """
     Control agent that biases retrieval based on the length of messages.
     """
-    def __init__(self, max_prompt_size: int, time_fn: Callable[[int, int], float] = _default_time,
-                 model: str = None, system_message: str = None, ctx_fraction_for_mem: float = 0.5,
-                 llm_temperature: float = 0.01, run_name: str = ""):
+
+    def __init__(
+        self,
+        max_prompt_size: int,
+        time_fn: Callable[[int, int], float] = _default_time,
+        model: str = None,
+        system_message: str = None,
+        ctx_fraction_for_mem: float = 0.5,
+        llm_temperature: float = 0.01,
+        run_name: str = "",
+    ):
         super().__init__(run_name=run_name, model=model)
         if system_message is None:
             system_message = _default_system_message
@@ -46,22 +54,26 @@ class LengthBiasAgent(BaseLTMAgent):
         target_history_tokens = self.max_prompt_size * (1.0 - self.ctx_fraction_for_mem)
         context = []
         if self.system_message_template:
-            context.append(make_system_message(
-                self.system_message_template.format(datetime=datetime.datetime.now())))
+            context.append(
+                make_system_message(
+                    self.system_message_template.format(datetime=datetime.datetime.now())
+                )
+            )
         context.append(make_user_message(user_content))
         token_count = self.context_token_counts(context)
-        removed_messages: list['Message'] = []
+        removed_messages: list["Message"] = []
         for i in range(len(self.message_history) - 1, -1, -1):
             message = self.message_history[i]
             if message.is_user:
-                et_descriptor = self.get_elapsed_time_descriptor(message.timestamp,
-                                                                 self.current_time)
+                et_descriptor = self.get_elapsed_time_descriptor(
+                    message.timestamp, self.current_time
+                )
                 new_content = f"[{et_descriptor}]\n{message.content}"
                 message = Message(message.role, new_content, message.timestamp)
             message_dict = message.as_llm_dict()
             new_token_count = self.context_token_counts([message_dict]) + token_count
             if new_token_count > target_history_tokens:
-                removed_messages = self.message_history[:i + 1]
+                removed_messages = self.message_history[: i + 1]
                 break
             context.insert(1, message_dict)
             token_count = new_token_count
@@ -71,11 +83,14 @@ class LengthBiasAgent(BaseLTMAgent):
             context.insert(1, mem_message)
         return context
 
-    def get_mem_message(self, removed_messages: list['Message'],
-                        remain_tokens: int) -> Optional[dict[str, str]]:
+    def get_mem_message(
+        self, removed_messages: list["Message"], remain_tokens: int
+    ) -> Optional[dict[str, str]]:
         excerpts_text = self.get_mocked_mem_excerpts(removed_messages, remain_tokens)
-        excerpts_content = (f"The following are excerpts from the early part of the conversation "
-                            f"or prior conversations, in chronological order:\n\n{excerpts_text}")
+        excerpts_content = (
+            f"The following are excerpts from the early part of the conversation "
+            f"or prior conversations, in chronological order:\n\n{excerpts_text}"
+        )
         return make_system_message(excerpts_content)
 
     @staticmethod
@@ -92,7 +107,7 @@ class LengthBiasAgent(BaseLTMAgent):
         else:
             return f"{elapsed / (60 * 60 * 24):.1f} day(s) ago"
 
-    def get_mocked_mem_excerpts(self, removed_messages: list['Message'], token_limit: int) -> str:
+    def get_mocked_mem_excerpts(self, removed_messages: list["Message"], token_limit: int) -> str:
         removed_messages = sorted(removed_messages, key=lambda _m: len(_m.content))
         token_count = 0
         excerpts: list[tuple[float, str]] = []
@@ -121,9 +136,9 @@ class LengthBiasAgent(BaseLTMAgent):
     def reply(self, user_content: str, agent_response: Optional[str] = None) -> str:
         context = self.build_llm_context(user_content)
         response = self.completion(context, temperature=self.llm_temperature, label="reply")
-        user_message = Message(role='user', content=user_content, timestamp=self.current_time)
+        user_message = Message(role="user", content=user_content, timestamp=self.current_time)
         self.message_history.append(user_message)
-        assistant_message = Message(role='assistant', content=response, timestamp=self.current_time)
+        assistant_message = Message(role="assistant", content=response, timestamp=self.current_time)
         self.message_history.append(assistant_message)
         return response
 

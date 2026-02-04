@@ -91,7 +91,9 @@ class RateLimiter:
         if "429" in message or "rate" in message.lower():
             self.consecutive_429s += 1
 
-    def _log_state(self, timestamp: datetime, estimated_tokens: int, current_rpm: int, current_tpm: int) -> None:
+    def _log_state(
+        self, timestamp: datetime, estimated_tokens: int, current_rpm: int, current_tpm: int
+    ) -> None:
         if not self.log_file:
             return
         log_entry = {
@@ -322,7 +324,9 @@ def create_app(config: WrapperConfig) -> FastAPI:
         state.track_session(session_id)
         metadata = dict(request.metadata or {})
         metadata.setdefault("skip_l1_write", True)
-        updated_request = request.model_copy(update={"session_id": session_id, "metadata": metadata})
+        updated_request = request.model_copy(
+            update={"session_id": session_id, "metadata": metadata}
+        )
 
         estimated_input_tokens = _estimate_tokens(updated_request.content)
         await state.rate_limiter.wait_if_needed(estimated_input_tokens)

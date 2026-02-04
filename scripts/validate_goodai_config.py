@@ -97,9 +97,7 @@ def validate_config(config_path: Path) -> None:
             unknown.append(name)
 
     if unknown:
-        raise ConfigValidationError(
-            f"Unsupported dataset names: {', '.join(sorted(set(unknown)))}"
-        )
+        raise ConfigValidationError(f"Unsupported dataset names: {', '.join(sorted(set(unknown)))}")
 
 
 def build_arg_parser() -> argparse.ArgumentParser:

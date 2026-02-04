@@ -185,7 +185,8 @@ class FullContextAgent(BaseAgent):
         truncated = list(turn_lines)
         while (
             len(truncated) > self.MIN_RECENT_TURNS
-            and self._estimate_tokens("\n".join(truncated + fact_lines + [user_input])) > self.MAX_TOKENS
+            and self._estimate_tokens("\n".join(truncated + fact_lines + [user_input]))
+            > self.MAX_TOKENS
         ):
             truncated.pop(0)
 

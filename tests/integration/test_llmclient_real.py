@@ -23,11 +23,19 @@ async def test_llmclient_real_providers():
     client = LLMClient()
     # Register providers if keys available
     if os.getenv("GOOGLE_API_KEY"):
-        client.register_provider(GeminiProvider(api_key=os.getenv("GOOGLE_API_KEY")), ProviderConfig(name="gemini", priority=0))
+        client.register_provider(
+            GeminiProvider(api_key=os.getenv("GOOGLE_API_KEY")),
+            ProviderConfig(name="gemini", priority=0),
+        )
     if os.getenv("GROQ_API_KEY"):
-        client.register_provider(GroqProvider(api_key=os.getenv("GROQ_API_KEY")), ProviderConfig(name="groq", priority=1))
+        client.register_provider(
+            GroqProvider(api_key=os.getenv("GROQ_API_KEY")), ProviderConfig(name="groq", priority=1)
+        )
     if os.getenv("MISTRAL_API_KEY"):
-        client.register_provider(MistralProvider(api_key=os.getenv("MISTRAL_API_KEY")), ProviderConfig(name="mistral", priority=2))
+        client.register_provider(
+            MistralProvider(api_key=os.getenv("MISTRAL_API_KEY")),
+            ProviderConfig(name="mistral", priority=2),
+        )
 
     assert client.available_providers(), "No providers registered"
 

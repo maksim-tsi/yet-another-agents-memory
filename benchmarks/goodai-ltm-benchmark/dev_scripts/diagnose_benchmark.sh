@@ -17,6 +17,7 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 BENCHMARK_ROOT="$PROJECT_ROOT/benchmarks/goodai-ltm-benchmark"
+ENV_FILE="$PROJECT_ROOT/.env"
 
 PYTHON="$PROJECT_ROOT/.venv/bin/python"
 
@@ -25,6 +26,14 @@ function check_prerequisites() {
         echo -e "${RED}❌ Error: .venv not found at $PYTHON${NC}"
         echo "Run: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
         exit 1
+    fi
+
+    if [ -z "${GOOGLE_API_KEY:-}" ] && [ -f "$ENV_FILE" ]; then
+        GOOGLE_API_KEY_VALUE="$(grep -E '^GOOGLE_API_KEY=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//')"
+        if [ -n "$GOOGLE_API_KEY_VALUE" ]; then
+            export GOOGLE_API_KEY="$GOOGLE_API_KEY_VALUE"
+            echo -e "${BLUE}ℹ️  Loaded GOOGLE_API_KEY from .env${NC}"
+        fi
     fi
 
     if [ -z "${GOOGLE_API_KEY:-}" ]; then
@@ -54,12 +63,23 @@ function run_diagnostic() {
 
 function summarize_wrapper_logs() {
     LOG_FILE="$PROJECT_ROOT/logs/wrapper_full.log"
+    RATE_LOG_LATEST="$(ls -t "$PROJECT_ROOT"/logs/rate_limiter_*.jsonl 2>/dev/null | head -n 1 || true)"
     if [ -f "$LOG_FILE" ]; then
         RUN_TURN_COUNT="$(grep -c "run_turn" "$LOG_FILE" || true)"
         echo -e "${BLUE}ℹ️  Wrapper log run_turn count: $RUN_TURN_COUNT${NC}"
         echo -e "${BLUE}ℹ️  Wrapper log path: $LOG_FILE${NC}"
     else
         echo -e "${YELLOW}⚠️  Warning: Wrapper log not found at $LOG_FILE${NC}"
+    fi
+
+    if [ -n "$RATE_LOG_LATEST" ]; then
+        LAST_RATE_ENTRY="$(tail -n 1 "$RATE_LOG_LATEST" 2>/dev/null || true)"
+        echo -e "${BLUE}ℹ️  Rate limiter log: $RATE_LOG_LATEST${NC}"
+        if [ -n "$LAST_RATE_ENTRY" ]; then
+            echo -e "${BLUE}ℹ️  Latest rate limiter entry: $LAST_RATE_ENTRY${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠️  Warning: No rate limiter logs found in logs/${NC}"
     fi
 }
 

@@ -53,7 +53,9 @@ Determine whether the sentence "{sentence}" is present or not in the text. If th
 @dataclass
 class TriggerResponseDataset(DatasetInterface):
     name: str = "Trigger Response"
-    description: str = "Tell the agent to respond in a particular way when a trigger is given. Test the agent."
+    description: str = (
+        "Tell the agent to respond in a particular way when a trigger is given. Test the agent."
+    )
     trigger_activations: int = 3
     reset_message: str = "Cancel any instructions as to what sentence you should say whenever I do something in particular."
     rouge_score_threshold: float = 0.75
@@ -68,8 +70,11 @@ class TriggerResponseDataset(DatasetInterface):
             if warned:
                 continue
             warned = True
-            colour_print("red", "WARNING: The number of TriggerResponse setups has been exceeded. There will inevitably "
-                                "be some repetitions.")
+            colour_print(
+                "red",
+                "WARNING: The number of TriggerResponse setups has been exceeded. There will inevitably "
+                "be some repetitions.",
+            )
 
     def generate_examples(self, num_examples):
         examples = []
@@ -102,7 +107,10 @@ class TriggerResponseDataset(DatasetInterface):
     def evaluate_single(self, actual: str, expected: str) -> tuple[int, str]:
         actual_std = standardise(actual)
         expected_std = standardise(expected)
-        if expected_std in actual_std or rouge_l(expected_std, actual_std) > self.rouge_score_threshold:
+        if (
+            expected_std in actual_std
+            or rouge_l(expected_std, actual_std) > self.rouge_score_threshold
+        ):
             return 1, f"'{expected}' is in the response."
         context = [make_user_message(eval_prompt.format(message=actual, sentence=expected))]
         eval_str = self.ask_llm(context, GPT_CHEAPEST)
@@ -110,7 +118,10 @@ class TriggerResponseDataset(DatasetInterface):
             eval_json = sanitize_and_parse_json(eval_str)
             present = eval_json["present"]
             if present:
-                present = rouge_l(expected_std, standardise(eval_json["sentence"])) > self.rouge_score_threshold
+                present = (
+                    rouge_l(expected_std, standardise(eval_json["sentence"]))
+                    > self.rouge_score_threshold
+                )
         except (ValueError, JSONDecodeError, KeyError) as exc:
             return 0, f"Could not evaluate due to a JSON parsing error: {repr(exc)}"
         not_str = "" if present else "not "

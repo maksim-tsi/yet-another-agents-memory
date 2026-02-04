@@ -5,21 +5,39 @@ from runner.run_benchmark import get_chat_session, check_result_files, generate_
 from runner.scheduler import TestRunner
 
 
-@click.command('run-single')
-@click.option('-a', '--agent', required=True, type=str)
-@click.option('-d', '--datasets', required=True, type=str)
-@click.option('-p', '--max-prompt-size', required=False, type=int, default=2000)
-@click.option('-n', '--num-examples-per-dataset', required=False, type=int, default=1)
-@click.option('-f', '--filler-tokens', required=False, type=int, default=100,
-              help="Normal filler tokens")
-@click.option('-qf', '--pre-question-filler-tokens', required=False, type=int,
-              default=2000, help="Pre-question filler tokens")
-@click.option("-y", required=False, is_flag=True, default=False, help="Automatically assent to questions")
-def main(agent: str, datasets: str, max_prompt_size: int, num_examples_per_dataset: int,
-         filler_tokens: int, pre_question_filler_tokens: int, y: bool):
-    print(f'Testing with a maximum prompt size of {max_prompt_size}, '
-          f'{filler_tokens} normal filler tokens, and '
-          f'{pre_question_filler_tokens} pre-question filler tokens.')
+@click.command("run-single")
+@click.option("-a", "--agent", required=True, type=str)
+@click.option("-d", "--datasets", required=True, type=str)
+@click.option("-p", "--max-prompt-size", required=False, type=int, default=2000)
+@click.option("-n", "--num-examples-per-dataset", required=False, type=int, default=1)
+@click.option(
+    "-f", "--filler-tokens", required=False, type=int, default=100, help="Normal filler tokens"
+)
+@click.option(
+    "-qf",
+    "--pre-question-filler-tokens",
+    required=False,
+    type=int,
+    default=2000,
+    help="Pre-question filler tokens",
+)
+@click.option(
+    "-y", required=False, is_flag=True, default=False, help="Automatically assent to questions"
+)
+def main(
+    agent: str,
+    datasets: str,
+    max_prompt_size: int,
+    num_examples_per_dataset: int,
+    filler_tokens: int,
+    pre_question_filler_tokens: int,
+    y: bool,
+):
+    print(
+        f"Testing with a maximum prompt size of {max_prompt_size}, "
+        f"{filler_tokens} normal filler tokens, and "
+        f"{pre_question_filler_tokens} pre-question filler tokens."
+    )
     dataset_list = datasets.split(",")
     dataset_list = [d.strip() for d in dataset_list]
     chat_session = get_chat_session(agent, max_prompt_size)
@@ -36,12 +54,14 @@ def main(agent: str, datasets: str, max_prompt_size: int, num_examples_per_datas
                 dataset_examples=num_examples_per_dataset,
             ),
             datasets=[dict(name=d) for d in dataset_list],
-        )
+        ),
     )
-    examples = generate_test_examples(config_dict,
-                                      max_message_tokens=chat_session.max_message_size,
-                                      pass_default=y,
-                                      force_regenerate=True)
+    examples = generate_test_examples(
+        config_dict,
+        max_message_tokens=chat_session.max_message_size,
+        pass_default=y,
+        force_regenerate=True,
+    )
     check_result_files(run_name, chat_session.name, force_removal=True)
     yaml_config = config_dict["config"]
     config = {k: v for k, v in yaml_config.items() if k != "incompatibilities"}
@@ -58,5 +78,5 @@ def main(agent: str, datasets: str, max_prompt_size: int, num_examples_per_datas
     print("done")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

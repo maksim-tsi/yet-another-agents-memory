@@ -61,4 +61,3 @@ class NamesDataset(DatasetInterface):
         if expected_answers[0].lower() in responses[0].lower():
             return 1, 1, [f'"{name}" is in the response.']
         return 0, 1, [f'"{name}" is NOT in the response.']
-

@@ -46,16 +46,16 @@ def check_api_keys():
     """Check which API keys are configured."""
     print("\nChecking API Key Configuration:")
     print("-" * 70)
-    
+
     keys = {
         "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
         "GROQ_API_KEY": os.getenv("GROQ_API_KEY"),
         "MISTRAL_API_KEY": os.getenv("MISTRAL_API_KEY"),
     }
-    
+
     configured = []
     missing = []
-    
+
     for key_name, key_value in keys.items():
         if key_value:
             print(f"  ✓ {key_name}: {key_value[:10]}...{key_value[-4:]}")
@@ -63,9 +63,9 @@ def check_api_keys():
         else:
             print(f"  ✗ {key_name}: NOT CONFIGURED")
             missing.append(key_name)
-    
+
     print("-" * 70)
-    
+
     if missing:
         print(f"\n⚠️  Missing API keys: {', '.join(missing)}")
         print("   These providers will be skipped.\n")
@@ -77,15 +77,15 @@ def check_api_keys():
         if "MISTRAL_API_KEY" in missing:
             print("   • Mistral AI: https://console.mistral.ai/api-keys/")
         print()
-    
+
     return configured, missing
 
 
 def run_provider_tests():
     """Run tests for all configured providers."""
-    
+
     results = {}
-    
+
     # Test Gemini
     print("\n" + "🔷" * 35)
     print("PROVIDER 1/3: Google Gemini")
@@ -95,7 +95,7 @@ def run_provider_tests():
     else:
         print("⚠️  Skipping Gemini - API key not configured")
         results["Gemini"] = None
-    
+
     # Test Groq
     print("\n" + "🔷" * 35)
     print("PROVIDER 2/3: Groq")
@@ -105,7 +105,7 @@ def run_provider_tests():
     else:
         print("⚠️  Skipping Groq - API key not configured")
         results["Groq"] = None
-    
+
     # Test Mistral
     print("\n" + "🔷" * 35)
     print("PROVIDER 3/3: Mistral AI")
@@ -115,7 +115,7 @@ def run_provider_tests():
     else:
         print("⚠️  Skipping Mistral AI - API key not configured")
         results["Mistral"] = None
-    
+
     return results
 
 
@@ -124,10 +124,10 @@ def print_summary(results):
     print("\n" + "=" * 70)
     print(" " * 20 + "COMPREHENSIVE TEST SUMMARY")
     print("=" * 70)
-    
+
     print("\nProvider Status:")
     print("-" * 70)
-    
+
     for provider, result in results.items():
         if result is None:
             status = "⚠️  SKIPPED (no API key)"
@@ -136,21 +136,21 @@ def print_summary(results):
         else:
             status = "❌ FAILED"
         print(f"  {status} - {provider}")
-    
+
     print("-" * 70)
-    
+
     # Count results
     passed = sum(1 for r in results.values() if r is True)
     failed = sum(1 for r in results.values() if r is False)
     skipped = sum(1 for r in results.values() if r is None)
-    
+
     print(f"\nResults: {passed} passed, {failed} failed, {skipped} skipped")
-    
+
     # Recommendations
     print("\n" + "=" * 70)
     print("RECOMMENDATIONS:")
     print("=" * 70)
-    
+
     if passed == 0:
         print("\n⚠️  No providers are currently working!")
         print("   Action: Configure at least one API key to proceed.")
@@ -166,7 +166,7 @@ def print_summary(results):
     else:
         print("\n✅ All providers are working - excellent setup!")
         print("   You have maximum resilience and task optimization options.")
-    
+
     print("\nNext Steps:")
     if passed > 0:
         print("  1. Review ADR-006 for task-to-provider mappings")
@@ -176,29 +176,29 @@ def print_summary(results):
         print("  1. Configure API keys in .env file")
         print("  2. Run this test script again")
         print("  3. Proceed with LLM client implementation")
-    
+
     print("=" * 70 + "\n")
 
 
 def main():
     """Main test execution."""
     print_header()
-    
+
     configured, missing = check_api_keys()
-    
+
     if not configured:
         print("\n❌ ERROR: No API keys configured!")
         print("   Please add at least one API key to .env file.")
         print("   See .env.example for required variables.")
         return False
-    
+
     print(f"\nProceeding with {len(configured)} configured provider(s)...")
     input("\nPress Enter to start tests (or Ctrl+C to cancel)...")
-    
+
     results = run_provider_tests()
-    
+
     print_summary(results)
-    
+
     # Return success if at least one provider works
     return any(r is True for r in results.values())
 

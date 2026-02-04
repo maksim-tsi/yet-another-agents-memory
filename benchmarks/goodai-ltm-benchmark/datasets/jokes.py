@@ -56,10 +56,12 @@ class JokesDataset(DatasetInterface):
                 script.append(self.create_script_line(joke))
                 selected_jokes.append(joke)
                 is_question.append(False)
-                waits.append(WaitCreator.create_wait(
-                    time=create_time_jump(self.minutes_low, self.minutes_high),
-                    percentage_finished=(joke_made + 1) * percentage_per_joke,
-                ))
+                waits.append(
+                    WaitCreator.create_wait(
+                        time=create_time_jump(self.minutes_low, self.minutes_high),
+                        percentage_finished=(joke_made + 1) * percentage_per_joke,
+                    )
+                )
 
             # Choose the joke we are going to look at
             answer = self.random.choice(selected_jokes)

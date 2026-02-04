@@ -52,7 +52,11 @@ class SallyAnneDataset(DatasetInterface):
     def __post_init__(self):
         self.samples = list()
         assert self.question_type in {"any", "world_model", "theory_of_mind"}
-        question_types = ["world_model", "theory_of_mind"] if self.question_type == "any" else [self.question_type]
+        question_types = (
+            ["world_model", "theory_of_mind"]
+            if self.question_type == "any"
+            else [self.question_type]
+        )
         self.question_patterns = [p for qt in question_types for p in patterns[qt]]
         self.extract_samples()
 
@@ -61,7 +65,7 @@ class SallyAnneDataset(DatasetInterface):
             sample_lines = list()
             for line in fd:
                 # Remove index number
-                line = line[line.find(" ") + 1:]
+                line = line[line.find(" ") + 1 :]
                 # Add line to the script
                 sample_lines.append(line)
                 # Detect final line and wrap up sample
@@ -73,10 +77,12 @@ class SallyAnneDataset(DatasetInterface):
                             for singular, plural in {"was": "were", "is": "was"}.items():
                                 line = line.replace(singular, plural)
                         sample_lines[-1] = line
-                        self.samples.append(dict(
-                            lines=sample_lines,
-                            answer=answer,
-                        ))
+                        self.samples.append(
+                            dict(
+                                lines=sample_lines,
+                                answer=answer,
+                            )
+                        )
                     sample_lines = list()
 
     def generate_examples(self, num_examples: int) -> List[TestExample]:
@@ -106,7 +112,6 @@ class SallyAnneDataset(DatasetInterface):
     def evaluate_correct(
         self, questions: List[str], responses: List[str], expected_answers: List[str]
     ) -> Tuple[int, int, List[str]]:
-
         score = 0
         max_score = 1
 
@@ -116,10 +121,14 @@ class SallyAnneDataset(DatasetInterface):
             reasoning = f"Invalid answer. {exc}"
             return score, max_score, [reasoning]
 
-        if isinstance(answer_dict, dict) and answer_dict.get("answer", "").lower() == expected_answers[0]:
+        if (
+            isinstance(answer_dict, dict)
+            and answer_dict.get("answer", "").lower() == expected_answers[0]
+        ):
             score = 1
-            reasoning = f"The agent answered with {repr(answer_dict['answer'])}, which is the right answer."
+            reasoning = (
+                f"The agent answered with {repr(answer_dict['answer'])}, which is the right answer."
+            )
         else:
             reasoning = f"Invalid answer: {answer_dict}"
         return score, max_score, [reasoning]
-

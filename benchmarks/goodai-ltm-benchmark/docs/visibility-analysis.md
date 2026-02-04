@@ -28,5 +28,8 @@ A minimal diagnostic run is required to validate the interaction between the ben
 ### 5.1 Diagnostic Attempt (2026-02-04)
 The initial diagnostic execution was blocked because `GOOGLE_API_KEY` was not set in the environment. As a result, the benchmark runner could not be exercised and wrapper request activity could not be validated. A subsequent diagnostic run is required once the environment variable is configured.
 
+### 5.2 Diagnostic Attempt (2026-02-04)
+After loading `GOOGLE_API_KEY` from the local environment file, the diagnostic run failed because the MAS wrapper service was not reachable at `http://localhost:8080`. The benchmark runner requires the wrapper to be active for `/run_turn` calls. A follow-up run is required after starting the wrapper service.
+
 ## 6. Summary
 The current transparency deficit is primarily attributable to a GUI-only progress mechanism and the absence of structured telemetry. These gaps are remediable through CLI progress reporting, JSONL metrics emission, and a watchdog-based stall detector, as described in the improvement plan.

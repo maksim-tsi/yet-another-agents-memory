@@ -34,7 +34,7 @@ STATEMENTS_ADD = [
 STATEMENTS_REMOVE = [
     # "I already have {{item}}, remove it from the list.",
     "Remove {{number}} {{item}}.",
-    "Please remove {{number}} {{item}} from my shopping list"
+    "Please remove {{number}} {{item}} from my shopping list",
     # "Please remove all occurrences of {{item}} from my shopping list.",
 ]
 
@@ -168,11 +168,15 @@ class ShoppingDataset(DatasetInterface):
             if item["quantity"] == expected_items[key]:
                 num_correct += 1
             else:
-                reasoning.append(f"Wrong quantity for {name}: {item['quantity']} vs {expected_items[key]}.")
+                reasoning.append(
+                    f"Wrong quantity for {name}: {item['quantity']} vs {expected_items[key]}."
+                )
 
         score += len(real_items) / len(expected_answers)
         if len(real_items) < len(expected_answers):
-            reasoning.append(f"{len(expected_answers) - len(real_items)} items were not found in the response:")
+            reasoning.append(
+                f"{len(expected_answers) - len(real_items)} items were not found in the response:"
+            )
             reasoning.extend(f"- {name}" for name in expected_names if name not in real_items)
 
         score += num_correct / len(expected_answers)

@@ -26,7 +26,9 @@ def reconstruct_history(result: TestResult) -> list[dict[str, str | datetime]]:
     return history
 
 
-def reconstruct_messages_timestamps(history: list[dict[str, str | datetime]], script: list[str]) -> list[datetime]:
+def reconstruct_messages_timestamps(
+    history: list[dict[str, str | datetime]], script: list[str]
+) -> list[datetime]:
     script_lines = set(script)
     return [msg["timestamp"] for msg in history if msg["content"] in script_lines]
 
@@ -39,8 +41,10 @@ def extract_questions(example: TestExample) -> list[str]:
 @click.argument("run_name", type=str)
 @click.argument("agent_name", type=str)
 @click.argument("dataset_name", type=str, required=False, default="*")
-@click.option("-y", required=False, is_flag=True, default=False, help="Automatically assent to questions")
-def main(run_name: str, agent_name: str, dataset_name:str,  y: bool):
+@click.option(
+    "-y", required=False, is_flag=True, default=False, help="Automatically assent to questions"
+)
+def main(run_name: str, agent_name: str, dataset_name: str, y: bool):
     _main(run_name, agent_name, dataset_name, y)
 
 
@@ -54,8 +58,12 @@ def _main(run_name: str, agent_name: str, dataset_name: str, y: bool):
         examples.append(TestExample.load(dataset, path))
     results = list()
     for example in examples:
-        result_path = make_result_path(run_name, agent_name, example.dataset_name, example.example_id, 0)
-        assert result_path.exists(), f"Can't re-evaluate without an existing result file: {result_path}"
+        result_path = make_result_path(
+            run_name, agent_name, example.dataset_name, example.example_id, 0
+        )
+        assert result_path.exists(), (
+            f"Can't re-evaluate without an existing result file: {result_path}"
+        )
         colour_print("yellow", f"Evaluating {result_path}")
         result = TestResult.from_file(result_path)
         if not example.uses_callback:
@@ -73,9 +81,13 @@ def _main(run_name: str, agent_name: str, dataset_name: str, y: bool):
         else:
             callback = example.dataset_generator.continual_evaluation_callback
             scheduler = None
-            result.score, result.max_score, result.reasons, deregister = callback(scheduler, example, result.full_log)
+            result.score, result.max_score, result.reasons, deregister = callback(
+                scheduler, example, result.full_log
+            )
             if not deregister:
-                colour_print("red", "WARNING: The following result did not deregister the callback.")
+                colour_print(
+                    "red", "WARNING: The following result did not deregister the callback."
+                )
         print(result)
         results.append(result)
 

@@ -73,7 +73,12 @@ class ChapterBreakDataset(DatasetInterface):
         assert self.split in {"goodai", "pg19", "ao3", "all"}
 
     def load_data(self) -> dict:
-        path = get_file(self.name, CHAPTERBREAK_8K_URL, f"chapterbreak_ctx_8192.zst", checksum=CHAPTERBREAK_8K_SUM)
+        path = get_file(
+            self.name,
+            CHAPTERBREAK_8K_URL,
+            f"chapterbreak_ctx_8192.zst",
+            checksum=CHAPTERBREAK_8K_SUM,
+        )
         with open(path, "br") as fd:
             return json.loads(zstd.decompress(fd.read()))
 
@@ -119,11 +124,15 @@ class ChapterBreakDataset(DatasetInterface):
             beginnings = [(True, sample["pos"])] + [(False, s) for s in sample["negs"]]
             self.random.shuffle(beginnings)
 
-            script = [(
-                "I am going to read you some chapters of a book. A few pages. Okay? You don't have to say anything, "
-                "just listen."
-            )]
-            max_page_content_tokens = self.max_message_size - 20  # Leave some margin for text decorations
+            script = [
+                (
+                    "I am going to read you some chapters of a book. A few pages. Okay? You don't have to say anything, "
+                    "just listen."
+                )
+            ]
+            max_page_content_tokens = (
+                self.max_message_size - 20
+            )  # Leave some margin for text decorations
             script.extend(deliver_in_pages(sample["ctx"], max_page_content_tokens))
 
             answer = 0
@@ -132,15 +141,19 @@ class ChapterBreakDataset(DatasetInterface):
                 "to comment anything, just read them carefully. Ready?"
             )
             for i, (is_true_suffix, option) in enumerate(beginnings):
-                script.extend(deliver_in_pages(option, max_page_content_tokens, prefix=f"Option {i + 1}"))
+                script.extend(
+                    deliver_in_pages(option, max_page_content_tokens, prefix=f"Option {i + 1}")
+                )
                 if is_true_suffix:
                     answer = i + 1
             assert answer > 0
 
-            script.append((
-                "Which option do you think is the true next-chapter beginning?\n"
-                "Answer with a single-digit number, corresponding to the option number."
-            ))
+            script.append(
+                (
+                    "Which option do you think is the true next-chapter beginning?\n"
+                    "Answer with a single-digit number, corresponding to the option number."
+                )
+            )
 
             is_question = [False] * len(script)
             is_question[-1] = True
@@ -151,7 +164,9 @@ class ChapterBreakDataset(DatasetInterface):
                 script=script,
                 expected_responses=[str(answer)],
                 is_question=is_question,
-                waits=[WaitCreator.create_wait() for _ in is_question],  # This test is to happen uninterruptedly
+                waits=[
+                    WaitCreator.create_wait() for _ in is_question
+                ],  # This test is to happen uninterruptedly
             )
             example_list.append(example)
 

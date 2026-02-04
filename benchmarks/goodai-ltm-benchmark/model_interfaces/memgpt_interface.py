@@ -109,7 +109,9 @@ class MemGPTChatSession(ChatSession):
 
     def reset(self):
         self.agent_initialised = True
-        self.client.server.delete_agent(self.client.user_id, self.agent_id_from_name(self.agent_name))
+        self.client.server.delete_agent(
+            self.client.user_id, self.agent_id_from_name(self.agent_name)
+        )
         self.agent_info = self.client.create_agent(name=self.agent_name)
         self.save()
 

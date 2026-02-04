@@ -26,20 +26,30 @@ def make_testdef_path(run_name: str, dataset_name: str, example_id: str) -> Path
     return TESTS_DIR.joinpath(f"{run_name}/definitions/{dataset_name}/{example_id}.def.json")
 
 
-def make_result_path(run_name: str, agent_name: str, dataset_name: str, example_id: str, repetition: int | str) -> Path:
-    return make_run_path(run_name, agent_name).joinpath(f"{dataset_name}/{example_id}_{repetition}.json")
+def make_result_path(
+    run_name: str, agent_name: str, dataset_name: str, example_id: str, repetition: int | str
+) -> Path:
+    return make_run_path(run_name, agent_name).joinpath(
+        f"{dataset_name}/{example_id}_{repetition}.json"
+    )
 
 
-def gather_testdef_files(run_name: str = "*", dataset_name: str = "*", example_id: str = "*") -> list[str]:
+def gather_testdef_files(
+    run_name: str = "*", dataset_name: str = "*", example_id: str = "*"
+) -> list[str]:
     return glob(str(make_testdef_path(run_name, dataset_name, example_id)))
 
 
-def gather_result_files(run_name: str = "*", agent_name: str = "*", dataset_name: str = "*") -> list[str]:
+def gather_result_files(
+    run_name: str = "*", agent_name: str = "*", dataset_name: str = "*"
+) -> list[str]:
     return glob(str(make_result_path(run_name, agent_name, dataset_name, "*", "*")))
 
 
 def gather_persistence_files(run_name: str = "*", agent_name: str = "*") -> list[str]:
-    return glob(str(make_runstats_path(run_name, agent_name))) + glob(str(make_master_log_path(run_name, agent_name)))
+    return glob(str(make_runstats_path(run_name, agent_name))) + glob(
+        str(make_master_log_path(run_name, agent_name))
+    )
 
 
 def gather_runstats_files(run_name: str = "*", agent_name: str = "*") -> list[str]:
@@ -58,7 +68,7 @@ def parse_result_path(path: Path | str) -> dict[str, str]:
         agent_name=agent_name,
         dataset_name=dataset_name,
         example_id="_".join(name_parts[:-1]),
-        repetition=int(name_parts[-1])
+        repetition=int(name_parts[-1]),
     )
 
 
@@ -67,5 +77,5 @@ def parse_definition_path(path: Path | str) -> dict[str, str]:
     return dict(
         benchmark_name=benchmark_name,
         dataset_name=dataset_name,
-        example_id=int(definition_fname.removesuffix(".def.json"))
+        example_id=int(definition_fname.removesuffix(".def.json")),
     )

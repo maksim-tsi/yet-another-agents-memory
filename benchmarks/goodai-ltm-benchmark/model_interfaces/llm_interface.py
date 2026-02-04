@@ -5,8 +5,15 @@ from typing import Optional
 
 from model_interfaces.interface import ChatSession
 from utils.json_utils import CustomEncoder
-from utils.llm import LLMContext, make_user_message, make_assistant_message, make_system_message, \
-    get_max_prompt_size, ask_llm, count_tokens_for_model
+from utils.llm import (
+    LLMContext,
+    make_user_message,
+    make_assistant_message,
+    make_system_message,
+    get_max_prompt_size,
+    ask_llm,
+    count_tokens_for_model,
+)
 
 _system_prompt = "You are a helpful assistant."
 
@@ -43,8 +50,13 @@ class LLMChatSession(ChatSession):
         self.context.append(make_user_message(user_message))
         if agent_response is None:
             c_callback = None if self.is_local else cost_callback
-            response = ask_llm(self.context, self.model, context_length=self.max_prompt_size, cost_callback=c_callback,
-                               max_response_tokens=self.max_response_tokens)
+            response = ask_llm(
+                self.context,
+                self.model,
+                context_length=self.max_prompt_size,
+                cost_callback=c_callback,
+                max_response_tokens=self.max_response_tokens,
+            )
         else:
             response = agent_response
 
@@ -73,7 +85,9 @@ class LLMChatSession(ChatSession):
 
 @dataclass
 class TimestampLLMChatSession(LLMChatSession):
-    system_prompt: str = "You are a helpful assistant. Prior interactions with the user are tagged with a timestamp."
+    system_prompt: str = (
+        "You are a helpful assistant. Prior interactions with the user are tagged with a timestamp."
+    )
     history: list = field(default_factory=list)
 
     @staticmethod
@@ -97,7 +111,9 @@ class TimestampLLMChatSession(LLMChatSession):
             if role == "user":
                 timestamp_dt = m["timestamp"]
                 timestamp = timestamp_dt.timestamp()
-                elapsed_desc = self.get_elapsed_time_descriptor(timestamp, datetime.now().timestamp())
+                elapsed_desc = self.get_elapsed_time_descriptor(
+                    timestamp, datetime.now().timestamp()
+                )
                 new_content = f"[{elapsed_desc}]\n{new_content}"
             return {"role": role, "content": new_content}
 

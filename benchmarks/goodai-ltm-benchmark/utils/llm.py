@@ -52,7 +52,9 @@ def _get_client() -> genai.Client:
     return _CLIENT
 
 
-def _build_gemini_contents(context: LLMContext) -> tuple[list[types.Content], Optional[list[types.Part]]]:
+def _build_gemini_contents(
+    context: LLMContext,
+) -> tuple[list[types.Content], Optional[list[types.Part]]]:
     system_parts: list[str] = []
     contents: list[types.Content] = []
     for message in context:
@@ -82,7 +84,9 @@ def _count_tokens_response_total(response: object) -> Optional[int]:
     return total
 
 
-def count_tokens_gemini(model: str, context: Optional[LLMContext] = None, text: Optional[str] = None) -> int:
+def count_tokens_gemini(
+    model: str, context: Optional[LLMContext] = None, text: Optional[str] = None
+) -> int:
     client = _get_client()
     if context is not None:
         contents, system_instruction = _build_gemini_contents(context)
@@ -174,7 +178,9 @@ def ask_gemini(
     max_response_tokens: int = 1024,
 ) -> str:
     model = model or GEMINI_DEFAULT_MODEL
-    max_response_tokens = GEMINI_MAX_OUTPUT_TOKENS if max_response_tokens is None else max_response_tokens
+    max_response_tokens = (
+        GEMINI_MAX_OUTPUT_TOKENS if max_response_tokens is None else max_response_tokens
+    )
     max_context = context_length or GEMINI_MAX_CONTEXT_TOKENS
     context, _ = ensure_context_len(context, model, max_context, response_len=max_response_tokens)
 
@@ -190,7 +196,9 @@ def ask_gemini(
     )
 
     if prompt_tokens + max_response_tokens > max_context:
-        raise GeminiContextWindowExceededError(model, max_context, prompt_tokens + max_response_tokens)
+        raise GeminiContextWindowExceededError(
+            model, max_context, prompt_tokens + max_response_tokens
+        )
 
     config_params = {
         "temperature": temperature,
@@ -280,7 +288,7 @@ def count_tokens_for_model(
     token_count = 0
 
     if model and "huggingface" in model.lower():
-        model_only = model[model.index("/") + 1:]
+        model_only = model[model.index("/") + 1 :]
         tokeniser = AutoTokenizer.from_pretrained(model_only)
 
         if context:
@@ -319,7 +327,7 @@ def count_tokens_for_model(
 
 
 def create_huggingface_chat_context(model: str, context: LLMContext):
-    model_only = model[model.index("/") + 1:]
+    model_only = model[model.index("/") + 1 :]
     tokenizer = AutoTokenizer.from_pretrained(model_only)
     c = context[1:] if context[0]["role"] == "system" else context
     return tokenizer.apply_chat_template(c, tokenize=False)

@@ -5,9 +5,9 @@ import click
 from runner.run_benchmark import get_chat_session
 
 
-@click.command('run-interactive')
-@click.option('-a', '--agent', required=True, type=str)
-@click.option('-p', '--max-prompt-size', required=False, type=int, default=2000)
+@click.command("run-interactive")
+@click.option("-a", "--agent", required=True, type=str)
+@click.option("-p", "--max-prompt-size", required=False, type=int, default=2000)
 def main(agent: str, max_prompt_size: int):
     chat_session = get_chat_session(agent, max_prompt_size)
     while True:
@@ -24,5 +24,5 @@ def main(agent: str, max_prompt_size: int):
         print(f"Assistant: {response}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -10,7 +10,9 @@ model = "gpt-3.5-turbo-0125"
 ds = ChapterBreakDataset(split="ao3")
 samples = ds.get_samples(ds.load_data())
 s = samples[1]
-llm = lambda ctx: ask_llm(ctx, model, temperature=0, context_length=16384, cost_callback=cost_callback)
+llm = lambda ctx: ask_llm(
+    ctx, model, temperature=0, context_length=16384, cost_callback=cost_callback
+)
 fix_commas = lambda txt: txt.replace("’", "'")
 last_pages = fix_commas(s["ctx"])
 continuation = fix_commas(s["pos"])
@@ -27,12 +29,12 @@ def cost_callback(llm_cost: float):
 def parse_list(s: str) -> list:
     i = s.find("[")
     j = s.rfind("]")
-    return json.loads(s[i:j + 1])
+    return json.loads(s[i : j + 1])
 
 
-#----------------------------------#
+# ----------------------------------#
 # Extract differentiating elements #
-#----------------------------------#
+# ----------------------------------#
 extraction_prompt_template = """
 Take a look at this text:
 
@@ -60,10 +62,12 @@ for i, txt in enumerate(negs):
 
 context = [
     make_system_message("You are an assistant for finding connections between texts."),
-    make_user_message(extraction_prompt_template.format(
-        pos=continuation,
-        others="\n\n".join(others),
-    ))
+    make_user_message(
+        extraction_prompt_template.format(
+            pos=continuation,
+            others="\n\n".join(others),
+        )
+    ),
 ]
 
 print("--- True Continuation ---")
@@ -75,9 +79,9 @@ elements = "\n".join("- " + el for el in elements)
 print("\n--- Differentiating elements ---")
 print(elements)
 
-#------------------------------------#
+# ------------------------------------#
 # Find those elements in the context #
-#------------------------------------#
+# ------------------------------------#
 find_elements_system_template = """
 You are an expert in literature.
 
@@ -111,11 +115,13 @@ references = list()
 
 for page in ctx_pages:
     context = [
-        make_system_message(find_elements_system_template.format(
-            continuation=continuation,
-            elements=elements,
-        )),
-        make_user_message(page)
+        make_system_message(
+            find_elements_system_template.format(
+                continuation=continuation,
+                elements=elements,
+            )
+        ),
+        make_user_message(page),
     ]
     response_references = llm(context)
     references.extend(parse_list(response_references))

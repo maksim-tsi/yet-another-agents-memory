@@ -137,7 +137,9 @@ class RAGAgent(BaseAgent):
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.warning("Failed to index turn in vector store: %s", exc)
 
-    async def _query_similar(self, vector_store: Any, request: RunTurnRequest) -> List[Dict[str, Any]]:
+    async def _query_similar(
+        self, vector_store: Any, request: RunTurnRequest
+    ) -> List[Dict[str, Any]]:
         """Retrieve similar documents from the vector store."""
         try:
             return vector_store.query_similar(

@@ -25,7 +25,9 @@ def context_block() -> ContextBlock:
 def llm_client(mocker):
     """Provide a stub LLM client."""
     client = mocker.Mock()
-    client.generate = mocker.AsyncMock(return_value=LLMResponse(text="Acknowledged.", provider="stub"))
+    client.generate = mocker.AsyncMock(
+        return_value=LLMResponse(text="Acknowledged.", provider="stub")
+    )
     client.available_providers = mocker.Mock(return_value=["stub"])
     return client
 

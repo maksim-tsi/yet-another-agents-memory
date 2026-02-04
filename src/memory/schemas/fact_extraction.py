@@ -44,7 +44,14 @@ FACT_EXTRACTION_SCHEMA = types.Schema(
                     "type": types.Schema(
                         type=types.Type.STRING,
                         description="Type of fact: preference (user likes/dislikes), constraint (limitation/requirement), entity (person/place/thing), mention (reference to something), relationship (connection between entities), event (something that happened).",
-                        enum=["preference", "constraint", "entity", "mention", "relationship", "event"],
+                        enum=[
+                            "preference",
+                            "constraint",
+                            "entity",
+                            "mention",
+                            "relationship",
+                            "event",
+                        ],
                     ),
                     "category": types.Schema(
                         type=types.Type.STRING,

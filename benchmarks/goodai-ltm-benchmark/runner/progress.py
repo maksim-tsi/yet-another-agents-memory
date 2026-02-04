@@ -1,6 +1,7 @@
 try:
     import tkinter as tk
     from tkinter import ttk
+
     _TK_AVAILABLE = True
 except ModuleNotFoundError:  # pragma: no cover - headless environments
     tk = None
@@ -19,6 +20,7 @@ def blinker_gen():
 
 
 if _TK_AVAILABLE:
+
     class ProgressDialog(tk.Tk):
         def __init__(self, num_tests: int, isolated: bool):
             super().__init__()
@@ -35,14 +37,18 @@ if _TK_AVAILABLE:
             self._label = tk.Label(self, text="Setting up...")
             self._label.pack(padx=20, pady=(20, 5))
 
-            self._progressbar = ttk.Progressbar(self, orient="horizontal", length=200, mode="determinate")
+            self._progressbar = ttk.Progressbar(
+                self, orient="horizontal", length=200, mode="determinate"
+            )
             self._progressbar.pack(padx=20, pady=5)
             self.update_idletasks()
 
         def notify_running(self, example: TestExample):
             self._at = max(self._at, example.start_token)
             self._memory_span = self._memory_span or example.dataset_generator.memory_span
-            self._test_info[example.unique_id] = dict(start=example.start_token, span=self._memory_span)
+            self._test_info[example.unique_id] = dict(
+                start=example.start_token, span=self._memory_span
+            )
             self.update_stats()
 
         def notify_message(self, token_count: int):
@@ -64,14 +70,19 @@ if _TK_AVAILABLE:
                 score, std = mean_std(scores)
                 total_score += score
                 total_std += std
-            self._label.config(text=f"{next(self._blinker)} Score: {total_score:.1f} ± {total_std:.1f}")
+            self._label.config(
+                text=f"{next(self._blinker)} Score: {total_score:.1f} ± {total_std:.1f}"
+            )
 
             if self._isolated:
                 progress = len(self._test_info) / self._num_tests
             else:
                 total = [info["span"] for info in self._test_info.values()]
                 total += [self._memory_span] * (self._num_tests - len(total))
-                progress = sum(min(max(0, self._at - info["start"]), info["span"]) for info in self._test_info.values())
+                progress = sum(
+                    min(max(0, self._at - info["start"]), info["span"])
+                    for info in self._test_info.values()
+                )
                 progress /= max(sum(total), 1)
             self._progressbar["value"] = int(100 * progress)
             self.update_idletasks()
@@ -79,6 +90,7 @@ if _TK_AVAILABLE:
         def close(self):
             self.destroy()
 else:
+
     class ProgressDialog:  # pragma: no cover - headless fallback
         def __init__(self, num_tests: int, isolated: bool):
             self._num_tests = num_tests
@@ -91,7 +103,9 @@ else:
         def notify_running(self, example: TestExample):
             self._at = max(self._at, example.start_token)
             self._memory_span = self._memory_span or example.dataset_generator.memory_span
-            self._test_info[example.unique_id] = dict(start=example.start_token, span=self._memory_span)
+            self._test_info[example.unique_id] = dict(
+                start=example.start_token, span=self._memory_span
+            )
 
         def notify_message(self, token_count: int):
             self._at = token_count

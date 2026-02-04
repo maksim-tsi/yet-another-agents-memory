@@ -16,7 +16,9 @@ def colour_print(colour: str, *args, end="\n", sep=" ", **kwargs):
     colour = colour.upper()
     if colour.startswith("LIGHT"):
         colour += "_EX"
-    print(getattr(Fore, colour) + sep.join(str(a) for a in args), end=end + Style.RESET_ALL, **kwargs)
+    print(
+        getattr(Fore, colour) + sep.join(str(a) for a in args), end=end + Style.RESET_ALL, **kwargs
+    )
 
 
 def multiline_input(message: str) -> str:
@@ -35,9 +37,9 @@ def multiline_input(message: str) -> str:
 
 def ordinal(n: int) -> str:
     if 11 <= (n % 100) <= 13:
-        suffix = 'th'
+        suffix = "th"
     else:
-        suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
+        suffix = ["th", "st", "nd", "rd", "th"][min(n % 10, 4)]
     return str(n) + suffix
 
 

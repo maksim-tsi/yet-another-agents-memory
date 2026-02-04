@@ -3,7 +3,12 @@ import os
 from typing import Iterator
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from dataset_interfaces.interface import DynamicDataset, DynamicExample, TestAction, SendMessageAction
+from dataset_interfaces.interface import (
+    DynamicDataset,
+    DynamicExample,
+    TestAction,
+    SendMessageAction,
+)
 from utils.llm import make_system_message, make_user_message, LLMContext
 from goodai.helpers.json_helper import sanitize_and_parse_json
 
@@ -40,7 +45,6 @@ class RestaurantExample(DynamicExample):
         self.messages.append(f"Diner: {action.reply}")
 
     def restaurant_script_iter(self) -> Iterator[TestAction]:
-
         # Setup
         yield super().say(
             "When I talk to you as the waiter (e.g. 'Waiter: what will it be sir?'), then you will reply as if you were the "
@@ -54,7 +58,9 @@ class RestaurantExample(DynamicExample):
             f"{self.dataset_generator.menu}\n\nIn the meantime, what would you like to drink?",
         )
         self.messages[-2] = self.messages[-2].splitlines()[-1]
-        self.expected_responses.append("The agent follows the role of a customer at a restaurant and orders a drink.")
+        self.expected_responses.append(
+            "The agent follows the role of a customer at a restaurant and orders a drink."
+        )
         self.check_role_following()
         drinks = self.extract_order_items(drinks=True)
         drinks_str = enumerate_str(drinks)
@@ -92,7 +98,9 @@ class RestaurantExample(DynamicExample):
         # Say sorry and change the order
         order.remove(old_item)
         order.extend(new_items)
-        yield from self.say(f"{new_items_str} it is. Sorry again for the inconvenience.", question=False)
+        yield from self.say(
+            f"{new_items_str} it is. Sorry again for the inconvenience.", question=False
+        )
         yield self.wait(percentage_finished=80)
 
         # Alter the order -> does the agent notice?
@@ -112,10 +120,14 @@ class RestaurantExample(DynamicExample):
 
     def extract_order_items(self, drinks: bool) -> list[str]:
         conversation = "\n".join(self.messages)
-        context = [make_user_message(extract_items_prompt.format(
-            conversation=conversation,
-            menu=self.dataset_generator.menu,
-        ))]
+        context = [
+            make_user_message(
+                extract_items_prompt.format(
+                    conversation=conversation,
+                    menu=self.dataset_generator.menu,
+                )
+            )
+        ]
         response_json = self.ask_llm(context, model=_get_extract_model())
 
         try:
@@ -135,13 +147,18 @@ class RestaurantExample(DynamicExample):
             if drinks:
                 items.append(item_dict["item"])
                 continue
-            if item_dict["off_menu"] and item_dict["item"].lower() not in self.dataset_generator.menu.lower():
+            if (
+                item_dict["off_menu"]
+                and item_dict["item"].lower() not in self.dataset_generator.menu.lower()
+            ):
                 self.reasoning.append(f"{item_dict['item']} is not in the menu.")
                 raise RestaurantOrderFailed
             menu_nr = item_dict["menu_nr"]
             if isinstance(menu_nr, str):
                 menu_nr = int(menu_nr.strip())
-            num_dishes = len(self.dataset_generator.menu_items) - len(self.dataset_generator.menu_dict["Beverages"])
+            num_dishes = len(self.dataset_generator.menu_items) - len(
+                self.dataset_generator.menu_dict["Beverages"]
+            )
             if not (1 <= menu_nr <= num_dishes):
                 self.reasoning.append(f"{item_dict['item']} is not in the menu.")
                 raise RestaurantOrderFailed
@@ -189,11 +206,13 @@ class RestaurantExample(DynamicExample):
     def check_role_following(self):
         context = [
             make_system_message(role_eval_prompt),
-            make_user_message(f"Participant: {self.action.reply}")
+            make_user_message(f"Participant: {self.action.reply}"),
         ]
         follows_role = self.gpt_bool_check(context, "follows_role", model=_get_eval_model())
         if not follows_role:
-            self.reasoning.append("The agent did not follow the role of a customer at a restaurant.")
+            self.reasoning.append(
+                "The agent did not follow the role of a customer at a restaurant."
+            )
             raise RestaurantOrderFailed
 
     def check_recalls_drink(self, drinks: list[str]):
@@ -201,10 +220,12 @@ class RestaurantExample(DynamicExample):
         self.expected_responses.append(f"The agent recalls that it was drinking {drinks_str}.")
         context = [
             make_system_message(drink_recall_system_prompt),
-            make_user_message(drink_recall_user_prompt.format(
-                drinks=drinks_str,
-                message=self.action.reply,
-            ))
+            make_user_message(
+                drink_recall_user_prompt.format(
+                    drinks=drinks_str,
+                    message=self.action.reply,
+                )
+            ),
         ]
         recalls = self.gpt_bool_check(context, "recalls")
         recall_str = "recalled perfectly" if recalls else "forgot"
@@ -231,13 +252,17 @@ class RestaurantDataset(DynamicDataset):
         "ordering drinks, main course, side, etc. plus a series of unexpected events that will require the agent to "
         "take reasonable decisions, based on past events."
     )
-    reset_message: str = "Let's not pretend to be at a restaurant anymore. Please also forget everything about it."
+    reset_message: str = (
+        "Let's not pretend to be at a restaurant anymore. Please also forget everything about it."
+    )
 
     def __post_init__(self):
         self.menu_dict: OrderedDict = self.load_json("menu.json", object_pairs_hook=OrderedDict)
         self.menu_items = [item for content in self.menu_dict.values() for item in content]
         self.menu: str = "\n\n".join(
-            "\n".join([f"{section}:"] + [f"{self.menu_items.index(item) + 1}. {item}" for item in content])
+            "\n".join(
+                [f"{section}:"] + [f"{self.menu_items.index(item) + 1}. {item}" for item in content]
+            )
             for section, content in self.menu_dict.items()
         )
 

@@ -6,7 +6,8 @@ from utils.llm import (
     LLMContext,
     make_system_message,
     make_user_message,
-    make_assistant_message, count_tokens_for_model,
+    make_assistant_message,
+    count_tokens_for_model,
 )
 
 
@@ -55,6 +56,6 @@ class CostEstimationChatSession(ChatSession):
 
     def save(self):
         pass
-    
+
     def load(self):
         pass

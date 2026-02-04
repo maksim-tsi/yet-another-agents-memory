@@ -19,6 +19,7 @@ class GeminiProvider(BaseProvider):
     def __init__(self, api_key: str):
         super().__init__(name="gemini")
         from google import genai
+
         self.client = genai.Client(api_key=api_key)
 
     async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
@@ -35,28 +36,28 @@ class GeminiProvider(BaseProvider):
                     parts=[types.Part.from_text(text=prompt)],
                 )
             ]
-            
+
             # Build config parameters
             config_params = {
                 "temperature": kwargs.get("temperature", 0.0),
                 "max_output_tokens": kwargs.get("max_output_tokens", 8192),
             }
-            
+
             # Add system instruction if provided
             system_instruction = kwargs.get("system_instruction")
             if system_instruction:
                 config_params["system_instruction"] = [
                     types.Part.from_text(text=system_instruction)
                 ]
-            
+
             # Add structured output if response_schema provided
             response_schema = kwargs.get("response_schema")
             if response_schema:
                 config_params["response_mime_type"] = "application/json"
                 config_params["response_schema"] = response_schema
-            
+
             config = types.GenerateContentConfig(**config_params)
-            
+
             response = self.client.models.generate_content(
                 model=model,
                 contents=contents,
@@ -75,36 +76,33 @@ class GeminiProvider(BaseProvider):
                 "total": getattr(usage, "total_token_count", None),
             }
 
-        return LLMResponse(text=getattr(response, "text", ""), provider=self.name, model=model, usage=usage_dict)
+        return LLMResponse(
+            text=getattr(response, "text", ""), provider=self.name, model=model, usage=usage_dict
+        )
 
     async def get_embedding(
-        self,
-        text: str,
-        model: Optional[str] = None,
-        output_dimensionality: int = 768
+        self, text: str, model: Optional[str] = None, output_dimensionality: int = 768
     ) -> List[float]:
         """Generate embedding using Gemini embedding model.
-        
+
         Args:
             text: Text to embed.
             model: Embedding model name (default: gemini-embedding-001).
             output_dimensionality: Output vector dimension (default: 768).
                 Gemini supports 128-3072; recommended: 768, 1536, 3072.
-            
+
         Returns:
             List of floats representing the embedding vector.
         """
         from google.genai import types
-        
+
         model = model or "gemini-embedding-001"
 
         def sync_call():
             response = self.client.models.embed_content(
                 model=model,
                 contents=text,
-                config=types.EmbedContentConfig(
-                    output_dimensionality=output_dimensionality
-                ),
+                config=types.EmbedContentConfig(output_dimensionality=output_dimensionality),
             )
             return response
 
@@ -112,7 +110,7 @@ class GeminiProvider(BaseProvider):
         logger.debug(
             "Gemini embedding generated: model=%s, dim=%d",
             model,
-            len(response.embeddings[0].values)
+            len(response.embeddings[0].values),
         )
         # Response structure: response.embeddings[0].values
         return list(response.embeddings[0].values)
@@ -146,6 +144,7 @@ class GroqProvider(BaseProvider):
     def __init__(self, api_key: str):
         super().__init__(name="groq")
         from groq import Groq
+
         self.client = Groq(api_key=api_key)
 
     async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
@@ -181,6 +180,7 @@ class GroqProvider(BaseProvider):
 
     async def health_check(self) -> ProviderHealth:
         try:
+
             def sync_call():
                 # Minimal call to validate client
                 return self.client.chat.completions.create(
@@ -201,6 +201,7 @@ class MistralProvider(BaseProvider):
     def __init__(self, api_key: str):
         super().__init__(name="mistral")
         from mistralai import Mistral
+
         self.client = Mistral(api_key=api_key)
 
     async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
@@ -236,6 +237,7 @@ class MistralProvider(BaseProvider):
 
     async def health_check(self) -> ProviderHealth:
         try:
+
             def sync_call():
                 return self.client.chat.complete(
                     model="mistral-small-latest",

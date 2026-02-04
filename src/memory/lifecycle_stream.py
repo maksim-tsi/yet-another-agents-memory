@@ -45,11 +45,11 @@ logger = logging.getLogger(__name__)
 class LifecycleStreamConsumer:
     """
     Redis Streams consumer for lifecycle event coordination.
-    
+
     Processes events from the global {mas}:lifecycle stream using consumer
     groups for reliable delivery and horizontal scaling.
     """
-    
+
     def __init__(
         self,
         redis_client: redis.Redis,
@@ -60,7 +60,7 @@ class LifecycleStreamConsumer:
     ):
         """
         Initialize lifecycle stream consumer.
-        
+
         Args:
             redis_client: Async Redis client
             consumer_group: Consumer group name (e.g., "consolidation-workers")
@@ -76,14 +76,14 @@ class LifecycleStreamConsumer:
         self.stream_key = NamespaceManager.lifecycle_stream()
         self._running = False
         self._handlers: Dict[str, Callable[[Dict[str, Any]], Awaitable[None]]] = {}
-    
+
     async def initialize(self) -> None:
         """
         Initialize consumer group (idempotent).
-        
+
         Creates the consumer group if it doesn't exist. Safe to call multiple
         times - will succeed even if group already exists.
-        
+
         Raises:
             redis.RedisError: If consumer group creation fails
         """
@@ -97,19 +97,16 @@ class LifecycleStreamConsumer:
                 mkstream=True,
             )
             logger.info(
-                f"Created consumer group: {self.consumer_group} "
-                f"on stream {self.stream_key}"
+                f"Created consumer group: {self.consumer_group} on stream {self.stream_key}"
             )
-        
+
         except redis.ResponseError as e:
             # Group already exists - this is fine
             if "BUSYGROUP" in str(e):
-                logger.debug(
-                    f"Consumer group {self.consumer_group} already exists"
-                )
+                logger.debug(f"Consumer group {self.consumer_group} already exists")
             else:
                 raise
-    
+
     def register_handler(
         self,
         event_type: str,
@@ -117,43 +114,40 @@ class LifecycleStreamConsumer:
     ) -> None:
         """
         Register an async handler for a specific event type.
-        
+
         Args:
             event_type: Event type to handle (e.g., "promotion", "consolidation")
             handler: Async function that processes the event
-            
+
         Example:
             async def handle_promotion(event: Dict[str, Any]):
                 session_id = event["session_id"]
                 data = json.loads(event["data"])
                 # Process promotion...
-            
+
             consumer.register_handler("promotion", handle_promotion)
         """
         self._handlers[event_type] = handler
         logger.info(f"Registered handler for event type: {event_type}")
-    
+
     async def start(self) -> None:
         """
         Start consuming events from the stream.
-        
+
         Runs an infinite loop that:
         1. Reads messages from the stream (XREADGROUP)
         2. Processes each message with registered handlers
         3. Acknowledges successful processing (XACK)
         4. Retries failed messages
-        
+
         This method blocks until stop() is called.
         """
         self._running = True
-        logger.info(
-            f"Starting consumer: {self.consumer_name} "
-            f"(group: {self.consumer_group})"
-        )
-        
+        logger.info(f"Starting consumer: {self.consumer_name} (group: {self.consumer_group})")
+
         # Process any pending messages first (unacknowledged from previous run)
         await self._process_pending_messages()
-        
+
         # Main event loop
         while self._running:
             try:
@@ -165,39 +159,39 @@ class LifecycleStreamConsumer:
                     count=self.batch_size,
                     block=self.block_ms,
                 )
-                
+
                 if not messages:
                     # No new messages (timeout)
                     continue
-                
+
                 # Process each message
                 for stream_key, stream_messages in messages:
                     for message_id, fields in stream_messages:
                         await self._process_message(message_id, fields)
-            
+
             except redis.RedisError as e:
                 logger.error(f"Stream read error: {e}")
                 await asyncio.sleep(1)  # Back off on error
-            
+
             except Exception as e:
                 logger.error(f"Unexpected error in consumer loop: {e}")
                 await asyncio.sleep(1)
-        
+
         logger.info(f"Consumer stopped: {self.consumer_name}")
-    
+
     async def stop(self) -> None:
         """
         Stop consuming events.
-        
+
         Sets the running flag to False, causing the start() loop to exit.
         """
         self._running = False
         logger.info(f"Stopping consumer: {self.consumer_name}")
-    
+
     async def _process_pending_messages(self) -> None:
         """
         Process pending (unacknowledged) messages from previous runs.
-        
+
         Uses XPENDING and XCLAIM to recover messages that were read but not
         acknowledged (e.g., due to consumer crash).
         """
@@ -210,12 +204,10 @@ class LifecycleStreamConsumer:
                 max="+",
                 count=100,
             )
-            
+
             if pending:
-                logger.info(
-                    f"Found {len(pending)} pending messages for {self.consumer_name}"
-                )
-                
+                logger.info(f"Found {len(pending)} pending messages for {self.consumer_name}")
+
                 for msg in pending:
                     message_id = msg["message_id"]
                     # Claim the message for this consumer to avoid duplicate work
@@ -229,10 +221,10 @@ class LifecycleStreamConsumer:
 
                     for _, fields in claimed:
                         await self._process_message(message_id, fields)
-        
+
         except redis.RedisError as e:
             logger.error(f"Error processing pending messages: {e}")
-    
+
     async def _process_message(
         self,
         message_id: str,
@@ -240,7 +232,7 @@ class LifecycleStreamConsumer:
     ) -> None:
         """
         Process a single message and acknowledge if successful.
-        
+
         Args:
             message_id: Redis stream message ID
             fields: Message fields (event_type, session_id, timestamp, data)
@@ -248,49 +240,42 @@ class LifecycleStreamConsumer:
         try:
             # Decode fields
             event = {
-                key.decode('utf-8') if isinstance(key, bytes) else key: 
-                value.decode('utf-8') if isinstance(value, bytes) else value
+                key.decode("utf-8") if isinstance(key, bytes) else key: value.decode("utf-8")
+                if isinstance(value, bytes)
+                else value
                 for key, value in fields.items()
             }
-            
+
             event_type = event.get("type")
             session_id = event.get("session_id")
-            
-            logger.debug(
-                f"Processing event: {event_type} "
-                f"(session={session_id}, id={message_id})"
-            )
-            
+
+            logger.debug(f"Processing event: {event_type} (session={session_id}, id={message_id})")
+
             # Find and execute handler
             handler = self._handlers.get(event_type)
-            
+
             if handler:
                 await handler(event)
             else:
-                logger.warning(
-                    f"No handler registered for event type: {event_type}"
-                )
-            
+                logger.warning(f"No handler registered for event type: {event_type}")
+
             # Acknowledge successful processing
             await self.redis.xack(
                 self.stream_key,
                 self.consumer_group,
                 message_id,
             )
-            
+
             logger.debug(f"Acknowledged message: {message_id}")
-        
+
         except Exception as e:
-            logger.error(
-                f"Failed to process message {message_id}: {e}. "
-                "Message will be retried."
-            )
+            logger.error(f"Failed to process message {message_id}: {e}. Message will be retried.")
             # Don't ACK - message will remain pending for retry
-    
+
     async def health_check(self) -> Dict[str, Any]:
         """
         Check consumer health and stream status.
-        
+
         Returns:
             Health check result with consumer and stream metrics
         """
@@ -306,7 +291,7 @@ class LifecycleStreamConsumer:
                 groups_info = await self.redis.xinfo_groups(self.stream_key)
             except redis.ResponseError:
                 groups_info = []
-            
+
             # Find our group
             our_group = None
             for group in groups_info:
@@ -315,7 +300,7 @@ class LifecycleStreamConsumer:
                 if decoded == self.consumer_group:
                     our_group = group
                     break
-            
+
             # Get pending count
             try:
                 pending = await self.redis.xpending(
@@ -325,7 +310,7 @@ class LifecycleStreamConsumer:
                 pending_count = pending["pending"]
             except redis.ResponseError:
                 pending_count = 0
-            
+
             return {
                 "status": "healthy",
                 "running": self._running,
@@ -337,9 +322,11 @@ class LifecycleStreamConsumer:
                 "group_info": {
                     "pending": our_group.get("pending", 0) if our_group else 0,
                     "consumers": our_group.get("consumers", 0) if our_group else 0,
-                } if our_group else None,
+                }
+                if our_group
+                else None,
             }
-        
+
         except Exception as e:
             return {
                 "status": "unhealthy",
@@ -350,20 +337,20 @@ class LifecycleStreamConsumer:
 class LifecycleStreamProducer:
     """
     Convenience wrapper for publishing lifecycle events.
-    
+
     This is a thin wrapper around NamespaceManager.publish_lifecycle_event()
     for consistency with the consumer API.
     """
-    
+
     def __init__(self, redis_client: redis.Redis):
         """
         Initialize lifecycle stream producer.
-        
+
         Args:
             redis_client: Async Redis client
         """
         self.namespace_manager = NamespaceManager(redis_client)
-    
+
     async def publish(
         self,
         event_type: str,
@@ -372,12 +359,12 @@ class LifecycleStreamProducer:
     ) -> str:
         """
         Publish a lifecycle event to the global stream.
-        
+
         Args:
             event_type: Event type (e.g., "promotion", "consolidation")
             session_id: Session ID that triggered the event
             data: Event payload (must be JSON-serializable)
-            
+
         Returns:
             Event ID from Redis XADD
         """

@@ -10,7 +10,14 @@ model = "gpt-4-turbo-preview"
 ds = ChapterBreakDataset(split="ao3")
 samples = ds.get_samples(ds.load_data())
 s = samples[1]
-llm = lambda ctx: ask_llm(ctx, model, temperature=0, context_length=16384, cost_callback=cost_callback, max_response_tokens=1024)
+llm = lambda ctx: ask_llm(
+    ctx,
+    model,
+    temperature=0,
+    context_length=16384,
+    cost_callback=cost_callback,
+    max_response_tokens=1024,
+)
 fix_commas = lambda txt: txt.replace("’", "'")
 last_pages = fix_commas(s["ctx"])
 continuation = fix_commas(s["pos"])
@@ -28,7 +35,7 @@ def parse(s: str, sep: str = "[]") -> list | dict:
     try:
         i = s.find(sep[0])
         j = s.rfind(sep[1])
-        return json.loads(s[i:j + 1])
+        return json.loads(s[i : j + 1])
     except json.decoder.JSONDecodeError:
         return eval(sep)
 
@@ -41,9 +48,9 @@ def parse_dict(s: str) -> dict:
     return parse(s, "{}")
 
 
-#----------------------------------#
+# ----------------------------------#
 # Extract differentiating elements #
-#----------------------------------#
+# ----------------------------------#
 extraction_prompt_template = """
 Take a look at this text:
 
@@ -71,10 +78,12 @@ for i, txt in enumerate(negs):
 
 context = [
     make_system_message("You are an assistant for finding connections between texts."),
-    make_user_message(extraction_prompt_template.format(
-        pos=continuation,
-        others="\n\n".join(others),
-    ))
+    make_user_message(
+        extraction_prompt_template.format(
+            pos=continuation,
+            others="\n\n".join(others),
+        )
+    ),
 ]
 
 print("--- True Continuation ---")
@@ -89,9 +98,9 @@ print("\n--- Differentiating elements ---")
 print(elements)
 
 
-#------------------------------------#
+# ------------------------------------#
 # Find those elements in the context #
-#------------------------------------#
+# ------------------------------------#
 find_elements_system_template = """
 You are an expert in literature.
 
@@ -123,10 +132,12 @@ ctx_pages = split_in_pages(last_pages, 4096)
 references = list()
 for page in ctx_pages:
     context = [
-        make_system_message(find_elements_system_template.format(
-            continuation=continuation,
-            elements=elements,
-        )),
+        make_system_message(
+            find_elements_system_template.format(
+                continuation=continuation,
+                elements=elements,
+            )
+        ),
         make_user_message(find_elements_user_template.format(text=page)),
     ]
     response_references = llm(context)
@@ -171,14 +182,18 @@ for r in references:
     j = i + len(r) + context_span
     i = max(i - context_span, 0)
     context = [
-        make_system_message(filter_references_system_template.format(
-            continuation=continuation,
-            elements=elements,
-        )),
-        make_user_message(filter_references_user_template.format(
-            sentence=r,
-            context=last_pages[i:j],
-        )),
+        make_system_message(
+            filter_references_system_template.format(
+                continuation=continuation,
+                elements=elements,
+            )
+        ),
+        make_user_message(
+            filter_references_user_template.format(
+                sentence=r,
+                context=last_pages[i:j],
+            )
+        ),
     ]
     response_filter = llm(context)
     d = parse_dict(response_filter)

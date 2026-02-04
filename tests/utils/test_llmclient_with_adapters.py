@@ -32,7 +32,9 @@ def register_fake_groq(fake_client, monkeypatch):
 class SimpleResponse:
     def __init__(self, text: str):
         self.text = text
-        self.usage_metadata = SimpleNamespace(prompt_token_count=1, candidates_token_count=1, total_token_count=2)
+        self.usage_metadata = SimpleNamespace(
+            prompt_token_count=1, candidates_token_count=1, total_token_count=2
+        )
         self.usage = SimpleNamespace(prompt_tokens=1, completion_tokens=1, total_tokens=2)
         # groq and mistral style choices
         self.choices = [SimpleNamespace(message=SimpleNamespace(content=text))]
@@ -40,14 +42,20 @@ class SimpleResponse:
 
 class FakeGeminiClient:
     def __init__(self, response: SimpleResponse, raise_exc=None):
-        self.models = SimpleNamespace(generate_content=lambda *args, **kwargs: (_ for _ in ()).throw(raise_exc) if raise_exc else response)
+        self.models = SimpleNamespace(
+            generate_content=lambda *args, **kwargs: (_ for _ in ()).throw(raise_exc)
+            if raise_exc
+            else response
+        )
 
 
 class FakeGroqClient:
     def __init__(self, response: SimpleResponse, raise_exc=None):
         class Chat:
             def __init__(self, resp, raise_exc):
-                self.completions = SimpleNamespace(create=lambda *a, **k: (_ for _ in ()).throw(raise_exc) if raise_exc else resp)
+                self.completions = SimpleNamespace(
+                    create=lambda *a, **k: (_ for _ in ()).throw(raise_exc) if raise_exc else resp
+                )
 
         self.chat = Chat(response, raise_exc)
 

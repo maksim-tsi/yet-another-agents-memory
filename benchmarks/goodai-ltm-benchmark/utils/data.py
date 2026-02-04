@@ -26,6 +26,7 @@ def get_file(dataset_name: str, url: str, filepath: str, checksum=None) -> Path:
 
 def download_gdrive_file(file_id: str, destination: str | Path):
     import gdown
+
     url = f"https://drive.google.com/uc?id={file_id}"
     gdown.download(url, str(destination))
 
@@ -33,17 +34,20 @@ def download_gdrive_file(file_id: str, destination: str | Path):
 def download_file(url: str, file: Path):
     import tqdm
     from urllib.request import urlretrieve
-    pbar = tqdm.tqdm(unit='B', unit_scale=True, desc='Downloading {}'.format(file.name))
+
+    pbar = tqdm.tqdm(unit="B", unit_scale=True, desc="Downloading {}".format(file.name))
 
     def update_hook(block_number, read_size, total_size):
         pbar.total = total_size
         pbar.update(read_size)
+
     urlretrieve(url, file, reporthook=update_hook)
     pbar.clear()
 
 
 def check_file_hash(file: Path, hashcode: str):
     import hashlib
+
     sha256_hash = hashlib.sha256()
     with open(file, "rb") as f:
         for byte_block in iter(lambda: f.read(2**16), b""):
@@ -54,5 +58,6 @@ def check_file_hash(file: Path, hashcode: str):
 
 def load_b64(file: Path | str) -> str:
     import base64
+
     with open(file, "rb") as fd:
         return base64.b64encode(fd.read()).decode("utf-8")

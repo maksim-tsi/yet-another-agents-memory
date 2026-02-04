@@ -20,7 +20,7 @@ class LogEvent:
             "type": self.type.value,
             "timestamp": self.timestamp.timestamp(),
             "test_id": self.test_id,
-            "data": self.json_data()
+            "data": self.json_data(),
         }
 
     def json_data(self) -> dict:
@@ -42,21 +42,32 @@ class LogEvent:
 
 
 class MasterLog:
-
     def __init__(self, save_file: Path):
         self.log: List[LogEvent] = []
         self.save_file = save_file
 
-    def add_send_message(self, message: str, timestamp: datetime, test_id: str = "", is_question: bool = False):
+    def add_send_message(
+        self, message: str, timestamp: datetime, test_id: str = "", is_question: bool = False
+    ):
         event_type = EventType.SEND_MESSAGE if test_id != "" else EventType.SEND_FILL
-        assert not (is_question and event_type == EventType.SEND_FILL), "Filler is tagged as a question."
-        event = LogEvent(event_type, timestamp, test_id, {"message": message, "is_question": is_question})
+        assert not (is_question and event_type == EventType.SEND_FILL), (
+            "Filler is tagged as a question."
+        )
+        event = LogEvent(
+            event_type, timestamp, test_id, {"message": message, "is_question": is_question}
+        )
         self.add_event(event)
 
-    def add_response_message(self, message: str, timestamp: datetime, test_id: str = "", is_question: bool = False):
+    def add_response_message(
+        self, message: str, timestamp: datetime, test_id: str = "", is_question: bool = False
+    ):
         event_type = EventType.RESPONSE_MESSAGE if test_id != "" else EventType.RESPONSE_FILL
-        assert not (is_question and event_type == EventType.RESPONSE_FILL), "Response to filler is tagged as a question."
-        event = LogEvent(event_type, timestamp, test_id, {"message": message, "is_question": is_question})
+        assert not (is_question and event_type == EventType.RESPONSE_FILL), (
+            "Response to filler is tagged as a question."
+        )
+        event = LogEvent(
+            event_type, timestamp, test_id, {"message": message, "is_question": is_question}
+        )
         self.add_event(event)
 
     def add_wait_event(
@@ -75,7 +86,9 @@ class MasterLog:
         self.add_event(event)
 
     def begin_test(self, test_id, timestamp, tokens):
-        event = LogEvent(EventType.BEGIN, timestamp=timestamp, test_id=test_id, data={"tokens": tokens})
+        event = LogEvent(
+            EventType.BEGIN, timestamp=timestamp, test_id=test_id, data={"tokens": tokens}
+        )
         self.add_event(event)
 
     def end_test(self, test_id: str, timestamp: datetime):
@@ -87,7 +100,9 @@ class MasterLog:
         self.add_event(event)
 
     def add_llm_call(self, test_id: str, timestamp: datetime, response: str):
-        event = LogEvent(EventType.LLM_CALL, test_id=test_id, timestamp=timestamp, data={"response": response})
+        event = LogEvent(
+            EventType.LLM_CALL, test_id=test_id, timestamp=timestamp, data={"response": response}
+        )
         self.add_event(event)
 
     def register_callback(self, test_id: str, timestamp: datetime):
@@ -112,19 +127,25 @@ class MasterLog:
         index = self.find_message(test_id, message)
 
         for event in self.log[index:]:
-            if event.type in [EventType.SEND_MESSAGE, EventType.RESPONSE_MESSAGE, EventType.SEND_FILL, EventType.RESPONSE_FILL]:
+            if event.type in [
+                EventType.SEND_MESSAGE,
+                EventType.RESPONSE_MESSAGE,
+                EventType.SEND_FILL,
+                EventType.RESPONSE_FILL,
+            ]:
                 sender = EVENT_SENDER[event.type]
                 messages.append(f"{sender} ({event.timestamp}): {event.data['message']}")
             elif event.type == EventType.WAIT:
-
                 wait_cond = []
-                if event.data['tokens'] > 0:
+                if event.data["tokens"] > 0:
                     wait_cond.append(f"{event.data['tokens']} TOKENS")
-                if event.data['time'].seconds > 0:
+                if event.data["time"].seconds > 0:
                     wait_cond.append(f"{event.data['time']} TIME")
                 wait_cond = ", ".join(wait_cond)
 
-                messages.append(f"SYSTEM ({event.timestamp}): Test '{event.test_id}' WAITING for {wait_cond}.")
+                messages.append(
+                    f"SYSTEM ({event.timestamp}): Test '{event.test_id}' WAITING for {wait_cond}."
+                )
             elif event.type == EventType.BEGIN:
                 messages.append(f"SYSTEM ({event.timestamp}): Test '{event.test_id}' BEGINS")
             elif event.type == EventType.END:
@@ -133,11 +154,17 @@ class MasterLog:
                 messages.append(f"SYSTEM ({event.timestamp}):  Suite was RESET")
             elif event.type == EventType.LLM_CALL:
                 res = event.data["response"]
-                messages.append(f"SYSTEM ({event.timestamp}): Test '{event.test_id}' CALLS an LLM. Response:\n{res}")
+                messages.append(
+                    f"SYSTEM ({event.timestamp}): Test '{event.test_id}' CALLS an LLM. Response:\n{res}"
+                )
             elif event.type == EventType.REGISTER_CALLBACK:
-                messages.append(f"SYSTEM ({event.timestamp}): Test '{event.test_id}' REGISTERS a callback.")
+                messages.append(
+                    f"SYSTEM ({event.timestamp}): Test '{event.test_id}' REGISTERS a callback."
+                )
             elif event.type == EventType.DEREGISTER_CALLBACK:
-                messages.append(f"SYSTEM ({event.timestamp}): Test '{event.test_id}' DEREGISTERS a callback.")
+                messages.append(
+                    f"SYSTEM ({event.timestamp}): Test '{event.test_id}' DEREGISTERS a callback."
+                )
             else:
                 raise ValueError("Unknown event found")
 
@@ -146,7 +173,11 @@ class MasterLog:
     def find_message(self, test_id: str, message: str) -> int:
         # Find the index of the sent message
         for idx, event in enumerate(self.log):
-            if event.test_id == test_id and event.type == EventType.SEND_MESSAGE and event.data["message"] == message:
+            if (
+                event.test_id == test_id
+                and event.type == EventType.SEND_MESSAGE
+                and event.data["message"] == message
+            ):
                 return idx
         raise ValueError(f"Message {repr(message)} for test {repr(test_id)} not found in log.")
 
@@ -161,9 +192,20 @@ class MasterLog:
     def messages(self, test_id: str = "") -> list[str]:
         messages = []
         for event in self.log:
-            if event.type in [EventType.SEND_MESSAGE, EventType.RESPONSE_MESSAGE, EventType.SEND_FILL, EventType.RESPONSE_FILL]:
+            if event.type in [
+                EventType.SEND_MESSAGE,
+                EventType.RESPONSE_MESSAGE,
+                EventType.SEND_FILL,
+                EventType.RESPONSE_FILL,
+            ]:
                 if test_id == "" or event.test_id == test_id:
-                    sender = "Test" if event.type == EventType.SEND_MESSAGE else "System" if event.type == EventType.SEND_FILL else "Agent"
+                    sender = (
+                        "Test"
+                        if event.type == EventType.SEND_MESSAGE
+                        else "System"
+                        if event.type == EventType.SEND_FILL
+                        else "Agent"
+                    )
                     messages.append(f"{sender} ({event.timestamp}): {event.data['message']}")
 
         return messages
@@ -172,9 +214,20 @@ class MasterLog:
         messages = []
         getting_all_messages = False
         for event in self.log:
-            if event.type in [EventType.SEND_MESSAGE, EventType.RESPONSE_MESSAGE, EventType.SEND_FILL, EventType.RESPONSE_FILL]:
+            if event.type in [
+                EventType.SEND_MESSAGE,
+                EventType.RESPONSE_MESSAGE,
+                EventType.SEND_FILL,
+                EventType.RESPONSE_FILL,
+            ]:
                 if test_id == event.test_id or getting_all_messages:
-                    sender = "Test" if event.type == EventType.SEND_MESSAGE else "System" if event.type == EventType.SEND_FILL else "Agent"
+                    sender = (
+                        "Test"
+                        if event.type == EventType.SEND_MESSAGE
+                        else "System"
+                        if event.type == EventType.SEND_FILL
+                        else "Agent"
+                    )
                     messages.append(f"{sender} ({event.timestamp}): {event.data['message']}")
 
                     if event.data["is_question"]:
@@ -183,7 +236,10 @@ class MasterLog:
         return messages
 
     def test_events(
-        self, test_id: str, event_type: EventType | set[EventType] = None, filter_fn: Callable[[LogEvent], bool] = None
+        self,
+        test_id: str,
+        event_type: EventType | set[EventType] = None,
+        filter_fn: Callable[[LogEvent], bool] = None,
     ) -> Iterator[LogEvent]:
         for event in self.log:
             if event.test_id != test_id:
@@ -206,9 +262,21 @@ class MasterLog:
         for event in self.log:
             if test_id is None or event.test_id == test_id:
                 if event.type in [EventType.SEND_MESSAGE, EventType.SEND_FILL]:
-                    context.append({"role": "user", "content": event.data["message"], "timestamp": event.timestamp})
+                    context.append(
+                        {
+                            "role": "user",
+                            "content": event.data["message"],
+                            "timestamp": event.timestamp,
+                        }
+                    )
                 elif event.type in [EventType.RESPONSE_MESSAGE, EventType.RESPONSE_FILL]:
-                    context.append({"role": "assistant", "content": event.data["message"], "timestamp": event.timestamp})
+                    context.append(
+                        {
+                            "role": "assistant",
+                            "content": event.data["message"],
+                            "timestamp": event.timestamp,
+                        }
+                    )
 
         return context
 
@@ -228,7 +296,9 @@ class MasterLog:
             event_type={EventType.SEND_MESSAGE, EventType.RESPONSE_MESSAGE},
             filter_fn=lambda e: e.data["is_question"],
         ):
-            (questions if event.type == EventType.SEND_MESSAGE else responses).append(event.data["message"])
+            (questions if event.type == EventType.SEND_MESSAGE else responses).append(
+                event.data["message"]
+            )
 
         return questions, responses
 

@@ -9,7 +9,6 @@ from utils.files import gather_result_files
 @click.option("-r", "--run-name", type=str, required=False, default="*")
 @click.option("-a", "--agent-name", type=str, required=False, default="*")
 def reevaluate(dataset_key: str, run_name: str = "*", agent_name: str = "*"):
-
     eval_stats = dict(cost=0)
 
     def cost_callback(cost_usd: float):
@@ -21,7 +20,7 @@ def reevaluate(dataset_key: str, run_name: str = "*", agent_name: str = "*"):
         percentage = (100 * (i + 1)) // len(result_files)
         print(f"\rRe-evaluating '{run_name}/results/{agent_name}': {percentage: 3d}%", end="")
         result = TestResult.from_file(path)
-        evaluate = ds.evaluation_fn() 
+        evaluate = ds.evaluation_fn()
         result.score, result.max_score, result.reasoning = evaluate(
             questions=[],
             responses=result.actual_responses,

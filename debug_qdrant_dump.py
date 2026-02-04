@@ -7,11 +7,13 @@ async def main() -> None:
     url = os.getenv("QDRANT_URL", "http://192.168.107.187:6333")
     collection = os.getenv("QDRANT_COLLECTION", "episodes")
 
-    adapter = QdrantAdapter({
-        "url": url,
-        "collection_name": collection,
-        "metrics": {"enabled": False},
-    })
+    adapter = QdrantAdapter(
+        {
+            "url": url,
+            "collection_name": collection,
+            "metrics": {"enabled": False},
+        }
+    )
     await adapter.connect()
 
     print(f"--- Checking Collection: {adapter.collection_name} ---")

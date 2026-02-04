@@ -24,13 +24,14 @@ logger = logging.getLogger(__name__)
 
 class TopicSegmentationError(Exception):
     """Raised when topic segmentation fails."""
+
     pass
 
 
 class TopicSegment(BaseModel):
     """
     Represents a coherent topic segment extracted from a batch of turns.
-    
+
     Attributes:
         segment_id: Unique identifier for this segment
         topic: Brief topic label (e.g., "Container ETA Query")
@@ -43,7 +44,7 @@ class TopicSegment(BaseModel):
         message_count: Number of messages in this segment
         temporal_context: Optional temporal markers (dates, times mentioned)
     """
-    
+
     segment_id: str = Field(default_factory=lambda: str(uuid4()))
     topic: str = Field(..., min_length=3, max_length=200)
     summary: str = Field(..., min_length=10, max_length=2000)
@@ -53,20 +54,22 @@ class TopicSegment(BaseModel):
     impact: float = Field(default=0.5, ge=0.0, le=1.0)
     participant_count: int = Field(default=0, ge=0)
     message_count: int = Field(default=0, ge=0)
-    temporal_context: Optional[str] = Field(default="", description="Temporal markers like dates, times, deadlines")
+    temporal_context: Optional[str] = Field(
+        default="", description="Temporal markers like dates, times, deadlines"
+    )
 
 
 class TopicSegmenter:
     """
     Segments batches of conversation turns into coherent topics using LLM.
-    
+
     This component implements ADR-003's batch compression strategy:
     1. Takes 10-20 raw turns from L1
     2. Makes a single LLM call for efficiency
     3. Compresses conversational noise
     4. Segments into coherent topics
     5. Extracts metadata for CIAR scoring
-    
+
     Attributes:
         llm_client: Client for LLM interactions
         model_name: Name of the LLM model to use (default: Gemini 3 Flash Preview per ADR-006)
@@ -81,7 +84,7 @@ class TopicSegmenter:
         llm_client: LLMClient,
         model_name: Optional[str] = None,
         min_turns: int = DEFAULT_MIN_TURNS,
-        max_turns: int = DEFAULT_MAX_TURNS
+        max_turns: int = DEFAULT_MAX_TURNS,
     ):
         self.llm_client = llm_client
         self.model_name = model_name or self.DEFAULT_MODEL
@@ -89,35 +92,37 @@ class TopicSegmenter:
         self.max_turns = max_turns
 
     async def segment_turns(
-        self,
-        turns: List[Dict[str, Any]],
-        metadata: Optional[Dict[str, Any]] = None
+        self, turns: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
     ) -> List[TopicSegment]:
         """
         Segment a batch of turns into coherent topics.
-        
+
         Args:
             turns: List of conversation turns (dicts with 'role', 'content', 'timestamp')
             metadata: Optional metadata (e.g., session_id, domain context)
-            
+
         Returns:
             List[TopicSegment]: List of extracted topic segments
-            
+
         Raises:
             TopicSegmentationError: If segmentation fails
         """
         if not turns:
             return []
-        
+
         # Enforce batch size constraints
         if len(turns) < self.min_turns:
-            logger.info(f"Turn count ({len(turns)}) below minimum ({self.min_turns}). Skipping segmentation.")
+            logger.info(
+                f"Turn count ({len(turns)}) below minimum ({self.min_turns}). Skipping segmentation."
+            )
             return []
-        
+
         if len(turns) > self.max_turns:
-            logger.warning(f"Turn count ({len(turns)}) exceeds maximum ({self.max_turns}). Truncating.")
-            turns = turns[-self.max_turns:]  # Take most recent turns
-        
+            logger.warning(
+                f"Turn count ({len(turns)}) exceeds maximum ({self.max_turns}). Truncating."
+            )
+            turns = turns[-self.max_turns :]  # Take most recent turns
+
         try:
             return await self._segment_with_llm(turns, metadata)
         except Exception as e:
@@ -126,14 +131,12 @@ class TopicSegmenter:
             return [self._create_fallback_segment(turns, metadata)]
 
     async def _segment_with_llm(
-        self,
-        turns: List[Dict[str, Any]],
-        metadata: Optional[Dict[str, Any]] = None
+        self, turns: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
     ) -> List[TopicSegment]:
         """Segment turns using LLM with native structured output."""
         # Format conversation for LLM
         formatted = self._format_conversation(turns)
-        
+
         prompt = f"Segment the following conversation into coherent topics:\n\n{formatted}"
 
         # Make LLM call with structured output
@@ -158,11 +161,11 @@ class TopicSegmenter:
                     text = text[:-3].strip()
             data = json.loads(text)
             raw_segments = data.get("segments", [])
-            
+
             if not raw_segments:
                 logger.warning("LLM returned no segments. Using fallback.")
                 return [self._create_fallback_segment(turns, metadata)]
-            
+
             # Validate and convert to TopicSegment objects
             segments = []
             for rs in raw_segments:
@@ -180,17 +183,17 @@ class TopicSegmenter:
                         impact=float(rs.get("impact", 0.5)),
                         participant_count=int(rs.get("participant_count", 0)),
                         message_count=int(rs.get("message_count", 0)),
-                        temporal_context=temporal_context
+                        temporal_context=temporal_context,
                     )
                     segments.append(segment)
                 except ValidationError as ve:
                     logger.warning(f"Skipping invalid segment from LLM: {ve}")
                     continue
-            
+
             if not segments:
                 logger.warning("No valid segments after validation. Using fallback.")
                 return [self._create_fallback_segment(turns, metadata)]
-            
+
             return segments
 
         except json.JSONDecodeError as e:
@@ -204,17 +207,15 @@ class TopicSegmenter:
             role = turn.get("role", "unknown").capitalize()
             content = turn.get("content", "")
             timestamp = turn.get("timestamp", "")
-            
+
             # Format: [idx] Role (timestamp): content
             ts_str = f" ({timestamp})" if timestamp else ""
             lines.append(f"[{idx}] {role}{ts_str}: {content}")
-        
+
         return "\n".join(lines)
 
     def _create_fallback_segment(
-        self,
-        turns: List[Dict[str, Any]],
-        metadata: Optional[Dict[str, Any]] = None
+        self, turns: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
     ) -> TopicSegment:
         """Create a single fallback segment when LLM segmentation fails."""
         # Count participants
@@ -222,21 +223,21 @@ class TopicSegmenter:
         for turn in turns:
             role = turn.get("role", "unknown")
             participants.add(role)
-        
+
         # Extract indices
         indices = list(range(len(turns)))
-        
+
         # Create simple summary
         summary = f"Conversation with {len(turns)} turns discussing various topics."
-        
+
         return TopicSegment(
             topic="General Discussion",
             summary=summary,
             key_points=["Fallback segmentation due to LLM failure"],
             turn_indices=indices,
             certainty=0.3,  # Low certainty for fallback
-            impact=0.5,     # Medium impact (unknown)
+            impact=0.5,  # Medium impact (unknown)
             participant_count=len(participants),
             message_count=len(turns),
-            temporal_context=""
+            temporal_context="",
         )

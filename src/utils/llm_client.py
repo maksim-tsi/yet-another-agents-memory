@@ -37,14 +37,14 @@ _PHOENIX_PROJECT_NAME: Optional[str] = None
 # Phoenix/OpenTelemetry auto-instrumentation (optional)
 def _init_phoenix_instrumentation() -> None:
     """Initialize Phoenix/OpenTelemetry instrumentation if configured.
-    
+
     Environment Variables:
         PHOENIX_COLLECTOR_ENDPOINT: OTLP collector URL (e.g., http://192.168.107.172:6006/v1/traces)
         PHOENIX_PROJECT_NAME: Project name for trace grouping (default: mlm-mas-dev)
-    
+
     Project Naming Convention:
         - mlm-mas-dev: Development environment
-        - mlm-mas-test: Testing/CI environment  
+        - mlm-mas-test: Testing/CI environment
         - mlm-mas-prod: Production environment
     """
     endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
@@ -54,37 +54,38 @@ def _init_phoenix_instrumentation() -> None:
             "Set to http://<host>:6006/v1/traces to enable."
         )
         return
-    
+
     agent_type = os.environ.get("AGENT_TYPE")
-    default_project = f"{PHOENIX_DEFAULT_PROJECT}-{agent_type}" if agent_type else PHOENIX_DEFAULT_PROJECT
+    default_project = (
+        f"{PHOENIX_DEFAULT_PROJECT}-{agent_type}" if agent_type else PHOENIX_DEFAULT_PROJECT
+    )
     project_name = os.environ.get("PHOENIX_PROJECT_NAME", default_project)
-    
+
     try:
         from phoenix.otel import register
-        
+
         # Register tracer provider with Phoenix collector
         tracer_provider = register(
             project_name=project_name,
             endpoint=endpoint,
             auto_instrument=True,  # Auto-detect and instrument installed packages
         )
-        
+
         logger.info(
-            "Phoenix instrumentation enabled: project=%s, endpoint=%s",
-            project_name,
-            endpoint
+            "Phoenix instrumentation enabled: project=%s, endpoint=%s", project_name, endpoint
         )
 
         global _PHOENIX_INITIALIZED
         global _PHOENIX_PROJECT_NAME
         _PHOENIX_INITIALIZED = True
         _PHOENIX_PROJECT_NAME = project_name
-        
+
         # Explicitly instrument Google GenAI if auto_instrument missed it
         try:
             from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
+
             instrumentor = GoogleGenAIInstrumentor()
-            if not getattr(instrumentor, '_is_instrumented_by_opentelemetry', False):
+            if not getattr(instrumentor, "_is_instrumented_by_opentelemetry", False):
                 instrumentor.instrument(tracer_provider=tracer_provider)
                 logger.info("Google GenAI instrumentation enabled (explicit)")
         except ImportError:
@@ -94,7 +95,7 @@ def _init_phoenix_instrumentation() -> None:
             )
         except Exception as e:
             logger.warning("Failed to instrument Google GenAI: %s", e)
-        
+
     except ImportError:
         logger.debug(
             "arize-phoenix not installed; run 'pip install arize-phoenix' to enable tracing"
@@ -158,7 +159,9 @@ class BaseProvider:
     def __init__(self, name: str) -> None:
         self.name = name
 
-    async def generate(self, prompt: str, model: Optional[str] = None, **kwargs: Any) -> LLMResponse:
+    async def generate(
+        self, prompt: str, model: Optional[str] = None, **kwargs: Any
+    ) -> LLMResponse:
         """Generate text for the supplied prompt."""
         raise NotImplementedError()
 
@@ -188,7 +191,9 @@ class LLMClient:
             for config in provider_configs:
                 self._configs[config.name] = config
 
-    def register_provider(self, provider: BaseProvider, config: Optional[ProviderConfig] = None) -> None:
+    def register_provider(
+        self, provider: BaseProvider, config: Optional[ProviderConfig] = None
+    ) -> None:
         """Register a provider instance alongside optional configuration metadata."""
         self._providers[provider.name] = provider
         if config:
@@ -242,9 +247,16 @@ class LLMClient:
                 coro = provider.generate(prompt, model=model, **kwargs)
                 response: LLMResponse
                 if asyncio.iscoroutine(coro):
-                    response = cast(LLMResponse, await asyncio.wait_for(coro, timeout=config.timeout))
+                    response = cast(
+                        LLMResponse, await asyncio.wait_for(coro, timeout=config.timeout)
+                    )
                 else:
-                    response = cast(LLMResponse, await asyncio.wait_for(asyncio.to_thread(lambda: coro), timeout=config.timeout))
+                    response = cast(
+                        LLMResponse,
+                        await asyncio.wait_for(
+                            asyncio.to_thread(lambda: coro), timeout=config.timeout
+                        ),
+                    )
                 if not response.provider:
                     response.provider = provider_name
                 return response
@@ -283,7 +295,9 @@ class LLMClient:
             try:
                 reports[name] = await task
             except Exception as exc:  # pragma: no cover - health fallback
-                reports[name] = ProviderHealth(name=name, healthy=False, last_error=str(exc), details="health check failure")
+                reports[name] = ProviderHealth(
+                    name=name, healthy=False, last_error=str(exc), details="health check failure"
+                )
         return reports
 
     def _resolve_order(self, provider_order: Optional[Sequence[str]] = None) -> List[str]:
@@ -293,11 +307,18 @@ class LLMClient:
             order = [name for name in provider_order if name in self._providers]
         else:
             order = sorted(
-                (name for name, cfg in self._configs.items() if cfg.enabled and name in self._providers),
+                (
+                    name
+                    for name, cfg in self._configs.items()
+                    if cfg.enabled and name in self._providers
+                ),
                 key=lambda name: self._configs[name].priority,
             )
         for provider_name in self._providers:
-            if provider_name not in order and self._configs.get(provider_name, ProviderConfig(name=provider_name)).enabled:
+            if (
+                provider_name not in order
+                and self._configs.get(provider_name, ProviderConfig(name=provider_name)).enabled
+            ):
                 order.append(provider_name)
         return order
 

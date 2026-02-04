@@ -8,8 +8,16 @@ from random import Random
 from jinja2 import Environment, FileSystemLoader
 from reporting.results import TestResult
 from utils.files import gather_result_files, gather_runstats_files, make_config_path
-from utils.constants import REPORT_TEMPLATES_DIR, GOODAI_RED, GOODAI_GREEN, METRIC_NAMES, METRIC_ALT, \
-    METRIC_UNITS, SPIDER_LABELS_OVERRIDE, REPORT_OUTPUT_DIR
+from utils.constants import (
+    REPORT_TEMPLATES_DIR,
+    GOODAI_RED,
+    GOODAI_GREEN,
+    METRIC_NAMES,
+    METRIC_ALT,
+    METRIC_UNITS,
+    SPIDER_LABELS_OVERRIDE,
+    REPORT_OUTPUT_DIR,
+)
 from utils.data import load_b64
 from utils.math import mean_std
 from utils.ui import display_float_or_int
@@ -46,7 +54,6 @@ def formatted_log(result: TestResult) -> list[str]:
 
 
 def arrange_data(results: List[TestResult]):
-
     run_name = results[0].run_name
     agent_name = results[0].agent_name
     memory_spans = list()
@@ -78,7 +85,9 @@ def arrange_data(results: List[TestResult]):
             responses = list(zip(expected, actual, reasoning))
 
         accuracy = res.score / res.max_score
-        color = tuple(int(accuracy * GOODAI_GREEN[i] + (1 - accuracy) * GOODAI_RED[i]) for i in range(3))
+        color = tuple(
+            int(accuracy * GOODAI_GREEN[i] + (1 - accuracy) * GOODAI_RED[i]) for i in range(3)
+        )
         color = f"rgb{color}"
 
         test_dict = {
@@ -110,7 +119,7 @@ def arrange_data(results: List[TestResult]):
         data_by_dataset=data,
         min_gap=min(memory_spans),
         max_gap=max(memory_spans),
-        avg_gap=int(sum(memory_spans)/len(memory_spans)),
+        avg_gap=int(sum(memory_spans) / len(memory_spans)),
         overrun=any(r.tokens > args["memory_span"] for r in results),
     )
 
@@ -143,12 +152,14 @@ def generate_report(results: List[TestResult], output_name: Optional[str] = None
     for key in sorted(METRIC_NAMES.keys()):
         if key == "score":
             continue
-        global_metrics.append(dict(
-            name=METRIC_NAMES[key],
-            value=format_metric(metrics[key], key),
-            alt=METRIC_ALT[key],
-            units=METRIC_UNITS[key],
-        ))
+        global_metrics.append(
+            dict(
+                name=METRIC_NAMES[key],
+                value=format_metric(metrics[key], key),
+                alt=METRIC_ALT[key],
+                units=METRIC_UNITS[key],
+            )
+        )
     if output_name is None:
         date = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
         output_name = f"{date} - Detailed Report - {results[0].run_name} - {results[0].agent_name}"
@@ -167,7 +178,9 @@ def generate_report(results: List[TestResult], output_name: Optional[str] = None
     )
 
 
-def normalize_and_aggregate_results(results: list[TestResult]) -> dict[str, dict[str, list[TestResult] | float]]:
+def normalize_and_aggregate_results(
+    results: list[TestResult],
+) -> dict[str, dict[str, list[TestResult] | float]]:
     result_dict = dict()
 
     for result in results:
@@ -283,7 +296,9 @@ def generate_summary_report(
         chart_js = fd.read()
 
     if output_name is None:
-        output_name = f"{datetime.now().strftime('%Y-%m-%d %H_%M_%S')} - Comparative Report - {run_name}"
+        output_name = (
+            f"{datetime.now().strftime('%Y-%m-%d %H_%M_%S')} - Comparative Report - {run_name}"
+        )
 
     return render_template(
         template_name="comparative_report",

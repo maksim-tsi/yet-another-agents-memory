@@ -12,7 +12,9 @@
 #   ./scripts/run_memory_integration_tests.sh neo4j              # Run only Neo4j tests
 #
 
-set -e  # Exit on error
+set -e
+set -u
+set -o pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -56,20 +58,19 @@ set +a
 echo -e "${GREEN}✓${NC} Environment variables loaded"
 echo ""
 
-# Step 3: Activate virtual environment
+# Step 3: Resolve virtual environment executables
 echo -e "${YELLOW}[3/5]${NC} Activating virtual environment..."
-if [ ! -d "$PROJECT_ROOT/.venv" ]; then
-    echo -e "${RED}ERROR: Virtual environment not found at $PROJECT_ROOT/.venv${NC}"
+PYTEST="$PROJECT_ROOT/.venv/bin/pytest"
+if [ ! -f "$PYTEST" ]; then
+    echo -e "${RED}ERROR: Virtual environment not found at $PYTEST${NC}"
     echo ""
     echo "Please create a virtual environment first:"
     echo "  python3 -m venv .venv"
-    echo "  source .venv/bin/activate"
-    echo "  pip install -r requirements.txt"
+    echo "  .venv/bin/pip install -r requirements.txt"
     exit 1
 fi
 
-source "$PROJECT_ROOT/.venv/bin/activate"
-echo -e "${GREEN}✓${NC} Virtual environment activated"
+echo -e "${GREEN}✓${NC} Virtual environment resolved"
 echo ""
 
 # Step 4: Display connection information
@@ -119,10 +120,12 @@ echo -e "${BLUE}Running: ${TEST_DESC}${NC}"
 echo ""
 
 # Run pytest with integration marker
-python -m pytest $TEST_PATH \
+"$PYTEST" $TEST_PATH \
     --tb=short \
     --color=yes \
     -v \
+    --cov=src \
+    --cov-fail-under=80 \
     2>&1 | tee integration_test_results.log
 
 # Check exit status

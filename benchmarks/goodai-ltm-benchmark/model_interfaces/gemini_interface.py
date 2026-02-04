@@ -17,19 +17,21 @@ def history_to_contents(history: list[glm.Content]) -> list[dict]:
 
 def count_tokens_by_curl(text: str = None, history: list[glm.Content] = None) -> int:
     assert text is not None or history is not None
-    api_key = os.getenv('GOOGLE_API_KEY')
-    url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:countTokens?key={api_key}'
-    headers = {'Content-Type': 'application/json'}
+    api_key = os.getenv("GOOGLE_API_KEY")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:countTokens?key={api_key}"
+    headers = {"Content-Type": "application/json"}
     contents = [{"parts": [{"text": text}]}] if history is None else history_to_contents(history)
     r = requests.post(url, headers=headers, data=json.dumps({"contents": contents}))
     return r.json()["totalTokens"]
 
 
 def reply_by_curl(history: list[glm.Content]) -> str:
-    api_key = os.getenv('GOOGLE_API_KEY')
-    url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key={api_key}'
-    headers = {'Content-Type': 'application/json'}
-    contents = [{"role": msg.role, "parts": [{"text": p.text} for p in msg.parts]} for msg in history]
+    api_key = os.getenv("GOOGLE_API_KEY")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    contents = [
+        {"role": msg.role, "parts": [{"text": p.text} for p in msg.parts]} for msg in history
+    ]
     safety = [
         {"category": f"HARM_CATEGORY_{cat}", "threshold": "BLOCK_NONE"}
         for cat in ["HARASSMENT", "HATE_SPEECH", "SEXUALLY_EXPLICIT", "DANGEROUS_CONTENT"]
@@ -71,17 +73,21 @@ class GeminiProInterface(ChatSession):
 
     def __post_init__(self):
         super().__post_init__()
-        genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-        self.model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.model = genai.GenerativeModel("gemini-1.5-pro-latest")
         self.reset()
 
     def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
-        self.chat.history.append(glm.Content({'role': 'user', 'parts': [glm.Part({"text": user_message})]}))
+        self.chat.history.append(
+            glm.Content({"role": "user", "parts": [glm.Part({"text": user_message})]})
+        )
         # while count_tokens_by_curl(history=self.chat.history) > 1e6 - self.max_message_size:
         #     self.chat.history.pop(0)
         if agent_response is None:
             agent_response = reply_by_curl(self.chat.history)
-        self.chat.history.append(glm.Content({'role': 'model', 'parts': [glm.Part({"text": agent_response})]}))
+        self.chat.history.append(
+            glm.Content({"role": "model", "parts": [glm.Part({"text": agent_response})]})
+        )
         time.sleep(0.1)
         return agent_response
 

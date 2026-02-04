@@ -25,7 +25,9 @@ STATEMENTS = [
 class NameListDataset(DatasetInterface):
     name: str = "NameList"
     description: str = "Give the agent multiple names to call you in sequence. Then ask the agent what all of your names have been. The agent should respond with all of the names you have given it."
-    question: str = "What have been all of the names that I have given you? Express the answer as a JSON list."
+    question: str = (
+        "What have been all of the names that I have given you? Express the answer as a JSON list."
+    )
     name_changes: int = 3
     reset_message: str = "Forget, or otherwise disregard, all of the names I have given you before this message. You do not currrently know my name."
 
@@ -60,7 +62,6 @@ class NameListDataset(DatasetInterface):
     def evaluate_correct(
         self, questions: List[str], responses: List[str], expected_answers: List[str]
     ) -> Tuple[int, int, List[str]]:
-
         reasoning = []
         correct = 0
         score = 0
@@ -89,4 +90,3 @@ class NameListDataset(DatasetInterface):
             reasoning.append("Response not in correct format")
 
         return score, 1, reasoning
-

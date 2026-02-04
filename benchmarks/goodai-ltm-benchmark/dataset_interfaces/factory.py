@@ -48,7 +48,9 @@ DATASETS_BY_NAME = {ds.name: ds for ds in DATASETS.values()}
 
 class DatasetFactory:
     @staticmethod
-    def create_examples(dataset_config: dict, universal_args: dict, max_message_size: int) -> list[TestExample]:
+    def create_examples(
+        dataset_config: dict, universal_args: dict, max_message_size: int
+    ) -> list[TestExample]:
         name = dataset_config["name"]
         args = deepcopy(universal_args)
         ds_args = dataset_config.get("args", {})
@@ -66,7 +68,9 @@ class DatasetFactory:
         return examples
 
     @staticmethod
-    def create_dataset_for_example(run_configuration: dict,  test_example_path: str) -> DatasetInterface:
+    def create_dataset_for_example(
+        run_configuration: dict, test_example_path: str
+    ) -> DatasetInterface:
         args = deepcopy(run_configuration["datasets"]["args"])
 
         # Get the name of the dataset
@@ -74,7 +78,9 @@ class DatasetFactory:
         dataset = DATASETS_BY_NAME.get(path_dataset_name, None)
 
         if dataset is None:
-            raise ValueError(f"No dataset could be resolved from TestExample path: {test_example_path}. Tried {path_dataset_name}")
+            raise ValueError(
+                f"No dataset could be resolved from TestExample path: {test_example_path}. Tried {path_dataset_name}"
+            )
 
         # Use the class to get the 'config name'
         config_name = ""

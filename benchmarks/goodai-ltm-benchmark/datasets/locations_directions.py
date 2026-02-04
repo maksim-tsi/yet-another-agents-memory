@@ -23,7 +23,9 @@ class LocationsDirectionsDataset(LocationsDataset):
         "following those interesting points?"
     )
 
-    def generate_answer(self, location_info: List[Tuple[str, str, str, int]]) -> Tuple[Tuple[str, int], List[str]]:
+    def generate_answer(
+        self, location_info: List[Tuple[str, str, str, int]]
+    ) -> Tuple[Tuple[str, int], List[str]]:
         # Choose the direction, and distance - it doesn't really matter
         last_move = (self.random.choice(DIRECTIONS), self.random.choice(DISTANCES))
 
@@ -32,7 +34,9 @@ class LocationsDirectionsDataset(LocationsDataset):
         for destination, origin, direction, distance in location_info[1:-1]:
             directions.append(f"From {origin}, go {distance}km {direction} to {destination}.")
 
-        directions.append(f"From {location_info[-1][1]}, go {last_move[1]}km {last_move[0]} to {location_info[-1][0]}.")
+        directions.append(
+            f"From {location_info[-1][1]}, go {last_move[1]}km {last_move[0]} to {location_info[-1][0]}."
+        )
         answer = "\n".join(directions)
 
         return last_move, [answer]
@@ -51,9 +55,14 @@ class LocationsDirectionsDataset(LocationsDataset):
     def structure_directions(self, agent_response: str) -> list[DirectionDict]:
         allowed_locations = [loc.lower() for loc in LOCATIONS]
         allowed_directions = [d.lower() for d in DIRECTIONS]
-        context = [make_user_message(structured_directions_prompt.format(
-            directions=agent_response, places="\n".join(f"- {loc}" for loc in LOCATIONS),
-        ))]
+        context = [
+            make_user_message(
+                structured_directions_prompt.format(
+                    directions=agent_response,
+                    places="\n".join(f"- {loc}" for loc in LOCATIONS),
+                )
+            )
+        ]
         response = self.ask_llm(context, model="gemini-2.5-flash-lite")
         try:
             directions = sanitize_and_parse_json(response)
@@ -66,9 +75,13 @@ class LocationsDirectionsDataset(LocationsDataset):
                             break
                     assert d[k].lower() in allowed_locations, f"Location {repr(d[k])} is unknown."
                     d[k] = LOCATIONS[allowed_locations.index(d[k].lower())]
-                assert d["direction"].lower() in allowed_directions, f"Direction {repr(d[k])} is unknown."
+                assert d["direction"].lower() in allowed_directions, (
+                    f"Direction {repr(d[k])} is unknown."
+                )
                 d["direction"] = DIRECTIONS[allowed_directions.index(d["direction"].lower())]
-                assert isinstance(d["kilometers"], int) and d["kilometers"] > 0, f"{d['kilometers']} is not a positive int."
+                assert isinstance(d["kilometers"], int) and d["kilometers"] > 0, (
+                    f"{d['kilometers']} is not a positive int."
+                )
                 d["distance"] = d.pop("kilometers")
         except (JSONDecodeError, ValueError, KeyError, AssertionError, AttributeError) as exc:
             raise LLMJSONError(
@@ -77,7 +90,9 @@ class LocationsDirectionsDataset(LocationsDataset):
             )
         return directions
 
-    def follow_directions(self, directions: list[DirectionDict], x0: int = 0, y0: int = 0) -> list[int]:
+    def follow_directions(
+        self, directions: list[DirectionDict], x0: int = 0, y0: int = 0
+    ) -> list[int]:
         pos = [x0, y0]
         for d in directions:
             axis = 0 if d["direction"].lower() in ["west", "east"] else 1
@@ -86,7 +101,10 @@ class LocationsDirectionsDataset(LocationsDataset):
         return pos
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str],
+        self,
+        questions: List[str],
+        responses: List[str],
+        expected_answers: List[str],
     ) -> Tuple[int, int, List[str]]:
         score = 0
         max_score = 1

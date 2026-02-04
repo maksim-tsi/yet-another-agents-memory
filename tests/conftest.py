@@ -16,24 +16,16 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 # Load environment variables from .env file
-dotenv_path = os.path.join(project_root, '.env')
+dotenv_path = os.path.join(project_root, ".env")
 load_dotenv(dotenv_path, override=True)
 
 
 def pytest_configure(config):
     """Configure pytest with custom markers"""
-    config.addinivalue_line(
-        "markers", "smoke: mark test as a smoke test (connectivity check)"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow-running (real LLM calls)"
-    )
+    config.addinivalue_line("markers", "smoke: mark test as a smoke test (connectivity check)")
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
+    config.addinivalue_line("markers", "unit: mark test as a unit test")
+    config.addinivalue_line("markers", "slow: mark test as slow-running (real LLM calls)")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -50,11 +42,12 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture
 def test_session_id():
     """Generate unique session ID for test isolation.
-    
+
     Each test gets a unique session_id to namespace its data in the
     live research cluster, preventing collisions between concurrent tests.
     """
     import uuid
+
     return f"test-{uuid.uuid4().hex[:12]}"
 
 
@@ -62,6 +55,7 @@ def test_session_id():
 def test_user_id():
     """Generate unique user ID for test isolation."""
     import uuid
+
     return f"test-user-{uuid.uuid4().hex[:8]}"
 
 
@@ -118,4 +112,3 @@ def cleanup_test_redis_keys():
                 client.delete(*keys)
     except Exception:
         return
-

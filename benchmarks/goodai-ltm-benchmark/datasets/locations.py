@@ -46,9 +46,7 @@ class LocationsDataset(DatasetInterface):
         "step by step."
     )
     known_locations: int = 5
-    reset_message: str = (
-        "Forget, or otherwise disregard, all of the locations that I have told you about before this message."
-    )
+    reset_message: str = "Forget, or otherwise disregard, all of the locations that I have told you about before this message."
 
     def generate_examples(self, num_examples):
         examples = []
@@ -103,9 +101,7 @@ class LocationsDataset(DatasetInterface):
             is_question.append(False)
 
             origin = known_locations[0]
-            question = renderer.render(
-                self.question, {"place": place, "origin": origin}
-            )
+            question = renderer.render(self.question, {"place": place, "origin": origin})
 
             script.append(question)
             is_question.append(True)
@@ -213,4 +209,3 @@ class LocationsDataset(DatasetInterface):
             return "They are in the same location."
 
         return [f"{distance} km {direction}"]
-

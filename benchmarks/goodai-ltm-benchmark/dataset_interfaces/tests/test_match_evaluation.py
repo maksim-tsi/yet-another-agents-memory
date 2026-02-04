@@ -258,7 +258,9 @@ I'm sorry, but I don't have the capability to remember specific jokes or convers
         expected_answers: List[str],
         provided_answers: List[str],
     ):
-        num_correct, total, r = DatasetInterface.evaluate_correct_gpt_impl(questions, provided_answers, expected_answers)
+        num_correct, total, r = DatasetInterface.evaluate_correct_gpt_impl(
+            questions, provided_answers, expected_answers
+        )
         self.assertEquals(
             num_correct,
             expect_correct,

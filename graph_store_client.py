@@ -3,6 +3,7 @@
 from neo4j import GraphDatabase
 from typing import List, Dict, Any
 
+
 class Neo4jGraphStore:
     def __init__(self, uri, user, password):
         """Initializes the connection driver for Neo4j."""
@@ -15,11 +16,11 @@ class Neo4jGraphStore:
     def query(self, cypher_query: str, params: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """
         Executes a Cypher query and returns the results.
-        
+
         Args:
             cypher_query: The Cypher query string to execute.
             params: A dictionary of parameters to bind to the query.
-            
+
         Returns:
             A list of result dictionaries.
         """
