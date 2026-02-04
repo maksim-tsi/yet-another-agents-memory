@@ -7,7 +7,7 @@ with validation and serialization support.
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -30,6 +30,35 @@ class FactCategory(str, Enum):
     BUSINESS = "business"
     TECHNICAL = "technical"
     OPERATIONAL = "operational"
+
+
+class TurnData(BaseModel):
+    """
+    Represents a single conversational turn in L1 Active Context.
+
+    Attributes:
+        turn_id: Unique identifier for the turn
+        session_id: Associated session identifier
+        role: Speaker role (user, assistant, system)
+        content: Turn content
+        timestamp: Turn timestamp (UTC)
+        metadata: Additional context for the turn
+    """
+
+    turn_id: str = Field(..., min_length=1, max_length=200)
+    session_id: str = Field(..., min_length=1, max_length=200)
+    role: Literal["user", "assistant", "system"]
+    content: str = Field(..., min_length=1, max_length=10000)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("turn_id", mode="before")
+    @classmethod
+    def coerce_turn_id(cls, value: Any) -> str:
+        """Normalize turn_id to string for consistent identifiers."""
+        if isinstance(value, int):
+            return str(value)
+        return value
 
 
 class Fact(BaseModel):

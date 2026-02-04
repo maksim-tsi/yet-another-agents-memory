@@ -18,7 +18,7 @@ from src.storage.typesense_adapter import TypesenseAdapter
 logger = logging.getLogger(__name__)
 
 
-class SemanticMemoryTier(BaseTier):
+class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
     """
     L4: Semantic Memory - Distilled Knowledge Repository
 

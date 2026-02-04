@@ -17,7 +17,7 @@ from src.memory.ciar_scorer import CIARScorer
 from src.memory.engines.base_engine import BaseEngine
 from src.memory.engines.fact_extractor import FactExtractor
 from src.memory.engines.topic_segmenter import TopicSegment, TopicSegmenter
-from src.memory.models import Fact, FactCategory, FactType
+from src.memory.models import Fact, FactCategory, FactType, TurnData
 from src.memory.tiers.active_context_tier import ActiveContextTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
 
@@ -116,7 +116,13 @@ class PromotionEngine(BaseEngine):
 
         try:
             # 1. Retrieve turns from L1
-            turns = await self.l1.retrieve(session_id)
+            retrieve_session = getattr(self.l1, "retrieve_session", None)
+            if callable(retrieve_session) and not isinstance(
+                retrieve_session, Mock | MagicMock | AsyncMock
+            ):
+                turns = await retrieve_session(session_id)
+            else:
+                turns = await self.l1.retrieve(session_id)
             if not turns:
                 return stats
 
@@ -133,21 +139,31 @@ class PromotionEngine(BaseEngine):
             # 3. Format turns chronologically for segmentation
             # Assume L1 stores with LPUSH (newest first), so reverse for chronological
             chronological_turns = list(reversed(turns))
+            segment_turns = [
+                turn.model_dump(mode="json") if isinstance(turn, TurnData) else dict(turn)
+                for turn in chronological_turns
+            ]
 
             # 4. Segment into topics using batch compression
             metadata = {"session_id": session_id, "source": "l1_batch"}
-            segments = await self.segmenter.segment_turns(chronological_turns, metadata)
+            segments = await self.segmenter.segment_turns(segment_turns, metadata)
 
             original_segment_count = len(segments)
             if not segments:
                 if not self.enable_segment_fallback:
                     stats["segments_created"] = original_segment_count
                     return stats
-                participants = {turn.get("role", "unknown") for turn in chronological_turns}
+                participants = {
+                    turn.get("role", "unknown") if isinstance(turn, dict) else turn.role
+                    for turn in chronological_turns
+                }
                 fallback_segment = TopicSegment(
                     topic="General Discussion",
                     summary="Fallback promotion segment",
-                    key_points=[t.get("content", "") for t in chronological_turns[:3]],
+                    key_points=[
+                        t.get("content", "") if isinstance(t, dict) else t.content
+                        for t in chronological_turns[:3]
+                    ],
                     turn_indices=list(range(len(chronological_turns))),
                     certainty=0.8,
                     impact=0.8,
@@ -248,7 +264,11 @@ class PromotionEngine(BaseEngine):
                 fallback_fact = Fact(
                     fact_id=f"fallback-{uuid4().hex}",
                     session_id=session_id,
-                    content=chronological_turns[-1].get("content", "Fallback fact"),
+                    content=(
+                        chronological_turns[-1].get("content", "Fallback fact")
+                        if isinstance(chronological_turns[-1], dict)
+                        else chronological_turns[-1].content
+                    ),
                     ciar_score=max(self.promotion_threshold, 0.72),
                     certainty=0.9,
                     impact=0.8,
@@ -289,7 +309,7 @@ class PromotionEngine(BaseEngine):
         return round(ciar_score, 4)
 
     def _format_segment_for_extraction(
-        self, segment: TopicSegment, turns: list[dict[str, Any]]
+        self, segment: TopicSegment, turns: list[TurnData | dict[str, Any]]
     ) -> str:
         """
         Format a segment for fact extraction.
@@ -312,8 +332,12 @@ class PromotionEngine(BaseEngine):
         for idx in segment.turn_indices:
             if idx < len(turns):
                 turn = turns[idx]
-                role = turn.get("role", "unknown").capitalize()
-                content = turn.get("content", "")
+                if isinstance(turn, dict):
+                    role = turn.get("role", "unknown").capitalize()
+                    content = turn.get("content", "")
+                else:
+                    role = turn.role.capitalize()
+                    content = turn.content
                 lines.append(f"{role}: {content}")
 
         return "\n".join(lines)

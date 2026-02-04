@@ -12,6 +12,8 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
+from pydantic import BaseModel
+
 from src.storage.base import StorageAdapter
 from src.storage.metrics.collector import MetricsCollector
 
@@ -36,7 +38,7 @@ class TierOperationError(MemoryTierError):
     pass
 
 
-class BaseTier(ABC):
+class BaseTier[TModel: BaseModel](ABC):
     """
     Abstract base class for all memory tiers.
 
@@ -121,7 +123,7 @@ class BaseTier(ABC):
         pass
 
     @abstractmethod
-    async def retrieve(self, identifier: str) -> dict[str, Any] | None:
+    async def retrieve(self, identifier: str) -> TModel | None:
         """
         Retrieve data by identifier.
 
@@ -143,7 +145,7 @@ class BaseTier(ABC):
     @abstractmethod
     async def query(
         self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
-    ) -> list[dict[str, Any]]:
+    ) -> list[TModel]:
         """
         Query data with optional filters.
 

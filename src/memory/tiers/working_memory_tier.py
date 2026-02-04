@@ -28,7 +28,7 @@ from src.storage.postgres_adapter import PostgresAdapter
 logger = logging.getLogger(__name__)
 
 
-class WorkingMemoryTier(BaseTier):
+class WorkingMemoryTier(BaseTier[Fact]):
     """
     L2: Working Memory - CIAR-Scored Fact Storage.
 

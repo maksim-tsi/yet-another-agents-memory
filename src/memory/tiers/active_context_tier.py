@@ -16,6 +16,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
+from src.memory.models import TurnData
 from src.memory.tiers.base_tier import BaseTier, TierOperationError
 from src.storage.base import StorageDataError, validate_required_fields
 from src.storage.metrics.collector import MetricsCollector
@@ -26,7 +27,7 @@ from src.storage.redis_adapter import RedisAdapter
 logger = logging.getLogger(__name__)
 
 
-class ActiveContextTier(BaseTier):
+class ActiveContextTier(BaseTier[TurnData]):
     """
     L1: Active Context - Working Memory Buffer.
 
@@ -134,21 +135,23 @@ class ActiveContextTier(BaseTier):
                 required = ["session_id", "turn_id", "role", "content"]
                 validate_required_fields(data, required)
 
-                session_id = data["session_id"]
-                turn_id = data["turn_id"]
-                timestamp = data.get("timestamp", datetime.now(UTC))
+                turn = TurnData.model_validate(data)
+                session_id = turn.session_id
+                turn_id = turn.turn_id
+                timestamp = turn.timestamp
 
                 logger.debug(f"Storing turn {turn_id} in session {session_id}")
 
                 # Prepare turn data
                 turn_data = {
+                    "session_id": session_id,
                     "turn_id": turn_id,
-                    "role": data["role"],
-                    "content": data["content"],
+                    "role": turn.role,
+                    "content": turn.content,
                     "timestamp": timestamp.isoformat()
                     if isinstance(timestamp, datetime)
                     else timestamp,
-                    "metadata": data.get("metadata", {}),
+                    "metadata": turn.metadata,
                 }
 
                 # Store in Redis (hot cache)
@@ -173,11 +176,11 @@ class ActiveContextTier(BaseTier):
                     postgres_data = {
                         "session_id": session_id,
                         "turn_id": turn_id,
-                        "role": data["role"],
-                        "content": data["content"],
+                        "role": turn.role,
+                        "content": turn.content,
                         "timestamp": timestamp,
                         "tier": "L1",
-                        "metadata": json.dumps(data.get("metadata", {})),
+                        "metadata": json.dumps(turn.metadata),
                     }
                     await self.postgres.insert("active_context", postgres_data)
                     logger.debug(f"Stored turn {turn_id} in PostgreSQL backup")
@@ -192,7 +195,56 @@ class ActiveContextTier(BaseTier):
                 logger.error(f"Failed to store turn in L1: {e}")
                 raise TierOperationError(f"Failed to store turn: {e}") from e
 
-    async def retrieve(self, session_id: str) -> list[dict[str, Any]] | None:
+    async def retrieve(self, turn_id: str) -> TurnData | None:
+        """
+        Retrieve a turn by ID.
+
+        Args:
+            turn_id: Turn identifier
+
+        Returns:
+            TurnData or None if not found
+        """
+        async with OperationTimer(self.metrics, "l1_retrieve"):
+            try:
+                logger.debug(f"Retrieving turn {turn_id} from L1")
+
+                if not self.enable_postgres_backup:
+                    return None
+
+                postgres_result = await self.postgres.query(
+                    table="active_context",
+                    filters={"turn_id": turn_id, "tier": "L1"},
+                    limit=1,
+                )
+
+                if not postgres_result:
+                    logger.debug(f"Turn {turn_id} not found in L1")
+                    return None
+
+                row = postgres_result[0]
+                metadata = row.get("metadata", {})
+                if isinstance(metadata, str):
+                    metadata = json.loads(metadata)
+
+                turn = TurnData.model_validate(
+                    {
+                        "turn_id": row["turn_id"],
+                        "session_id": row["session_id"],
+                        "role": row["role"],
+                        "content": row["content"],
+                        "timestamp": row["timestamp"],
+                        "metadata": metadata,
+                    }
+                )
+
+                return turn
+
+            except Exception as e:
+                logger.error(f"Failed to retrieve turn from L1: {e}")
+                raise TierOperationError(f"Failed to retrieve turn: {e}") from e
+
+    async def retrieve_session(self, session_id: str) -> list[TurnData] | None:
         """
         Retrieve recent turns for a session.
 
@@ -207,7 +259,7 @@ class ActiveContextTier(BaseTier):
         Returns:
             List of recent turns (newest first) or None if not found
         """
-        async with OperationTimer(self.metrics, "l1_retrieve"):
+        async with OperationTimer(self.metrics, "l1_retrieve_session"):
             try:
                 redis_key = f"{self.REDIS_KEY_PREFIX}{session_id}"
 
@@ -217,7 +269,12 @@ class ActiveContextTier(BaseTier):
                 try:
                     turns_json = await self.redis.lrange(redis_key, 0, -1)
                     if turns_json:
-                        turns = [json.loads(t) for t in turns_json]
+                        turns = []
+                        for turn_json in turns_json:
+                            turn_payload = json.loads(turn_json)
+                            if "session_id" not in turn_payload:
+                                turn_payload["session_id"] = session_id
+                            turns.append(TurnData.model_validate(turn_payload))
                         logger.debug(f"Retrieved {len(turns)} turns from Redis (hot)")
                         return turns
                 except Exception as redis_error:
@@ -240,18 +297,28 @@ class ActiveContextTier(BaseTier):
                             f"Retrieved {len(postgres_result)} turns from PostgreSQL (cold)"
                         )
 
+                        turns = []
+                        for row in postgres_result:
+                            metadata = row.get("metadata", {})
+                            if isinstance(metadata, str):
+                                metadata = json.loads(metadata)
+                            turns.append(
+                                TurnData.model_validate(
+                                    {
+                                        "turn_id": row["turn_id"],
+                                        "session_id": row["session_id"],
+                                        "role": row["role"],
+                                        "content": row["content"],
+                                        "timestamp": row["timestamp"],
+                                        "metadata": metadata,
+                                    }
+                                )
+                            )
+
                         # Rebuild Redis cache
                         try:
-                            for turn in reversed(postgres_result):
-                                turn_data = {
-                                    "turn_id": turn["turn_id"],
-                                    "role": turn["role"],
-                                    "content": turn["content"],
-                                    "timestamp": turn["timestamp"].isoformat()
-                                    if isinstance(turn["timestamp"], datetime)
-                                    else turn["timestamp"],
-                                    "metadata": json.loads(turn.get("metadata", "{}")),
-                                }
+                            for turn in reversed(turns):
+                                turn_data = turn.model_dump(mode="json")
                                 await self.redis.lpush(redis_key, json.dumps(turn_data))
 
                             # Set TTL
@@ -262,7 +329,7 @@ class ActiveContextTier(BaseTier):
                         except Exception as rebuild_error:
                             logger.warning(f"Failed to rebuild Redis cache: {rebuild_error}")
 
-                        return postgres_result
+                        return turns
 
                 # Not found in either storage
                 logger.debug(f"Session {session_id} not found in L1")
@@ -274,7 +341,7 @@ class ActiveContextTier(BaseTier):
 
     async def query(
         self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
-    ) -> list[dict[str, Any]]:
+    ) -> list[TurnData]:
         """
         Query turns with filters.
 
@@ -305,8 +372,26 @@ class ActiveContextTier(BaseTier):
                     limit=limit,
                 )
 
-                logger.debug(f"Query returned {len(result)} turns")
-                return result
+                turns = []
+                for row in result:
+                    metadata = row.get("metadata", {})
+                    if isinstance(metadata, str):
+                        metadata = json.loads(metadata)
+                    turns.append(
+                        TurnData.model_validate(
+                            {
+                                "turn_id": row["turn_id"],
+                                "session_id": row["session_id"],
+                                "role": row["role"],
+                                "content": row["content"],
+                                "timestamp": row["timestamp"],
+                                "metadata": metadata,
+                            }
+                        )
+                    )
+
+                logger.debug(f"Query returned {len(turns)} turns")
+                return turns
 
             except Exception as e:
                 logger.error(f"Failed to query L1: {e}")

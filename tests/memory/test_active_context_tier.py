@@ -228,12 +228,12 @@ class TestActiveContextTierRetrieve:
         tier = ActiveContextTier(redis_adapter=redis_adapter, postgres_adapter=postgres_adapter)
         await tier.initialize()
 
-        turns = await tier.retrieve("test_session")
+        turns = await tier.retrieve_session("test_session")
 
         assert turns is not None
         assert len(turns) == 2
-        assert turns[0]["turn_id"] == "turn_002"
-        assert turns[1]["turn_id"] == "turn_001"
+        assert turns[0].turn_id == "turn_002"
+        assert turns[1].turn_id == "turn_001"
 
         # Verify Redis was called
         redis_adapter.lrange.assert_called_once()
@@ -252,6 +252,7 @@ class TestActiveContextTierRetrieve:
         mock_pg_data = [
             {
                 "turn_id": "turn_001",
+                "session_id": "test_session",
                 "role": "user",
                 "content": "Hello",
                 "timestamp": datetime.now(UTC),
@@ -263,7 +264,7 @@ class TestActiveContextTierRetrieve:
         tier = ActiveContextTier(redis_adapter=redis_adapter, postgres_adapter=postgres_adapter)
         await tier.initialize()
 
-        turns = await tier.retrieve("test_session")
+        turns = await tier.retrieve_session("test_session")
 
         assert turns is not None
         assert len(turns) == 1
@@ -288,6 +289,7 @@ class TestActiveContextTierRetrieve:
         mock_pg_data = [
             {
                 "turn_id": "turn_001",
+                "session_id": "test_session",
                 "role": "user",
                 "content": "Hello",
                 "timestamp": datetime.now(UTC),
@@ -299,7 +301,7 @@ class TestActiveContextTierRetrieve:
         tier = ActiveContextTier(redis_adapter=redis_adapter, postgres_adapter=postgres_adapter)
         await tier.initialize()
 
-        turns = await tier.retrieve("test_session")
+        turns = await tier.retrieve_session("test_session")
 
         assert turns is not None
         assert len(turns) == 1
@@ -318,7 +320,7 @@ class TestActiveContextTierRetrieve:
         tier = ActiveContextTier(redis_adapter=redis_adapter, postgres_adapter=postgres_adapter)
         await tier.initialize()
 
-        turns = await tier.retrieve("nonexistent_session")
+        turns = await tier.retrieve_session("nonexistent_session")
 
         assert turns is None
 
@@ -334,10 +336,12 @@ class TestActiveContextTierQuery:
         mock_results = [
             {
                 "turn_id": "turn_001",
+                "session_id": "test_session",
                 "role": "user",
                 "content": "Hello",
                 "timestamp": datetime.now(UTC),
                 "tier": "L1",
+                "metadata": "{}",
             }
         ]
         postgres_adapter.query = AsyncMock(return_value=mock_results)
@@ -348,7 +352,7 @@ class TestActiveContextTierQuery:
         results = await tier.query(filters={"session_id": "test_session", "role": "user"}, limit=10)
 
         assert len(results) == 1
-        assert results[0]["turn_id"] == "turn_001"
+        assert results[0].turn_id == "turn_001"
 
         # Verify PostgreSQL was called with correct filters
         call_args = postgres_adapter.query.call_args
