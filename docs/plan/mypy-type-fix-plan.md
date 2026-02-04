@@ -42,7 +42,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 | 4 | Redis/Neo4j type fixes | `src/storage/redis_adapter.py`, `src/storage/neo4j_adapter.py` | Complete |
 | 5 | Tier alignment to new adapters | `src/memory/tiers/*` | Complete |
 | 6 | Engine and model typing fixes | `src/memory/engines/*`, `src/memory/models.py`, `src/memory/ciar_scorer.py` | Complete |
-| 7 | Per-module mypy override | `pyproject.toml` | Not Started |
+| 7 | Per-module mypy override | `pyproject.toml` | Complete |
 
 ### Batch 1: Postgres Adapter Methods
 **Goal:** Implement `execute()`, `update()`, and `delete_by_filters()` (or equivalent) to match tier usage; add `order_by` support to `query()`.
@@ -109,8 +109,8 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 **Goal:** Resolve `AssertionError: Cannot find module for google` via per-module override.
 
 **Checklist:**
-- [ ] Add `[[tool.mypy.overrides]]` for `module = "google.*"` with `ignore_errors = true`
-- [ ] Commit: `chore: mypy override for google namespace package`
+- [x] Add `[[tool.mypy.overrides]]` for `module = "google.*"` with `ignore_errors = true`
+- [x] Commit: `chore: mypy override for google namespace package`
 
 ---
 
