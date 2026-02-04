@@ -273,6 +273,9 @@ class Neo4jAdapter(StorageAdapter):
         cypher: str,
         params: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
+        if self.driver is None:
+            raise StorageConnectionError("Not connected to Neo4j")
+
         async with self.driver.session(database=self.database) as session:
             result = await session.run(cypher, params or {})
             return await result.data()
@@ -342,7 +345,7 @@ class Neo4jAdapter(StorageAdapter):
             record = await result.single()
             if record is None:
                 raise StorageQueryError("Failed to store entity")
-            return record["id"]
+            return str(record["id"])
 
     async def _store_relationship(self, data: dict[str, Any]) -> str:
         """Store relationship between nodes"""

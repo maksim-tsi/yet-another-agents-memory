@@ -39,7 +39,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 | 1 | Postgres adapter methods | `src/storage/postgres_adapter.py` | Complete |
 | 2 | Typesense adapter methods | `src/storage/typesense_adapter.py` | Complete |
 | 3 | Qdrant adapter signature enhancements | `src/storage/qdrant_adapter.py` | Complete |
-| 4 | Redis/Neo4j type fixes | `src/storage/redis_adapter.py`, `src/storage/neo4j_adapter.py` | Not Started |
+| 4 | Redis/Neo4j type fixes | `src/storage/redis_adapter.py`, `src/storage/neo4j_adapter.py` | Complete |
 | 5 | Tier alignment to new adapters | `src/memory/tiers/*` | Not Started |
 | 6 | Engine and model typing fixes | `src/memory/engines/*`, `src/memory/models.py`, `src/memory/ciar_scorer.py` | Not Started |
 | 7 | Per-module mypy override | `pyproject.toml` | Not Started |
@@ -80,8 +80,8 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 **Goal:** Resolve awaitable union types and optional attribute access patterns.
 
 **Checklist:**
-- [ ] Add explicit casts on Redis await results (e.g., `int(await ...)`, `bool(...)`)
-- [ ] Ensure `self.client` and `self.driver` null guards before access
+- [x] Add explicit casts on Redis await results (e.g., `int(await ...)`, `bool(...)`)
+- [x] Ensure `self.client` and `self.driver` null guards before access
 - [ ] Commit: `fix(storage): redis/neo4j type annotations`
 
 ### Batch 5: Tier Alignment

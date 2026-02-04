@@ -33,8 +33,9 @@ Benchmarks run with: pytest tests/benchmarks/bench_redis_adapter.py -v -s
 
 import json
 import logging
+from collections.abc import Awaitable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import redis.asyncio as redis
 from redis.asyncio import Redis
@@ -205,8 +206,8 @@ class RedisAdapter(StorageAdapter):
                 )
 
             # Verify connection with PING
-            pong = await self.client.ping()
-            if not pong:
+            pong = await cast(Awaitable[bool], self.client.ping())
+            if not bool(pong):
                 raise StorageConnectionError("Redis PING failed")
 
             self._connected = True
@@ -376,19 +377,23 @@ class RedisAdapter(StorageAdapter):
                 turn_id = int(parts[1])
 
                 # Get all items from list
-                items = await self.client.lrange(key, 0, -1)
+                items = list(
+                    await cast(Awaitable[list[str]], self.client.lrange(key, 0, -1))
+                )
 
                 # Optional: Refresh TTL on access
                 if self.refresh_ttl_on_read and items:
-                    await self.client.expire(key, self.ttl_seconds)
+                    await cast(Awaitable[bool], self.client.expire(key, self.ttl_seconds))
                     logger.debug(f"Refreshed TTL for {key} (read access)")
 
                 # Search for matching turn_id
                 for item in items:
                     turn_data = json.loads(item)
+                    if not isinstance(turn_data, dict):
+                        raise StorageDataError("Invalid turn payload type")
                     if turn_data.get("turn_id") == turn_id:
                         logger.debug(f"Retrieved turn {turn_id} from {key}")
-                        return turn_data
+                        return dict(turn_data)
 
                 logger.debug(f"Turn {turn_id} not found in {key}")
                 return None
@@ -455,7 +460,9 @@ class RedisAdapter(StorageAdapter):
                 end = offset + limit - 1
 
                 # Get items from list
-                items = await self.client.lrange(key, start, end)
+                items = list(
+                    await cast(Awaitable[list[str]], self.client.lrange(key, start, end))
+                )
 
                 if not items:
                     logger.debug(f"No turns found for session {session_id}")
@@ -463,14 +470,16 @@ class RedisAdapter(StorageAdapter):
 
                 # Optional: Refresh TTL on access
                 if self.refresh_ttl_on_read:
-                    await self.client.expire(key, self.ttl_seconds)
+                    await cast(Awaitable[bool], self.client.expire(key, self.ttl_seconds))
                     logger.debug(f"Refreshed TTL for {key} (read access)")
 
                 # Deserialize all items
                 results = []
                 for item in items:
                     turn_data = json.loads(item)
-                    results.append(turn_data)
+                    if not isinstance(turn_data, dict):
+                        raise StorageDataError("Invalid turn payload type")
+                    results.append(dict(turn_data))
 
                 logger.debug(
                     f"Retrieved {len(results)} turns for session {session_id} "
@@ -515,8 +524,8 @@ class RedisAdapter(StorageAdapter):
                 else:
                     # Entire session: session:{id}:turns
                     key = id if ":" in id else self._make_key(id)
-                    result = await self.client.delete(key)
-                    deleted = result > 0
+                    result = await cast(Awaitable[int], self.client.delete(key))
+                    deleted = int(result) > 0
 
                     if deleted:
                         logger.debug(f"Deleted session cache: {key}")
@@ -538,14 +547,16 @@ class RedisAdapter(StorageAdapter):
         turn_id = int(parts[1])
 
         # Get all items
-        items = await self.client.lrange(key, 0, -1)
+        items = list(await cast(Awaitable[list[str]], self.client.lrange(key, 0, -1)))
 
         # Find and remove matching turn
         for item in items:
             turn_data = json.loads(item)
+            if not isinstance(turn_data, dict):
+                raise StorageDataError("Invalid turn payload type")
             if turn_data.get("turn_id") == turn_id:
                 # Remove this item from list
-                removed = await self.client.lrem(key, 1, item)
+                removed = await cast(Awaitable[int], self.client.lrem(key, 1, item))
                 if int(removed) > 0:
                     logger.debug(f"Deleted turn {turn_id} from {key}")
                     return True
@@ -580,7 +591,7 @@ class RedisAdapter(StorageAdapter):
 
         try:
             key = self._make_key(session_id)
-            size = await self.client.llen(key)
+            size = await cast(Awaitable[int], self.client.llen(key))
             return int(size)
         except redis.RedisError as e:
             logger.error(f"Failed to get session size: {e}", exc_info=True)
@@ -601,7 +612,7 @@ class RedisAdapter(StorageAdapter):
 
         try:
             key = self._make_key(session_id)
-            exists = await self.client.exists(key)
+            exists = await cast(Awaitable[int], self.client.exists(key))
             return int(exists) > 0
         except redis.RedisError as e:
             logger.error(f"Failed to check session existence: {e}", exc_info=True)
@@ -622,7 +633,7 @@ class RedisAdapter(StorageAdapter):
 
         try:
             key = self._make_key(session_id)
-            result = await self.client.expire(key, self.ttl_seconds)
+            result = await cast(Awaitable[bool], self.client.expire(key, self.ttl_seconds))
             return bool(result)
         except redis.RedisError as e:
             logger.error(f"Failed to refresh TTL: {e}", exc_info=True)
@@ -651,7 +662,10 @@ class RedisAdapter(StorageAdapter):
             keys = []
             cursor = 0
             while True:
-                cursor, batch = await self.client.scan(cursor, match=pattern, count=100)
+                cursor, batch = await cast(
+                    Awaitable[tuple[int, list[str]]],
+                    self.client.scan(cursor, match=pattern, count=100),
+                )
                 keys.extend([k.decode() if isinstance(k, bytes) else k for k in batch])
                 if cursor == 0:
                     break
@@ -684,7 +698,7 @@ class RedisAdapter(StorageAdapter):
             return 0
 
         try:
-            deleted = await self.client.delete(*keys)
+            deleted = await cast(Awaitable[int], self.client.delete(*keys))
             logger.debug(f"Deleted {deleted} keys")
             return int(deleted)
         except redis.RedisError as e:
@@ -696,33 +710,33 @@ class RedisAdapter(StorageAdapter):
         """Push values to head of list."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        result = await self.client.lpush(key, *values)
+        result = await cast(Awaitable[int], self.client.lpush(key, *values))
         return int(result)
 
     async def ltrim(self, key: str, start: int, stop: int) -> bool:
         """Trim list to specified range."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        result = await self.client.ltrim(key, start, stop)
+        result = await cast(Awaitable[bool], self.client.ltrim(key, start, stop))
         return bool(result)
 
     async def lrange(self, key: str, start: int, stop: int) -> list[bytes]:
         """Get range of elements from list."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        result = await self.client.lrange(key, start, stop)
+        result = await cast(Awaitable[list[bytes]], self.client.lrange(key, start, stop))
         return list(result)
 
     async def llen(self, key: str) -> int:
         """Get length of list."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        result = await self.client.llen(key)
+        result = await cast(Awaitable[int], self.client.llen(key))
         return int(result)
 
     async def expire(self, key: str, seconds: int) -> bool:
         """Set TTL on key."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        result = await self.client.expire(key, seconds)
+        result = await cast(Awaitable[bool], self.client.expire(key, seconds))
         return bool(result)
