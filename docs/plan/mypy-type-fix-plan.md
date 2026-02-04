@@ -37,7 +37,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 | Batch | Scope | Primary Files | Status |
 |-------|-------|---------------|--------|
 | 1 | Postgres adapter methods | `src/storage/postgres_adapter.py` | Complete |
-| 2 | Typesense adapter methods | `src/storage/typesense_adapter.py` | Not Started |
+| 2 | Typesense adapter methods | `src/storage/typesense_adapter.py` | Complete |
 | 3 | Qdrant adapter signature enhancements | `src/storage/qdrant_adapter.py` | Not Started |
 | 4 | Redis/Neo4j type fixes | `src/storage/redis_adapter.py`, `src/storage/neo4j_adapter.py` | Not Started |
 | 5 | Tier alignment to new adapters | `src/memory/tiers/*` | Not Started |
@@ -59,11 +59,11 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 **Goal:** Implement document-level wrappers and a keyword-args search overload to match tier usage.
 
 **Checklist:**
-- [ ] Add `get_document(collection_name: str, document_id: str) -> dict[str, Any] | None`
-- [ ] Add `update_document(collection_name: str, document_id: str, document: dict[str, Any]) -> bool`
-- [ ] Add `delete_document(collection_name: str, document_id: str) -> bool`
-- [ ] Add keyword-args `search()` overload returning raw response with `hits`
-- [ ] Fix return typing at lines ~180, ~207, ~209
+- [x] Add `get_document(collection_name: str, document_id: str) -> dict[str, Any] | None`
+- [x] Add `update_document(collection_name: str, document_id: str, document: dict[str, Any]) -> bool`
+- [x] Add `delete_document(collection_name: str, document_id: str) -> bool`
+- [x] Add keyword-args `search()` overload returning raw response with `hits`
+- [x] Fix return typing at lines ~180, ~207, ~209
 - [ ] Commit: `feat(storage): add typesense adapter document methods`
 
 ### Batch 3: Qdrant Adapter Signature Enhancements

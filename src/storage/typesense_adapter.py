@@ -16,7 +16,7 @@ import json
 import logging
 import uuid
 from datetime import UTC
-from typing import Any
+from typing import Any, overload
 
 import httpx
 
@@ -176,8 +176,9 @@ class TypesenseAdapter(StorageAdapter):
                 else:
                     result = json_result
 
-                logger.debug(f"Indexed document: {result['id']}")
-                return result["id"]
+                document_id = str(result["id"])
+                logger.debug(f"Indexed document: {document_id}")
+                return document_id
 
             except httpx.HTTPStatusError as e:
                 logger.error(f"Typesense store failed: {e}", exc_info=True)
@@ -204,9 +205,11 @@ class TypesenseAdapter(StorageAdapter):
                 # Fix: Handle both coroutine and regular dict return types
                 json_result = response.json()
                 if asyncio.iscoroutine(json_result):
-                    return await json_result
+                    result = await json_result
                 else:
-                    return json_result
+                    result = json_result
+
+                return dict(result)
 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 404:
@@ -217,7 +220,107 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense retrieve failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Retrieve failed: {e}") from e
 
-    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
+    async def get_document(
+        self, collection_name: str, document_id: str
+    ) -> dict[str, Any] | None:
+        """Retrieve a document by ID from a specified collection."""
+        async with OperationTimer(self.metrics, "get_document"):
+            if not self._connected or not self.client:
+                raise StorageConnectionError("Not connected to Typesense")
+
+            try:
+                response = await self.client.get(
+                    f"{self.url}/collections/{collection_name}/documents/{document_id}"
+                )
+
+                if response.status_code == 404:
+                    return None
+
+                await self._raise_for_status(response)
+                json_result = response.json()
+                if asyncio.iscoroutine(json_result):
+                    result = await json_result
+                else:
+                    result = json_result
+
+                return dict(result)
+
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    return None
+                logger.error(f"Typesense get_document failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Get document failed: {e}") from e
+            except Exception as e:
+                logger.error(f"Typesense get_document failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Get document failed: {e}") from e
+
+    async def update_document(
+        self,
+        collection_name: str,
+        document_id: str,
+        document: dict[str, Any],
+    ) -> bool:
+        """Update a document in a specified collection."""
+        async with OperationTimer(self.metrics, "update_document"):
+            if not self._connected or not self.client:
+                raise StorageConnectionError("Not connected to Typesense")
+
+            try:
+                response = await self.client.patch(
+                    f"{self.url}/collections/{collection_name}/documents/{document_id}",
+                    json=document,
+                )
+                await self._raise_for_status(response)
+                return response.status_code == 200
+
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Typesense update_document failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Update document failed: {e}") from e
+            except Exception as e:
+                logger.error(f"Typesense update_document failed: {e}", exc_info=True)
+                raise StorageQueryError(f"Update document failed: {e}") from e
+
+    async def delete_document(self, collection_name: str, document_id: str) -> bool:
+        """Delete a document by ID from a specified collection."""
+        async with OperationTimer(self.metrics, "delete_document"):
+            if not self._connected or not self.client:
+                raise StorageConnectionError("Not connected to Typesense")
+
+            try:
+                response = await self.client.delete(
+                    f"{self.url}/collections/{collection_name}/documents/{document_id}"
+                )
+                return response.status_code == 200
+
+            except Exception as e:
+                logger.error(f"Typesense delete_document failed: {e}", exc_info=True)
+                return False
+
+    @overload
+    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]: ...
+
+    @overload
+    async def search(
+        self,
+        *,
+        collection_name: str,
+        query: str,
+        query_by: str,
+        filter_by: str | None = None,
+        limit: int = 10,
+        sort_by: str | None = None,
+    ) -> dict[str, Any]: ...
+
+    async def search(
+        self,
+        query: dict[str, Any] | str | None = None,
+        *,
+        collection_name: str | None = None,
+        query_by: str | None = None,
+        filter_by: str | None = None,
+        limit: int = 10,
+        sort_by: str | None = None,
+    ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Full-text search.
 
@@ -231,20 +334,35 @@ class TypesenseAdapter(StorageAdapter):
             if not self._connected or not self.client:
                 raise StorageConnectionError("Not connected to Typesense")
 
-            validate_required_fields(query, ["q", "query_by"])
-
-            try:
+            if isinstance(query, dict):
+                validate_required_fields(query, ["q", "query_by"])
                 params = {
                     "q": query["q"],
                     "query_by": query["query_by"],
                     "per_page": query.get("limit", 10),
                 }
-
                 if "filter_by" in query:
                     params["filter_by"] = query["filter_by"]
+                if "sort_by" in query:
+                    params["sort_by"] = query["sort_by"]
+                target_collection = query.get("collection_name", self.collection_name)
+            else:
+                if query is None or not query_by:
+                    raise StorageDataError("Search requires query and query_by")
+                params = {
+                    "q": query,
+                    "query_by": query_by,
+                    "per_page": limit,
+                }
+                if filter_by:
+                    params["filter_by"] = filter_by
+                if sort_by:
+                    params["sort_by"] = sort_by
+                target_collection = collection_name or self.collection_name
 
+            try:
                 response = await self.client.get(
-                    f"{self.url}/collections/{self.collection_name}/documents/search", params=params
+                    f"{self.url}/collections/{target_collection}/documents/search", params=params
                 )
                 await self._raise_for_status(response)
 
@@ -255,7 +373,10 @@ class TypesenseAdapter(StorageAdapter):
                 else:
                     result = json_result
 
-                return [hit["document"] for hit in result.get("hits", [])]
+                if isinstance(query, dict):
+                    return [hit["document"] for hit in result.get("hits", [])]
+
+                return dict(result)
 
             except httpx.HTTPStatusError as e:
                 logger.error(f"Typesense search failed: {e}", exc_info=True)
