@@ -12,7 +12,11 @@ from qdrant_client.models import (
     Distance,
     FieldCondition,
     Filter,
+    HasIdCondition,
+    IsEmptyCondition,
+    IsNullCondition,
     MatchValue,
+    NestedCondition,
     PointIdsList,
     PointStruct,
     VectorParams,
@@ -257,7 +261,16 @@ class QdrantAdapter(StorageAdapter):
                 logger.error(f"Qdrant retrieve failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to retrieve from Qdrant: {e}") from e
 
-    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
+    async def search(
+        self,
+        query: dict[str, Any] | None = None,
+        *,
+        collection_name: str | None = None,
+        query_vector: list[float] | None = None,
+        limit: int = 10,
+        filter_dict: dict[str, Any] | None = None,
+        score_threshold: float = 0.0,
+    ) -> list[dict[str, Any]]:
         """
         Search for similar vectors.
 
@@ -282,9 +295,23 @@ class QdrantAdapter(StorageAdapter):
             if not self._connected or not self.client:
                 raise StorageConnectionError("Not connected to Qdrant")
 
+            if query is None:
+                query = {}
+
             # Backwards compatibility: allow query_vector alias
             if "vector" not in query and "query_vector" in query:
                 query = {**query, "vector": query["query_vector"]}
+
+            if query_vector is not None:
+                query = {**query, "vector": query_vector}
+            if filter_dict is not None:
+                query = {**query, "filter": filter_dict}
+            if collection_name is not None:
+                query = {**query, "collection_name": collection_name}
+            if "limit" not in query:
+                query["limit"] = limit
+            if "score_threshold" not in query:
+                query["score_threshold"] = score_threshold
 
             # Validate required fields
             validate_required_fields(query, ["vector"])
@@ -297,8 +324,9 @@ class QdrantAdapter(StorageAdapter):
 
                 # Build filter if provided
                 search_filter = None
-                if "filter" in query and query["filter"] is not None:
-                    search_filter = self._build_qdrant_filter(query["filter"])
+                filter_value = query.get("filter") or query.get("filter_dict")
+                if filter_value is not None:
+                    search_filter = self._build_qdrant_filter(filter_value)
 
                 # Allow per-request override for collection_name when callers want to
                 # query a non-default collection (e.g., episodic vs semantic memory).
@@ -339,7 +367,13 @@ class QdrantAdapter(StorageAdapter):
                 logger.error(f"Qdrant search failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to search Qdrant: {e}") from e
 
-    async def delete(self, id: str) -> bool:
+    async def delete(
+        self,
+        id: str | None = None,
+        *,
+        collection_name: str | None = None,
+        point_ids: list[str] | None = None,
+    ) -> bool:
         """
         Delete a single vector by ID.
 
@@ -350,20 +384,26 @@ class QdrantAdapter(StorageAdapter):
                 raise StorageConnectionError("Not connected to Qdrant")
 
             try:
+                if point_ids is None:
+                    if id is None:
+                        raise StorageDataError("Point ID is required for delete")
+                    point_ids = [str(id)]
+
+                target_collection = collection_name or self.collection_name
                 result = await self.client.delete(
-                    collection_name=self.collection_name,
-                    points_selector=PointIdsList(points=[str(id)]),
+                    collection_name=target_collection,
+                    points_selector=PointIdsList(points=[str(pid) for pid in point_ids]),
                 )
 
                 status = getattr(result, "status", None)
                 if status == "completed":
-                    logger.debug(f"Deleted point {id}")
+                    logger.debug(f"Deleted {len(point_ids)} points")
                     return True
                 if status == "not_found":
-                    logger.debug(f"Point {id} not found for deletion")
+                    logger.debug("Points not found for deletion")
                     return False
 
-                logger.debug(f"Delete returned status {status} for point {id}")
+                logger.debug(f"Delete returned status {status} for points {point_ids}")
                 return False
 
             except Exception as e:
@@ -470,9 +510,17 @@ class QdrantAdapter(StorageAdapter):
         if isinstance(filter_dict, dict) and any(
             key in filter_dict for key in ["must", "should", "must_not"]
         ):
-            must_conditions = []
-            should_conditions = []
-            must_not_conditions = []
+            FilterConditionType = (
+                FieldCondition
+                | IsEmptyCondition
+                | IsNullCondition
+                | HasIdCondition
+                | NestedCondition
+                | Filter
+            )
+            must_conditions: list[FilterConditionType] = []
+            should_conditions: list[FilterConditionType] = []
+            must_not_conditions: list[FilterConditionType] = []
 
             if "must" in filter_dict:
                 for condition in filter_dict["must"]:
@@ -542,8 +590,16 @@ class QdrantAdapter(StorageAdapter):
                     ]
                 )
 
-            must_conditions = []
-            should_conditions = []
+            FilterConditionType = (
+                FieldCondition
+                | IsEmptyCondition
+                | IsNullCondition
+                | HasIdCondition
+                | NestedCondition
+                | Filter
+            )
+            must_conditions: list[FilterConditionType] = []
+            should_conditions: list[FilterConditionType] = []
 
             for key, value in filter_dict.items():
                 if isinstance(value, dict | list):
@@ -660,7 +716,7 @@ class QdrantAdapter(StorageAdapter):
             points_map = {str(point.id): point for point in points}
 
             # Return results in same order as input IDs
-            results = []
+            results: list[dict[str, Any] | None] = []
             for id in ids:
                 if id in points_map:
                     point = points_map[id]
@@ -680,6 +736,8 @@ class QdrantAdapter(StorageAdapter):
                         results.append(result)
                     else:
                         results.append(None)
+                else:
+                    results.append(None)
 
             logger.debug(
                 f"Retrieved {len([r for r in results if r])} of {len(ids)} vectors in batch"

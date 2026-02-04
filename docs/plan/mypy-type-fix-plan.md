@@ -38,7 +38,7 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 |-------|-------|---------------|--------|
 | 1 | Postgres adapter methods | `src/storage/postgres_adapter.py` | Complete |
 | 2 | Typesense adapter methods | `src/storage/typesense_adapter.py` | Complete |
-| 3 | Qdrant adapter signature enhancements | `src/storage/qdrant_adapter.py` | Not Started |
+| 3 | Qdrant adapter signature enhancements | `src/storage/qdrant_adapter.py` | Complete |
 | 4 | Redis/Neo4j type fixes | `src/storage/redis_adapter.py`, `src/storage/neo4j_adapter.py` | Not Started |
 | 5 | Tier alignment to new adapters | `src/memory/tiers/*` | Not Started |
 | 6 | Engine and model typing fixes | `src/memory/engines/*`, `src/memory/models.py`, `src/memory/ciar_scorer.py` | Not Started |
@@ -70,10 +70,10 @@ The remediation will **extend adapter APIs** to match existing tier usage. This 
 **Goal:** Accept both dict-style and keyword-args search/delete calls, with correct filter typing.
 
 **Checklist:**
-- [ ] Update `search()` to accept kwargs and map to dict query
-- [ ] Update `delete()` to accept `collection_name` and `point_ids`
-- [ ] Fix filter union typing at lines ~527-529, ~563
-- [ ] Fix results list typing at lines ~682-687
+- [x] Update `search()` to accept kwargs and map to dict query
+- [x] Update `delete()` to accept `collection_name` and `point_ids`
+- [x] Fix filter union typing at lines ~527-529, ~563
+- [x] Fix results list typing at lines ~682-687
 - [ ] Commit: `feat(storage): enhance qdrant adapter search/delete signatures`
 
 ### Batch 4: Redis and Neo4j Type Fixes
