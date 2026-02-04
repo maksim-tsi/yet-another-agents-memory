@@ -2,16 +2,17 @@
 Tests for DistillationEngine (L3 → L4 Knowledge Creation)
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.memory.engines.distillation_engine import DistillationEngine
 from src.memory.models import Episode, KnowledgeDocument
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.semantic_memory_tier import SemanticMemoryTier
-from src.utils.providers import BaseProvider
 from src.utils.llm_client import LLMResponse
+from src.utils.providers import BaseProvider
 
 
 @pytest.fixture

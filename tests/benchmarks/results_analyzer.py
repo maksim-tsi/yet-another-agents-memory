@@ -7,9 +7,9 @@ for performance and reliability metrics.
 
 import json
 import statistics
-from pathlib import Path
-from typing import Dict, Any, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 
 class BenchmarkAnalyzer:
@@ -21,7 +21,7 @@ class BenchmarkAnalyzer:
     2. Reliability & Error Handling Table
     """
 
-    def __init__(self, results_file: Optional[Path] = None):
+    def __init__(self, results_file: Path | None = None):
         """
         Initialize analyzer.
 
@@ -49,12 +49,12 @@ class BenchmarkAnalyzer:
 
         return results_files[-1]
 
-    def _load_results(self) -> Dict[str, Any]:
+    def _load_results(self) -> dict[str, Any]:
         """Load benchmark results from JSON file."""
         with open(self.results_file) as f:
             return json.load(f)
 
-    def generate_all_tables(self, output_dir: Optional[Path] = None) -> None:
+    def generate_all_tables(self, output_dir: Path | None = None) -> None:
         """
         Generate all publication tables.
 
@@ -220,7 +220,7 @@ class BenchmarkAnalyzer:
 
         return table
 
-    def generate_summary(self) -> Dict[str, Any]:
+    def generate_summary(self) -> dict[str, Any]:
         """
         Generate summary statistics for all adapters.
 
@@ -262,7 +262,7 @@ class BenchmarkAnalyzer:
 
         return summary
 
-    def _compute_latency_stats(self, metrics: Dict[str, Any]) -> Dict[str, float]:
+    def _compute_latency_stats(self, metrics: dict[str, Any]) -> dict[str, float]:
         """
         Compute latency statistics from metrics data.
 
@@ -279,7 +279,7 @@ class BenchmarkAnalyzer:
 
         operations = metrics.get("operations", {})
 
-        for op_name, op_metrics in operations.items():
+        for _op_name, op_metrics in operations.items():
             if "total_count" in op_metrics and op_metrics["total_count"] > 0:
                 total_ops += op_metrics["total_count"]
 

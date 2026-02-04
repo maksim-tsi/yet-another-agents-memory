@@ -184,7 +184,7 @@ def main():
     """Main test execution."""
     print_header()
 
-    configured, missing = check_api_keys()
+    configured, _missing = check_api_keys()
 
     if not configured:
         print("\n❌ ERROR: No API keys configured!")
@@ -212,5 +212,5 @@ if __name__ == "__main__":
         sys.exit(1)
     except Exception as e:
         print(f"\n❌ Unexpected error: {type(e).__name__}")
-        print(f"   {str(e)}")
+        print(f"   {e!s}")
         sys.exit(1)

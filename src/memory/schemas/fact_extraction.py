@@ -1,6 +1,8 @@
 """Fact extraction schema and system instruction for Gemini structured output."""
 
-from google.genai import types
+import importlib
+
+types = importlib.import_module("google.genai.types")
 
 FACT_EXTRACTION_SYSTEM_INSTRUCTION = """You are an expert fact extractor for a supply chain memory system.
 

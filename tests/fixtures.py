@@ -5,13 +5,14 @@ Provides common fixtures, test data generators, and utilities
 used across all storage adapter test suites.
 """
 
-import pytest
-import uuid
 import random
 import string
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
-from unittest.mock import Mock, AsyncMock
+import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 # ============================================================================
 # Sample Test Data
@@ -33,7 +34,7 @@ def sample_turn_data():
         "metadata": {
             "role": "user",
             "tokens": 5,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         },
     }
 
@@ -97,7 +98,7 @@ def sample_search_document():
         "content": "This is a test document for full-text search",
         "title": "Test Document",
         "session_id": f"test-session-{uuid.uuid4()}",
-        "timestamp": int(datetime.now(timezone.utc).timestamp()),
+        "timestamp": int(datetime.now(UTC).timestamp()),
     }
 
 
@@ -116,7 +117,7 @@ def generate_random_text(min_words: int = 5, max_words: int = 20) -> str:
     return " ".join(words)
 
 
-def generate_conversation_turns(session_id: str, count: int = 10) -> List[Dict[str, Any]]:
+def generate_conversation_turns(session_id: str, count: int = 10) -> list[dict[str, Any]]:
     """Generate multiple conversation turns for testing."""
     turns = []
     for i in range(count):
@@ -126,13 +127,13 @@ def generate_conversation_turns(session_id: str, count: int = 10) -> List[Dict[s
                 "turn_id": i,
                 "content": generate_random_text(10, 50),
                 "role": "user" if i % 2 == 0 else "assistant",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         )
     return turns
 
 
-def generate_vector_batch(count: int = 10) -> List[Dict[str, Any]]:
+def generate_vector_batch(count: int = 10) -> list[dict[str, Any]]:
     """Generate batch of vectors for testing."""
     vectors = []
     for _ in range(count):
@@ -142,7 +143,7 @@ def generate_vector_batch(count: int = 10) -> List[Dict[str, Any]]:
                 "vector": [random.random() for _ in range(384)],
                 "content": generate_random_text(20, 100),
                 "session_id": f"test-session-{uuid.uuid4()}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         )
     return vectors
@@ -254,25 +255,25 @@ def cleanup_redis_session():
 @pytest.fixture
 def future_timestamp():
     """Generate timestamp 1 hour in the future."""
-    return datetime.now(timezone.utc) + timedelta(hours=1)
+    return datetime.now(UTC) + timedelta(hours=1)
 
 
 @pytest.fixture
 def past_timestamp():
     """Generate timestamp 1 hour in the past."""
-    return datetime.now(timezone.utc) - timedelta(hours=1)
+    return datetime.now(UTC) - timedelta(hours=1)
 
 
 @pytest.fixture
 def ttl_24_hours():
     """TTL expiration 24 hours from now."""
-    return datetime.now(timezone.utc) + timedelta(hours=24)
+    return datetime.now(UTC) + timedelta(hours=24)
 
 
 @pytest.fixture
 def ttl_7_days():
     """TTL expiration 7 days from now."""
-    return datetime.now(timezone.utc) + timedelta(days=7)
+    return datetime.now(UTC) + timedelta(days=7)
 
 
 # ============================================================================

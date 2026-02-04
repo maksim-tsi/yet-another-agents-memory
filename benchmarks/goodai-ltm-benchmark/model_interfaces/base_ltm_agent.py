@@ -6,12 +6,11 @@ import os
 import threading
 import uuid
 from dataclasses import dataclass
-from typing import List
-from goodai.ltm.mem.base import RetrievedMemory
 
+import tiktoken
+from goodai.ltm.mem.base import RetrievedMemory
 from model_interfaces.interface import ChatSession
 from utils.llm import ask_llm
-import tiktoken
 
 _logger = logging.getLogger("exp_agent")
 _log_prompts = os.environ.get("LTM_BENCH_PROMPT_LOGGING", "False").lower() in ["true", "yes", "1"]
@@ -22,7 +21,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
     Abstract base of LTM agents
     """
 
-    def __init__(self, run_name: str = "", model: str = None):
+    def __init__(self, run_name: str = "", model: str | None = None):
         super().__init__(run_name=run_name)
         self.model = model
         self.log_count = 0
@@ -39,7 +38,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         return len(encoding.encode(string))
 
     @classmethod
-    def context_token_counts(cls, messages: List[dict]):
+    def context_token_counts(cls, messages: list[dict]):
         """Calculates the total number of tokens in a list of messages."""
         total_tokens = 0
         for message in messages:
@@ -60,7 +59,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         else:
             return f"{elapsed / (60 * 60 * 24):.1f} day(s) ago"
 
-    def get_mem_excerpts(self, memories: List[RetrievedMemory], token_limit: int) -> str:
+    def get_mem_excerpts(self, memories: list[RetrievedMemory], token_limit: int) -> str:
         token_count = 0
         excerpts: list[tuple[float, str]] = []
         ts = self.current_time
@@ -80,7 +79,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         excerpts.sort(key=lambda _t: _t[0])
         return "\n".join([e for _, e in excerpts])
 
-    def completion(self, context: List[dict[str, str]], temperature: float, label: str) -> str:
+    def completion(self, context: list[dict[str, str]], temperature: float, label: str) -> str:
         def cost_callback(cost_usd: float):
             self.costs_usd += cost_usd
 

@@ -1,4 +1,5 @@
 import json
+
 from utils.constants import DATA_DIR
 
 FOLDER = DATA_DIR.joinpath("input_raw_data/movie_qa")
@@ -20,7 +21,7 @@ def main():
     for g in genres:
         fname_read = FOLDER.joinpath(f"{g}_numbered.txt")
         name_list = []
-        with open(fname_read, "r") as f:
+        with open(fname_read) as f:
             names = f.readlines()
             for n in names:
                 name_split = n.split(" ")

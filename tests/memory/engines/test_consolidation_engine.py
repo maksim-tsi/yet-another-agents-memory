@@ -1,12 +1,14 @@
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone, timedelta
+
+import pytest
+
 from src.memory.engines.consolidation_engine import ConsolidationEngine
-from src.memory.tiers.working_memory_tier import WorkingMemoryTier
+from src.memory.models import Episode, Fact, FactCategory, FactType
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
-from src.memory.models import Fact, Episode, FactType, FactCategory
-from src.utils.providers import GeminiProvider
+from src.memory.tiers.working_memory_tier import WorkingMemoryTier
 from src.utils.llm_client import LLMResponse, ProviderHealth
+from src.utils.providers import GeminiProvider
 
 
 @pytest.fixture
@@ -46,7 +48,7 @@ def engine(mock_l2, mock_l3, mock_gemini):
 
 @pytest.fixture
 def sample_facts():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     facts = []
     for i in range(3):
         fact = Fact(
@@ -123,7 +125,7 @@ async def test_clustering_by_time(engine, sample_facts):
 
 @pytest.mark.asyncio
 async def test_clustering_multiple_windows(engine):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     facts = []
 
     # Create facts spanning 48 hours (should create 2 clusters with 24h window)
@@ -182,11 +184,11 @@ async def test_embedding_generation(engine, mock_gemini):
         narrative="Test narrative",
         source_fact_ids=["fact-1"],
         fact_count=1,
-        time_window_start=datetime.now(timezone.utc),
-        time_window_end=datetime.now(timezone.utc),
+        time_window_start=datetime.now(UTC),
+        time_window_end=datetime.now(UTC),
         duration_seconds=60,
-        fact_valid_from=datetime.now(timezone.utc),
-        source_observation_timestamp=datetime.now(timezone.utc),
+        fact_valid_from=datetime.now(UTC),
+        source_observation_timestamp=datetime.now(UTC),
     )
 
     mock_gemini.get_embedding.return_value = [0.1] * 768

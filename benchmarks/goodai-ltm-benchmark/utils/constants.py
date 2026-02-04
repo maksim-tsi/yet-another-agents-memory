@@ -58,7 +58,7 @@ METRIC_ALT = dict(
         "corresponding test."
     ),
 )
-METRIC_NAMES = {key: "LTM Score" if key == "ltm" else key.capitalize() for key in METRIC_ALT.keys()}
+METRIC_NAMES = {key: "LTM Score" if key == "ltm" else key.capitalize() for key in METRIC_ALT}
 METRIC_UNITS = dict(
     accuracy="%",
     speed="tokens per second",

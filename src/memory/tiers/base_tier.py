@@ -6,14 +6,14 @@ tiers (L1-L4) must implement. It provides a uniform API for agents to
 interact with memory without knowing the underlying storage details.
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
 import logging
+from abc import ABC, abstractmethod
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from src.storage.base import StorageAdapter
 from src.storage.metrics.collector import MetricsCollector
-
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +70,9 @@ class BaseTier(ABC):
 
     def __init__(
         self,
-        storage_adapters: Dict[str, StorageAdapter],
-        metrics_collector: Optional[MetricsCollector] = None,
-        config: Optional[Dict[str, Any]] = None,
+        storage_adapters: Mapping[str, StorageAdapter],
+        metrics_collector: MetricsCollector | None = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize base tier.
@@ -100,7 +100,7 @@ class BaseTier(ABC):
         )
 
     @abstractmethod
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store data in this tier.
 
@@ -121,7 +121,7 @@ class BaseTier(ABC):
         pass
 
     @abstractmethod
-    async def retrieve(self, identifier: str) -> Optional[Dict[str, Any]]:
+    async def retrieve(self, identifier: str) -> dict[str, Any] | None:
         """
         Retrieve data by identifier.
 
@@ -142,8 +142,8 @@ class BaseTier(ABC):
 
     @abstractmethod
     async def query(
-        self, filters: Optional[Dict[str, Any]] = None, limit: int = 10, **kwargs
-    ) -> List[Dict[str, Any]]:
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+    ) -> list[dict[str, Any]]:
         """
         Query data with optional filters.
 
@@ -184,7 +184,7 @@ class BaseTier(ABC):
         pass
 
     @abstractmethod
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check health of all underlying storage adapters.
 
@@ -206,7 +206,7 @@ class BaseTier(ABC):
         """
         pass
 
-    async def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         """
         Get tier-specific metrics.
 
@@ -232,7 +232,7 @@ class BaseTier(ABC):
 
         return {
             "tier": self.__class__.__name__,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "metrics": base_metrics,
         }
 
@@ -294,7 +294,7 @@ class BaseTier(ABC):
         """Check if tier is initialized and ready for use."""
         return self._initialized
 
-    def get_storage_adapter(self, name: str) -> Optional[StorageAdapter]:
+    def get_storage_adapter(self, name: str) -> StorageAdapter | None:
         """
         Get a specific storage adapter by name.
 

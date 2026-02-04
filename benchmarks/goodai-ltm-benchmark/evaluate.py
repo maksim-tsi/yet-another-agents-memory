@@ -1,14 +1,13 @@
 import re
-import click
 from datetime import datetime
 
+import click
 import yaml
-
 from dataset_interfaces.factory import DatasetFactory
 from dataset_interfaces.interface import TestExample
 from reporting.results import TestResult
-from utils.files import gather_testdef_files, make_result_path, make_config_path
-from utils.ui import colour_print, ask_yesno
+from utils.files import gather_testdef_files, make_config_path, make_result_path
+from utils.ui import ask_yesno, colour_print
 
 
 def reconstruct_history(result: TestResult) -> list[dict[str, str | datetime]]:
@@ -34,7 +33,7 @@ def reconstruct_messages_timestamps(
 
 
 def extract_questions(example: TestExample) -> list[str]:
-    return [line for line, is_q in zip(example.script, example.is_question) if is_q]
+    return [line for line, is_q in zip(example.script, example.is_question, strict=False) if is_q]
 
 
 @click.command("evaluate")

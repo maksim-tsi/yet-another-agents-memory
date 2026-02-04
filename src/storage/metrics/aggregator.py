@@ -2,8 +2,9 @@
 Calculate statistical aggregations from raw metrics.
 """
 
-from typing import Dict, Any, List
 import math
+from datetime import UTC
+from typing import Any
 
 
 class MetricsAggregator:
@@ -13,14 +14,16 @@ class MetricsAggregator:
 
     @staticmethod
     def calculate_percentiles(
-        values: List[float], percentiles: List[int] = [50, 95, 99]
-    ) -> Dict[str, float]:
+        values: list[float], percentiles: list[int] | None = None
+    ) -> dict[str, float]:
         """
         Calculate percentiles from list of values.
 
         Returns:
             {'p50': 10.2, 'p95': 35.8, 'p99': 89.1}
         """
+        if percentiles is None:
+            percentiles = [50, 95, 99]
         if not values:
             return {f"p{p}": 0.0 for p in percentiles}
 
@@ -33,8 +36,8 @@ class MetricsAggregator:
             if index.is_integer():
                 result[f"p{percentile}"] = sorted_values[int(index)]
             else:
-                lower_index = int(math.floor(index))
-                upper_index = int(math.ceil(index))
+                lower_index = math.floor(index)
+                upper_index = math.ceil(index)
                 fraction = index - lower_index
                 result[f"p{percentile}"] = (
                     sorted_values[lower_index] * (1 - fraction)
@@ -45,8 +48,8 @@ class MetricsAggregator:
 
     @staticmethod
     def calculate_rates(
-        operations: List[Dict[str, Any]], window_seconds: int = 60
-    ) -> Dict[str, float]:
+        operations: list[dict[str, Any]], window_seconds: int = 60
+    ) -> dict[str, float]:
         """
         Calculate ops/sec and bytes/sec in time window.
 
@@ -57,9 +60,9 @@ class MetricsAggregator:
             return {"ops_per_sec": 0.0, "bytes_per_sec": 0.0}
 
         # Count operations and bytes in the window
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window_start = now - timedelta(seconds=window_seconds)
 
         count = 0
@@ -79,8 +82,8 @@ class MetricsAggregator:
 
     @staticmethod
     def calculate_latency_stats(
-        durations: List[float], percentiles: List[int] = [50, 95, 99]
-    ) -> Dict[str, Any]:
+        durations: list[float], percentiles: list[int] | None = None
+    ) -> dict[str, Any]:
         """
         Calculate comprehensive latency statistics.
 
@@ -94,6 +97,8 @@ class MetricsAggregator:
                 'p99': 89.1
             }
         """
+        if percentiles is None:
+            percentiles = [50, 95, 99]
         if not durations:
             return {"min": 0.0, "max": 0.0, "avg": 0.0, **{f"p{p}": 0.0 for p in percentiles}}
 

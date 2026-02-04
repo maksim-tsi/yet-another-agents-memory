@@ -1,13 +1,12 @@
-from typing import Optional
+from dataclasses import dataclass, field
 
 from model_interfaces.interface import ChatSession
-from dataclasses import dataclass, field
 from utils.llm import (
     LLMContext,
+    count_tokens_for_model,
+    make_assistant_message,
     make_system_message,
     make_user_message,
-    make_assistant_message,
-    count_tokens_for_model,
 )
 
 
@@ -43,7 +42,7 @@ class CostEstimationChatSession(ChatSession):
             self.context_tokens -= count_tokens_for_model(context=self.context[1:2])
             self.context = self.context[:1] + self.context[2:]
 
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         self.add_to_context(user_message)
         self.costs_usd += self.cost_in_token * self.context_tokens
         self.costs_usd += self.cost_out_token * self.avg_response_len

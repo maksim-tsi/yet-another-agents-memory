@@ -7,10 +7,11 @@ import asyncio
 import json
 import logging
 import os
+from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, Iterable, Optional, Set, Type
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import redis
 import uvicorn
@@ -39,7 +40,7 @@ class RateLimiter:
         rpm: int = 100,
         tpm: int = 1_000_000,
         min_delay: float = 0.6,
-        log_file: Optional[str] = None,
+        log_file: str | None = None,
     ) -> None:
         self.rpm = rpm
         self.tpm = tpm
@@ -51,7 +52,7 @@ class RateLimiter:
 
     async def wait_if_needed(self, estimated_tokens: int) -> None:
         """Enforce RPM/TPM limits with sliding window, delay, and circuit breaker."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - timedelta(seconds=60)
         self.request_times = [t for t in self.request_times if t >= cutoff]
         self.token_usage = [(t, tokens) for t, tokens in self.token_usage if t >= cutoff]
@@ -73,7 +74,7 @@ class RateLimiter:
 
     def record_usage(self, estimated_tokens: int) -> None:
         """Record token usage and emit JSONL log entry."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - timedelta(seconds=60)
         self.request_times = [t for t in self.request_times if t >= cutoff]
         self.token_usage = [(t, tokens) for t, tokens in self.token_usage if t >= cutoff]
@@ -119,8 +120,8 @@ class NullKnowledgeStoreManager:
         store_type: str,
         query_text: str,
         top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> list[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         return []
 
 
@@ -150,7 +151,7 @@ class AgentWrapperState:
     redis_client: redis.StrictRedis
     session_prefix: str
     rate_limiter: RateLimiter
-    sessions: Set[str] = field(default_factory=set)
+    sessions: set[str] = field(default_factory=set)
 
     def apply_prefix(self, session_id: str) -> str:
         prefix = f"{self.session_prefix}:"
@@ -166,7 +167,7 @@ class AgentWrapperState:
             self.sessions.remove(session_id)
 
 
-AGENT_TYPES: dict[str, Type[BaseAgent]] = {
+AGENT_TYPES: dict[str, type[BaseAgent]] = {
     "full": MemoryAgent,
     "rag": RAGAgent,
     "full_context": FullContextAgent,
@@ -223,7 +224,7 @@ async def initialize_state(config: WrapperConfig) -> AgentWrapperState:
     """Initialize storage adapters, tiers, memory system, and agent."""
 
     os.makedirs("logs", exist_ok=True)
-    log_stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    log_stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     rate_log = f"logs/rate_limiter_{config.agent_type}_{log_stamp}.jsonl"
     rate_limiter = RateLimiter(rpm=100, tpm=1_000_000, min_delay=0.6, log_file=rate_log)
 
@@ -347,12 +348,12 @@ def create_app(config: WrapperConfig) -> FastAPI:
         return response
 
     @app.get("/sessions")
-    async def list_sessions() -> Dict[str, Any]:
+    async def list_sessions() -> dict[str, Any]:
         state: AgentWrapperState = app.state.wrapper
         return {"sessions": sorted(state.sessions)}
 
     @app.get("/memory_state")
-    async def memory_state(session_id: str = Query(...)) -> Dict[str, Any]:
+    async def memory_state(session_id: str = Query(...)) -> dict[str, Any]:
         state: AgentWrapperState = app.state.wrapper
         prefixed_id = state.apply_prefix(session_id)
         try:
@@ -371,14 +372,14 @@ def create_app(config: WrapperConfig) -> FastAPI:
         }
 
     @app.post("/cleanup_force")
-    async def cleanup_force(session_id: str = Query(...)) -> Dict[str, Any]:
+    async def cleanup_force(session_id: str = Query(...)) -> dict[str, Any]:
         state: AgentWrapperState = app.state.wrapper
         if session_id == "all":
             target_sessions = list(state.sessions)
         else:
             target_sessions = [state.apply_prefix(session_id)]
 
-        results: Dict[str, Any] = {}
+        results: dict[str, Any] = {}
         for sid in target_sessions:
             results[sid] = await _cleanup_session(state, sid)
             state.remove_session(sid)
@@ -386,7 +387,7 @@ def create_app(config: WrapperConfig) -> FastAPI:
         return {"results": results}
 
     @app.get("/health")
-    async def health() -> Dict[str, Any]:
+    async def health() -> dict[str, Any]:
         state: AgentWrapperState = app.state.wrapper
         try:
             redis_ok = bool(state.redis_client.ping())
@@ -412,7 +413,7 @@ async def _store_turn(state: AgentWrapperState, message: Any, role: str) -> None
             return (turn_id * 2) + 1
         return turn_id * 2
 
-    timestamp = getattr(message, "timestamp", None) or datetime.now(timezone.utc)
+    timestamp = getattr(message, "timestamp", None) or datetime.now(UTC)
     metadata = getattr(message, "metadata", None) or {}
     stored_turn_id = _encode_turn_id(int(message.turn_id), role)
     await state.l1_tier.store(
@@ -432,7 +433,7 @@ def _estimate_tokens(text: str) -> int:
     return int(len(text) * 0.25)
 
 
-async def _cleanup_session(state: AgentWrapperState, session_id: str) -> Dict[str, Any]:
+async def _cleanup_session(state: AgentWrapperState, session_id: str) -> dict[str, Any]:
     """Remove session data from L1/L2 and notify agent."""
 
     l1_deleted = False
@@ -454,7 +455,7 @@ async def _cleanup_session(state: AgentWrapperState, session_id: str) -> Dict[st
     return {"l1_deleted": l1_deleted, "l2_deleted": l2_deleted}
 
 
-def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments for the wrapper service."""
 
     parser = argparse.ArgumentParser(description="MAS Agent Wrapper Service")
@@ -490,7 +491,7 @@ def build_config(args: argparse.Namespace) -> WrapperConfig:
     )
 
 
-def main(argv: Optional[Iterable[str]] = None) -> None:
+def main(argv: Iterable[str] | None = None) -> None:
     """Entrypoint for running the FastAPI wrapper via Uvicorn."""
 
     logging.basicConfig(level=logging.INFO)

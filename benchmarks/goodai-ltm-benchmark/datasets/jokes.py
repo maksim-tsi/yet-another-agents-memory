@@ -1,22 +1,19 @@
 import logging
-import math
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import List, Tuple
 
 from dataset_interfaces.interface import DatasetInterface, TestExample, WaitCreator
 from utils.timejump import create_time_jump
 
-
 JOKES = [
     "My wife told me to stop impersonating a flamingo. I had to put my foot down.",
-    "I went to buy some camo pants but couldn’t find any.",
-    "I failed math so many times at school, I can’t even count.",
+    "I went to buy some camo pants but couldn't find any.",
+    "I failed math so many times at school, I can't even count.",
     "It takes a lot of balls to golf the way I do.",
     "Light travels faster than sound, which is the reason that some people appear bright before you hear them speak.",
-    "A termite walks into the bar and asks, ‘Is the bar tender here?’",
-    "Two fish are in a tank. One says, ‘How do you drive this thing?’",
-    "Just burned 2,000 calories. That’s the last time I leave brownies in the oven while I nap.",
+    "A termite walks into the bar and asks, 'Is the bar tender here?'",
+    "Two fish are in a tank. One says, 'How do you drive this thing?'",
+    "Just burned 2,000 calories. That's the last time I leave brownies in the oven while I nap.",
     "Atheism is a non-prophet organization",
 ]
 
@@ -106,8 +103,8 @@ class JokesDataset(DatasetInterface):
         return question
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         if expected_answers[0] in responses[0]:
             max_score = 1
             score = 1

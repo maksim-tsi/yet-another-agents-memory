@@ -1,15 +1,16 @@
 import re
-from json import JSONDecodeError
 from dataclasses import dataclass
-from typing import List, Tuple
-from utils.llm import make_user_message
-from utils.json_utils import LLMJSONError
+from json import JSONDecodeError
+
 from goodai.helpers.json_helper import sanitize_and_parse_json
+from utils.json_utils import LLMJSONError
+from utils.llm import make_user_message
+
 from datasets.locations import (
-    LocationsDataset,
-    LOCATIONS,
-    DISTANCES,
     DIRECTIONS,
+    DISTANCES,
+    LOCATIONS,
+    LocationsDataset,
 )
 
 DirectionDict = dict[str, str | int]
@@ -24,8 +25,8 @@ class LocationsDirectionsDataset(LocationsDataset):
     )
 
     def generate_answer(
-        self, location_info: List[Tuple[str, str, str, int]]
-    ) -> Tuple[Tuple[str, int], List[str]]:
+        self, location_info: list[tuple[str, str, str, int]]
+    ) -> tuple[tuple[str, int], list[str]]:
         # Choose the direction, and distance - it doesn't really matter
         last_move = (self.random.choice(DIRECTIONS), self.random.choice(DISTANCES))
 
@@ -73,10 +74,10 @@ class LocationsDirectionsDataset(LocationsDataset):
                         if d[k].lower() in loc.lower() or loc.lower() in d[k].lower():
                             d[k] = loc
                             break
-                    assert d[k].lower() in allowed_locations, f"Location {repr(d[k])} is unknown."
+                    assert d[k].lower() in allowed_locations, f"Location {d[k]!r} is unknown."
                     d[k] = LOCATIONS[allowed_locations.index(d[k].lower())]
                 assert d["direction"].lower() in allowed_directions, (
-                    f"Direction {repr(d[k])} is unknown."
+                    f"Direction {d[k]!r} is unknown."
                 )
                 d["direction"] = DIRECTIONS[allowed_directions.index(d["direction"].lower())]
                 assert isinstance(d["kilometers"], int) and d["kilometers"] > 0, (
@@ -85,9 +86,9 @@ class LocationsDirectionsDataset(LocationsDataset):
                 d["distance"] = d.pop("kilometers")
         except (JSONDecodeError, ValueError, KeyError, AssertionError, AttributeError) as exc:
             raise LLMJSONError(
-                f"Couldn't make sense of the agent's directions ({repr(exc)}).\n"
+                f"Couldn't make sense of the agent's directions ({exc!r}).\n"
                 f"Original response:\n{agent_response}\n\nStructured version:\n{response}"
-            )
+            ) from exc
         return directions
 
     def follow_directions(
@@ -102,10 +103,10 @@ class LocationsDirectionsDataset(LocationsDataset):
 
     def evaluate_correct(
         self,
-        questions: List[str],
-        responses: List[str],
-        expected_answers: List[str],
-    ) -> Tuple[int, int, List[str]]:
+        questions: list[str],
+        responses: list[str],
+        expected_answers: list[str],
+    ) -> tuple[int, int, list[str]]:
         score = 0
         max_score = 1
         exact_directions = self.parse_directions(expected_answers[0])

@@ -206,6 +206,20 @@ When generating or modifying code, you must adhere to these standards.
   2. Do *not* use the built-in unittest.mock module directly.  
   3. When mocking, be as specific as possible. Mock the function or object at its point of use (in the module where it is *imported*), not at its source.
 
+### **6.4 Mypy Type Safety (Critical Patterns)**
+
+Mypy strict checking is enforced via pre-commit. Follow these patterns to avoid common type errors:
+
+* **Redis Async Returns:** Always cast Redis results explicitly: `int(await self.client.exists(key))`, `bool(result)`.
+* **Dict Covariance:** Use `Mapping[str, T]` not `dict[str, T]` when accepting adapter collections (dict is invariant).
+* **Stats Dicts:** Annotate explicitly: `stats: dict[str, int] = {"count": 0}`. For mixed types, use helper: `def inc(key: str): stats[key] = int(stats.get(key, 0)) + 1`.
+* **Null Guards:** Always check `if self.client is None:` before accessing optional attributes.
+* **Adapter Signatures:** Use dict query pattern: `await adapter.search({"limit": 10})`, not keyword args.
+* **Google GenAI SDK:** Use dynamic imports `importlib.import_module("google.genai")` due to namespace package issues with mypy.
+* **Type Ignore:** Use specific error codes: `# type: ignore[import-untyped]` not bare `# type: ignore`.
+
+See `docs/plan/mypy-type-fix-plan.md` and `.github/instructions/source.instructions.md` for comprehensive guidelines.
+
 ## **7.0 Error Handling and User Escalation Protocols**
 
 This protocol governs your behavior when you encounter a failure. Your default state in the event of an unrecoverable failure is to *stop* and *ask*. This is the primary "user escalation" path, a key concept in safe and effective agent-human collaboration.6

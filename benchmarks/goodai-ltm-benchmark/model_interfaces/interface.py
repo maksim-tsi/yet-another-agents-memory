@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import Tuple, Optional
 from dataclasses import dataclass
+from datetime import datetime
+
 from utils.constants import PERSISTENCE_DIR
 from utils.llm import count_tokens_for_model
 
@@ -14,8 +14,8 @@ class ChatSession(ABC):
     max_message_size: int = 4096
 
     def message_to_agent(
-        self, user_message: str, agent_response: Optional[str] = None
-    ) -> Tuple[str, datetime, datetime]:
+        self, user_message: str, agent_response: str | None = None
+    ) -> tuple[str, datetime, datetime]:
         sent_ts = datetime.now()
         old_costs = self.costs_usd
         response = self.reply(user_message, agent_response=agent_response)
@@ -43,7 +43,7 @@ class ChatSession(ABC):
         return f"{self.run_name} - {self.name}"
 
     @abstractmethod
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         """
         In this method, the agent is expected to:
         - Generate a response to "user_message" and return it as a plain string.

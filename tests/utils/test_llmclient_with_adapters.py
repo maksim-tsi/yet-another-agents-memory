@@ -1,7 +1,8 @@
 import sys
 import types
-import pytest
 from types import SimpleNamespace
+
+import pytest
 
 from src.utils.llm_client import LLMClient, ProviderConfig
 from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider

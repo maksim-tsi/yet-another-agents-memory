@@ -1,13 +1,10 @@
 import logging
+from dataclasses import dataclass
 from json import JSONDecodeError
 
 import pystache
-from dataclasses import dataclass
-from typing import List, Tuple
-
-from goodai.helpers.json_helper import sanitize_and_parse_json
-
 from dataset_interfaces.interface import DatasetInterface, TestExample
+from goodai.helpers.json_helper import sanitize_and_parse_json
 
 ITEMS = [
     "Bread",
@@ -41,7 +38,7 @@ STATEMENTS_REMOVE = [
 NUMBER = [1, 2, 3]
 
 
-def match_plural(answer_name: str, expected_names: List[str]):
+def match_plural(answer_name: str, expected_names: list[str]):
     for name in expected_names:
         # The answer_name could be the one that is plural
         if name in answer_name:
@@ -67,7 +64,7 @@ class ShoppingDataset(DatasetInterface):
             script = []
             is_question = []
 
-            for change in range(self.item_changes):
+            for _change in range(self.item_changes):
                 if len(cart) > 0 and self.random.randint(1, 6) < 2:
                     # remove
                     item = self.random.choice(cart)
@@ -105,7 +102,7 @@ class ShoppingDataset(DatasetInterface):
             is_question.append(True)
 
             answer_list = []
-            for co, it in zip(counts, cart):
+            for co, it in zip(counts, cart, strict=False):
                 answer_list.append((it.lower(), co))
 
             example = TestExample(
@@ -121,10 +118,10 @@ class ShoppingDataset(DatasetInterface):
 
     def evaluate_correct(
         self,
-        questions: List[str],
-        responses: List[str],
-        expected_answers: List[Tuple[str, int]],
-    ) -> Tuple[float, int, List[str]]:
+        questions: list[str],
+        responses: list[str],
+        expected_answers: list[tuple[str, int]],
+    ) -> tuple[float, int, list[str]]:
         """
         The evaluation will give up to `item_changes` points in total.
         That punctuation can be broken down in thirds:
@@ -153,7 +150,7 @@ class ShoppingDataset(DatasetInterface):
                 assert isinstance(item["item"], str)
                 assert isinstance(item["quantity"], int)
         except (JSONDecodeError, ValueError, KeyError, AssertionError, TypeError) as exc:
-            msg = f"Response not in correct format ({repr(exc)}):\n{responses[0]}"
+            msg = f"Response not in correct format ({exc!r}):\n{responses[0]}"
             logging.exception(msg)
             return score, max_score, [msg]
 

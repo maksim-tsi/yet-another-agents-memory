@@ -10,14 +10,15 @@ Test Coverage:
 - Script eviction and reload handling
 """
 
+import asyncio
+import json
+import os
+import uuid
+from datetime import UTC, datetime
+
 import pytest
 import pytest_asyncio
 import redis.asyncio as redis
-import os
-import uuid
-import json
-import asyncio
-from datetime import datetime, timezone
 
 from src.memory.lua_manager import LuaScriptManager
 from src.memory.namespace import NamespaceManager
@@ -137,7 +138,7 @@ class TestAtomicPromotion:
             turn = {
                 "turn_id": f"turn-{i}",
                 "content": "A" * (100 + i * 20),  # Variable length
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
             await redis_client.lpush(l1_key, json.dumps(turn))
 
@@ -165,7 +166,7 @@ class TestAtomicPromotion:
         turn = {
             "turn_id": "turn-123",
             "content": "A" * 100,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         await redis_client.lpush(l1_key, json.dumps(turn))
 

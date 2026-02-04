@@ -13,23 +13,24 @@ Test Scope:
 Each test uses unique session_id for namespace isolation and surgical cleanup.
 """
 
-import pytest
 import asyncio
-import time
 import hashlib
+import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
-from src.memory.tiers.active_context_tier import ActiveContextTier
-from src.memory.tiers.working_memory_tier import WorkingMemoryTier
-from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
-from src.memory.tiers.semantic_memory_tier import SemanticMemoryTier
-from src.memory.engines.promotion_engine import PromotionEngine
+
+import pytest
+
+from src.memory.ciar_scorer import CIARScorer
 from src.memory.engines.consolidation_engine import ConsolidationEngine
 from src.memory.engines.distillation_engine import DistillationEngine
-from src.memory.engines.topic_segmenter import TopicSegmenter
 from src.memory.engines.fact_extractor import FactExtractor
-from src.memory.ciar_scorer import CIARScorer
-
+from src.memory.engines.promotion_engine import PromotionEngine
+from src.memory.engines.topic_segmenter import TopicSegmenter
+from src.memory.tiers.active_context_tier import ActiveContextTier
+from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
+from src.memory.tiers.semantic_memory_tier import SemanticMemoryTier
+from src.memory.tiers.working_memory_tier import WorkingMemoryTier
 
 pytestmark = pytest.mark.integration
 
@@ -238,7 +239,7 @@ class TestMemoryLifecycleFlow:
                 scroll_result = await qdrant_adapter.client.scroll(
                     collection_name="episodes", limit=20, with_payload=True
                 )
-                points, next_offset = scroll_result
+                points, _next_offset = scroll_result
                 print(f"DEBUG STEP4: Scroll found {len(points)} points")
                 found_our_session = False
                 for i, p in enumerate(points):
@@ -777,7 +778,7 @@ def create_test_turns(session_id: str, count: int = 10):
                 "role": role,
                 "content": content,
                 "metadata": {"test": True, "turn_index": i, "scenario_type": "supply_chain"},
-                "created_at": datetime.now(timezone.utc) - timedelta(minutes=count - i),
+                "created_at": datetime.now(UTC) - timedelta(minutes=count - i),
             }
         )
     return turns
@@ -800,7 +801,7 @@ def create_test_facts(session_id: str, count: int = 20):
                 "certainty": certainty,
                 "impact": impact,
                 "ciar_score": certainty * impact,  # Simplified CIAR
-                "created_at": datetime.now(timezone.utc) - timedelta(hours=i),
+                "created_at": datetime.now(UTC) - timedelta(hours=i),
                 "access_count": i % 5,
             }
         )
@@ -843,7 +844,7 @@ def create_test_episodes(session_id: str, user_id: str, count: int = 5):
         episode_id = f"test-episode-{uuid.uuid4().hex[:8]}"
         content = f"Episode summarizing shipment tracking events {i * 5} through {i * 5 + 4}"
         embedding = _deterministic_embedding(content)
-        window_start = datetime.now(timezone.utc) - timedelta(days=i, hours=1)
+        window_start = datetime.now(UTC) - timedelta(days=i, hours=1)
         window_end = window_start + timedelta(hours=1)
         episodes.append(
             {
@@ -854,8 +855,8 @@ def create_test_episodes(session_id: str, user_id: str, count: int = 5):
                 "content": content,
                 "embedding": embedding,
                 "fact_ids": [f"test-fact-{i * 5 + j}" for j in range(5)],  # Link to 5 facts
-                "created_at": datetime.now(timezone.utc) - timedelta(days=i),
-                "valid_from": datetime.now(timezone.utc) - timedelta(days=i),
+                "created_at": datetime.now(UTC) - timedelta(days=i),
+                "valid_from": datetime.now(UTC) - timedelta(days=i),
                 "valid_to": None,
                 "time_window_start": window_start,
                 "time_window_end": window_end,

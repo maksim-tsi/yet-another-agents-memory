@@ -5,14 +5,16 @@ Tests dual-indexed episode storage with Qdrant (vector) and Neo4j (graph),
 bi-temporal properties, and hybrid retrieval patterns.
 """
 
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
+
 import pytest
 import pytest_asyncio
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock
-from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
+
 from src.memory.models import Episode
-from src.storage.qdrant_adapter import QdrantAdapter
+from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.storage.neo4j_adapter import Neo4jAdapter
+from src.storage.qdrant_adapter import QdrantAdapter
 
 
 @pytest.fixture
@@ -57,7 +59,7 @@ async def episodic_tier(mock_qdrant_adapter, mock_neo4j_adapter):
 @pytest.fixture
 def sample_episode():
     """Sample episode for testing."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return Episode(
         episode_id="ep_001",
         session_id="session_1",
@@ -216,7 +218,7 @@ class TestEpisodicMemoryTierRetrieve:
     async def test_retrieve_existing_episode(self, episodic_tier, sample_episode):
         """Test retrieving episode that exists."""
         # Setup mock response
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         episodic_tier.neo4j.execute_query = AsyncMock(
             return_value=[
                 {
@@ -264,7 +266,7 @@ class TestEpisodicMemoryTierRetrieve:
     @pytest.mark.asyncio
     async def test_retrieve_parses_timestamps(self, episodic_tier):
         """Test that ISO timestamps are correctly parsed."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         episodic_tier.neo4j.execute_query = AsyncMock(
             return_value=[
                 {
@@ -303,7 +305,7 @@ class TestEpisodicMemoryTierSearch:
     async def test_search_similar_episodes(self, episodic_tier, sample_embedding):
         """Test finding similar episodes via vector search."""
         # Setup mock results
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         episodic_tier.qdrant.search = AsyncMock(
             return_value=[
                 {
@@ -414,7 +416,7 @@ class TestEpisodicMemoryTierGraphQueries:
     async def test_query_temporal(self, episodic_tier):
         """Test bi-temporal query for episodes valid at specific time."""
         # Setup
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         episodic_tier.neo4j.execute_query = AsyncMock(
             return_value=[
                 {
@@ -462,7 +464,7 @@ class TestEpisodicMemoryTierQuery:
     @pytest.mark.asyncio
     async def test_query_by_session(self, episodic_tier):
         """Test querying episodes by session."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         episodic_tier.neo4j.execute_query = AsyncMock(
             return_value=[
                 {
@@ -491,7 +493,7 @@ class TestEpisodicMemoryTierQuery:
     @pytest.mark.asyncio
     async def test_query_by_importance(self, episodic_tier):
         """Test filtering by minimum importance score."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         episodic_tier.neo4j.execute_query = AsyncMock(
             return_value=[
                 {
@@ -530,7 +532,7 @@ class TestEpisodicMemoryTierDelete:
     async def test_delete_episode_from_both_stores(self, episodic_tier):
         """Test deleting episode removes it from Qdrant and Neo4j."""
         # Setup - episode exists
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         episodic_tier.neo4j.execute_query = AsyncMock(
             side_effect=[
                 # First call: retrieve episode

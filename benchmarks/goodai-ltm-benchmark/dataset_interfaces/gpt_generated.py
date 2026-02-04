@@ -1,13 +1,13 @@
 from abc import ABC
-from pathlib import Path
 from dataclasses import dataclass
-from typing import List, Any, Tuple
+from pathlib import Path
+from typing import Any
 
 import pystache
 from goodai.helpers.json_helper import sanitize_and_parse_json
+from utils.llm import GPT_CHEAPEST, ask_llm
 
-from dataset_interfaces.interface import DatasetInterface, TestExample, CallBackTestExample
-from utils.llm import ask_llm, GPT_CHEAPEST
+from dataset_interfaces.interface import CallBackTestExample, DatasetInterface, TestExample
 
 PROMPT = """Generate data and questions based on the structure and instructions below.
 - For content: {{content}} 
@@ -33,7 +33,7 @@ class GPTGenerated(DatasetInterface, ABC):
         if self.generation_file is None:
             raise ValueError("GPTGenerated datasets require a file path to read from.")
 
-    def generate_examples(self, num_examples) -> List[TestExample]:
+    def generate_examples(self, num_examples) -> list[TestExample]:
         examples = []
         prompt_data = self.load_json(self.generation_file)
 
@@ -56,7 +56,7 @@ class GPTGenerated(DatasetInterface, ABC):
                     generated = sanitize_and_parse_json(result)
                     correct = True
                     break
-                except:
+                except Exception:
                     pass
             if not correct:
                 raise ValueError(
@@ -66,7 +66,7 @@ class GPTGenerated(DatasetInterface, ABC):
             script.append("\n".join(generated["content"]))
             is_question.append(False)
 
-            for q, a in zip(generated["question"], generated["answer"]):
+            for q, a in zip(generated["question"], generated["answer"], strict=False):
                 is_question.append(True)
                 script.append(q)
                 expected_responses.append(a)
@@ -88,6 +88,6 @@ class GPTGenerated(DatasetInterface, ABC):
         return examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[Any]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[Any]
+    ) -> tuple[int, int, list[str]]:
         return self.evaluate_correct_gpt(questions, responses, expected_answers)

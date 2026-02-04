@@ -2,7 +2,10 @@
 Integration tests for Typesense adapter metrics.
 """
 
+import contextlib
+
 import pytest
+
 from src.storage.typesense_adapter import TypesenseAdapter
 
 
@@ -59,7 +62,5 @@ async def test_typesense_metrics_integration():
     except Exception as e:
         pytest.skip(f"Typesense not available: {e}")
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await adapter.disconnect()
-        except Exception:
-            pass

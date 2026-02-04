@@ -31,7 +31,7 @@ def search_context(context, content=None, timestamp=None):
 
     raise ValueError(
         "Context search failed!\n"
-        f"content = {repr(content)}\n"
+        f"content = {content!r}\n"
         f"timestamp = {timestamp}\n"
         f"history:\n{context}"
     )

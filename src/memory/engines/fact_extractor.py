@@ -8,16 +8,16 @@ to extract structured facts from raw text turns.
 import json
 import logging
 import re
-from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from pydantic import ValidationError
 
-from src.memory.models import Fact, FactType, FactCategory
+from src.memory.models import Fact, FactCategory, FactType
 from src.memory.schemas.fact_extraction import (
-    FACT_EXTRACTION_SYSTEM_INSTRUCTION,
     FACT_EXTRACTION_SCHEMA,
+    FACT_EXTRACTION_SYSTEM_INSTRUCTION,
 )
 from src.utils.llm_client import LLMClient
 
@@ -39,13 +39,11 @@ class FactExtractor:
         model_name: Name of the LLM model to use.
     """
 
-    def __init__(self, llm_client: LLMClient, model_name: Optional[str] = None):
+    def __init__(self, llm_client: LLMClient, model_name: str | None = None):
         self.llm_client = llm_client
         self.model_name = model_name or "gemini-3-flash-preview"
 
-    async def extract_facts(
-        self, text: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> List[Fact]:
+    async def extract_facts(self, text: str, metadata: dict[str, Any] | None = None) -> list[Fact]:
         """
         Extract facts from text using LLM with fallback to rules.
 
@@ -66,8 +64,8 @@ class FactExtractor:
             return self._extract_with_rules(text, metadata)
 
     async def _extract_with_llm(
-        self, text: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> List[Fact]:
+        self, text: str, metadata: dict[str, Any] | None = None
+    ) -> list[Fact]:
         """Extract facts using LLM with native structured output."""
         prompt = f"Extract significant facts from the following conversation:\n\n{text}"
 
@@ -100,7 +98,7 @@ class FactExtractor:
                         impact=float(rf.get("impact", 0.5)),
                         source_uri=metadata.get("source_uri") if metadata else None,
                         source_type="llm_extraction",
-                        extracted_at=datetime.now(timezone.utc),
+                        extracted_at=datetime.now(UTC),
                         ciar_score=0.0,  # Will be calculated later
                         age_decay=1.0,
                         recency_boost=1.0,
@@ -113,11 +111,9 @@ class FactExtractor:
             return facts
 
         except json.JSONDecodeError as e:
-            raise FactExtractionError(f"Failed to parse LLM JSON response: {e}")
+            raise FactExtractionError(f"Failed to parse LLM JSON response: {e}") from e
 
-    def _extract_with_rules(
-        self, text: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> List[Fact]:
+    def _extract_with_rules(self, text: str, metadata: dict[str, Any] | None = None) -> list[Fact]:
         """Fallback extraction using regex rules."""
         facts = []
 
@@ -135,7 +131,7 @@ class FactExtractor:
                     impact=0.5,
                     source_uri=metadata.get("source_uri") if metadata else None,
                     source_type="rule_fallback",
-                    extracted_at=datetime.now(timezone.utc),
+                    extracted_at=datetime.now(UTC),
                     ciar_score=0.0,
                     age_decay=1.0,
                     recency_boost=1.0,
@@ -156,7 +152,7 @@ class FactExtractor:
                     impact=0.7,
                     source_uri=metadata.get("source_uri") if metadata else None,
                     source_type="rule_fallback",
-                    extracted_at=datetime.now(timezone.utc),
+                    extracted_at=datetime.now(UTC),
                     ciar_score=0.0,
                     age_decay=1.0,
                     recency_boost=1.0,

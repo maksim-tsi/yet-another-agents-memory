@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import time
-from typing import List, Callable, Optional
+from collections.abc import Callable
 
 from model_interfaces.base_ltm_agent import BaseLTMAgent, Message
 from utils.json_utils import CustomEncoder
@@ -29,8 +29,8 @@ class LengthBiasAgent(BaseLTMAgent):
         self,
         max_prompt_size: int,
         time_fn: Callable[[int, int], float] = _default_time,
-        model: str = None,
-        system_message: str = None,
+        model: str | None = None,
+        system_message: str | None = None,
         ctx_fraction_for_mem: float = 0.5,
         llm_temperature: float = 0.01,
         run_name: str = "",
@@ -44,7 +44,7 @@ class LengthBiasAgent(BaseLTMAgent):
         self.time_fn = time_fn
         self.session_index = 0
         self.system_message_template = system_message
-        self.message_history: List[Message] = []
+        self.message_history: list[Message] = []
 
     @property
     def name(self):
@@ -61,7 +61,7 @@ class LengthBiasAgent(BaseLTMAgent):
             )
         context.append(make_user_message(user_content))
         token_count = self.context_token_counts(context)
-        removed_messages: list["Message"] = []
+        removed_messages: list[Message] = []
         for i in range(len(self.message_history) - 1, -1, -1):
             message = self.message_history[i]
             if message.is_user:
@@ -85,7 +85,7 @@ class LengthBiasAgent(BaseLTMAgent):
 
     def get_mem_message(
         self, removed_messages: list["Message"], remain_tokens: int
-    ) -> Optional[dict[str, str]]:
+    ) -> dict[str, str] | None:
         excerpts_text = self.get_mocked_mem_excerpts(removed_messages, remain_tokens)
         excerpts_content = (
             f"The following are excerpts from the early part of the conversation "
@@ -133,7 +133,7 @@ class LengthBiasAgent(BaseLTMAgent):
     def current_time(self) -> float:
         return self.time_fn(self.session_index, len(self.message_history))
 
-    def reply(self, user_content: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_content: str, agent_response: str | None = None) -> str:
         context = self.build_llm_context(user_content)
         response = self.completion(context, temperature=self.llm_temperature, label="reply")
         user_message = Message(role="user", content=user_content, timestamp=self.current_time)
@@ -154,14 +154,14 @@ class LengthBiasAgent(BaseLTMAgent):
         infos = [self.message_history]
         files = ["message_hist.json"]
 
-        for obj, file in zip(infos, files):
+        for obj, file in zip(infos, files, strict=False):
             fname = self.save_path.joinpath(file)
             with open(fname, "w") as fd:
                 json.dump(obj, fd, cls=CustomEncoder)
 
     def load(self):
         fname = self.save_path.joinpath("message_hist.json")
-        with open(fname, "r") as fd:
+        with open(fname) as fd:
             ctx = json.load(fd)
         message_hist = []
         for m in ctx:

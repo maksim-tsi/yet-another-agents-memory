@@ -2,14 +2,16 @@
 Unit and integration tests for TypesenseAdapter.
 """
 
-import pytest
-import pytest_asyncio
 import os
 import uuid
 from unittest.mock import AsyncMock, Mock, patch
-from src.storage.typesense_adapter import TypesenseAdapter
-from src.storage.base import StorageConnectionError, StorageDataError, StorageQueryError
+
 import httpx
+import pytest
+import pytest_asyncio
+
+from src.storage.base import StorageConnectionError, StorageDataError, StorageQueryError
+from src.storage.typesense_adapter import TypesenseAdapter
 
 # ============================================================================
 # Unit Tests (with mocks)

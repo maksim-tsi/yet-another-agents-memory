@@ -1,15 +1,12 @@
-import re
 import json
-import zstd
-from typing import List, Tuple
-
-from utils.data import get_data_path, get_file
+import re
 from dataclasses import dataclass, field
 
+import zstd
+from dataset_interfaces.interface import DatasetInterface, TestExample, WaitCreator
+from utils.data import get_data_path, get_file
 from utils.llm import count_tokens_for_model
 from utils.ui import ordinal
-from dataset_interfaces.interface import DatasetInterface, TestExample, WaitCreator
-
 
 # The file was originally in this gdrive folder, but the link got restricted due to a high number of accesses.
 # https://drive.google.com/drive/folders/1JkFHspT56_yRWwXVj47Fw0PzHtitODt5
@@ -76,7 +73,7 @@ class ChapterBreakDataset(DatasetInterface):
         path = get_file(
             self.name,
             CHAPTERBREAK_8K_URL,
-            f"chapterbreak_ctx_8192.zst",
+            "chapterbreak_ctx_8192.zst",
             checksum=CHAPTERBREAK_8K_SUM,
         )
         with open(path, "br") as fd:
@@ -120,7 +117,7 @@ class ChapterBreakDataset(DatasetInterface):
         sample_list = self.get_samples(data)
         example_list = list()
 
-        for sample_idx, sample in zip(range(num_examples), sample_list):
+        for _sample_idx, sample in zip(range(num_examples), sample_list, strict=False):
             beginnings = [(True, sample["pos"])] + [(False, s) for s in sample["negs"]]
             self.random.shuffle(beginnings)
 
@@ -149,10 +146,8 @@ class ChapterBreakDataset(DatasetInterface):
             assert answer > 0
 
             script.append(
-                (
-                    "Which option do you think is the true next-chapter beginning?\n"
-                    "Answer with a single-digit number, corresponding to the option number."
-                )
+                "Which option do you think is the true next-chapter beginning?\n"
+                "Answer with a single-digit number, corresponding to the option number."
             )
 
             is_question = [False] * len(script)
@@ -173,8 +168,8 @@ class ChapterBreakDataset(DatasetInterface):
         return example_list
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         right_answer = expected_answers[0].strip()
         numbers_in_answer = set(re.findall(r"\d+", responses[0]))
         correct = {right_answer} == numbers_in_answer

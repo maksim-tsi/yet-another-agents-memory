@@ -5,20 +5,23 @@ Provides fixtures for surgical cleanup of test data from live cluster.
 Uses namespace isolation via unique session IDs to prevent test collisions.
 """
 
-import os
 import json
-import uuid
-import yaml
-import pytest
 import logging
-from datetime import datetime, timezone
-from typing import AsyncGenerator, Dict, Any, Optional, Tuple
+import os
+import uuid
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
+
+import pytest
 import pytest_asyncio
-from src.storage.redis_adapter import RedisAdapter
-from src.storage.postgres_adapter import PostgresAdapter
+import yaml
+
 from src.storage.neo4j_adapter import Neo4jAdapter
+from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.qdrant_adapter import QdrantAdapter
+from src.storage.redis_adapter import RedisAdapter
 from src.storage.typesense_adapter import TypesenseAdapter
 from src.utils.llm_client import LLMClient
 
@@ -28,9 +31,9 @@ class TestSettings:
     """Test settings loaded from test_settings.yaml with env var overrides."""
 
     llm_throttle_seconds: float
-    llm_providers: Dict[str, Any]
-    batch_sizes: Dict[str, int]
-    timeouts: Dict[str, int]
+    llm_providers: dict[str, Any]
+    batch_sizes: dict[str, int]
+    timeouts: dict[str, int]
     report_output_dir: str
 
 
@@ -44,7 +47,7 @@ def test_settings() -> TestSettings:
     # Load base YAML configuration
     yaml_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "test_settings.yaml")
 
-    with open(yaml_path, "r") as f:
+    with open(yaml_path) as f:
         config = yaml.safe_load(f)
 
     # Apply environment variable overrides
@@ -97,7 +100,7 @@ def consolidation_logger_info():
 
 
 @pytest.fixture(scope="function")
-def real_llm_client(test_settings: TestSettings) -> Tuple[Optional[LLMClient], str]:
+def real_llm_client(test_settings: TestSettings) -> tuple[LLMClient | None, str]:
     """Create LLM client with Google Gemini → Groq fallback.
 
     Returns:
@@ -108,7 +111,7 @@ def real_llm_client(test_settings: TestSettings) -> Tuple[Optional[LLMClient], s
         pytest.skip if no provider is available.
     """
     from src.utils.llm_client import LLMClient, ProviderConfig
-    from src.utils.providers import GroqProvider, GeminiProvider
+    from src.utils.providers import GeminiProvider, GroqProvider
 
     primary = test_settings.llm_providers["primary"]
     fallback = test_settings.llm_providers["fallback"]
@@ -177,15 +180,15 @@ class ReportCollector:
     def add_result(
         self,
         test_name: str,
-        latencies: Dict[str, float],
+        latencies: dict[str, float],
         provider: str,
         passed: bool,
-        metadata: Optional[Dict] = None,
+        metadata: dict | None = None,
     ):
         """Add test result to collection."""
         result = {
             "test_name": test_name,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "latencies_ms": latencies,
             "llm_provider": provider,
             "passed": passed,
@@ -196,14 +199,14 @@ class ReportCollector:
     def write_report(self):
         """Write accumulated results to daily JSON report."""
         os.makedirs(self.output_dir, exist_ok=True)
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
         report_path = os.path.join(self.output_dir, f"lifecycle-test-{date_str}.json")
 
         # Load existing report if present (append mode for multiple runs)
         existing_tests = []
         if os.path.exists(report_path):
             try:
-                with open(report_path, "r") as f:
+                with open(report_path) as f:
                     existing_data = json.load(f)
                     existing_tests = existing_data.get("tests", [])
             except Exception as e:
@@ -253,15 +256,14 @@ async def verify_l2_schema():
         await adapter.connect()
 
         # Check for content_tsv column using direct SQL
-        async with adapter.pool.connection() as conn:  # type: ignore
-            async with conn.cursor() as cur:
-                await cur.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'working_memory' 
-                    AND column_name = 'content_tsv'
-                """)
-                result = await cur.fetchone()
+        async with adapter.pool.connection() as conn, conn.cursor() as cur:  # type: ignore
+            await cur.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'working_memory' 
+                AND column_name = 'content_tsv'
+            """)
+            result = await cur.fetchone()
 
         if not result:
             raise RuntimeError(
@@ -271,15 +273,14 @@ async def verify_l2_schema():
             )
 
         # Check for GIN index
-        async with adapter.pool.connection() as conn:  # type: ignore
-            async with conn.cursor() as cur:
-                await cur.execute("""
-                    SELECT indexname 
-                    FROM pg_indexes 
-                    WHERE tablename = 'working_memory' 
-                    AND indexname = 'idx_working_memory_content_tsv'
-                """)
-                result_index = await cur.fetchone()
+        async with adapter.pool.connection() as conn, conn.cursor() as cur:  # type: ignore
+            await cur.execute("""
+                SELECT indexname 
+                FROM pg_indexes 
+                WHERE tablename = 'working_memory' 
+                AND indexname = 'idx_working_memory_content_tsv'
+            """)
+            result_index = await cur.fetchone()
 
         if not result_index:
             raise RuntimeError(
@@ -520,17 +521,16 @@ async def full_cleanup(
 
     # L2: PostgreSQL - Delete working memory facts
     try:
-        async with postgres_adapter.pool.connection() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    "DELETE FROM working_memory WHERE session_id = %s", (test_session_id,)
-                )
-                wm_count = cur.rowcount
+        async with postgres_adapter.pool.connection() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM working_memory WHERE session_id = %s", (test_session_id,)
+            )
+            wm_count = cur.rowcount
 
-                await cur.execute(
-                    "DELETE FROM active_context WHERE session_id = %s", (test_session_id,)
-                )
-                ac_count = cur.rowcount
+            await cur.execute(
+                "DELETE FROM active_context WHERE session_id = %s", (test_session_id,)
+            )
+            ac_count = cur.rowcount
 
         cleanup_counts["l2_postgres_wm"] = wm_count
         cleanup_counts["l2_postgres_ac"] = ac_count

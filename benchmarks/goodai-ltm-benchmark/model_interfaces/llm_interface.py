@@ -1,18 +1,17 @@
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 from model_interfaces.interface import ChatSession
 from utils.json_utils import CustomEncoder
 from utils.llm import (
     LLMContext,
-    make_user_message,
-    make_assistant_message,
-    make_system_message,
-    get_max_prompt_size,
     ask_llm,
     count_tokens_for_model,
+    get_max_prompt_size,
+    make_assistant_message,
+    make_system_message,
+    make_user_message,
 )
 
 _system_prompt = "You are a helpful assistant."
@@ -40,7 +39,7 @@ class LLMChatSession(ChatSession):
             if lite_llm_max > 0:
                 self.max_prompt_size = min(self.max_prompt_size, lite_llm_max)
 
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         if self.verbose:
             print(f"USER: {user_message}")
 
@@ -76,7 +75,7 @@ class LLMChatSession(ChatSession):
 
     def load(self):
         fname = self.save_path.joinpath("context.json")
-        with open(fname, "r") as fd:
+        with open(fname) as fd:
             self.context = json.load(fd)
 
     def token_len(self, text: str) -> int:
@@ -121,7 +120,7 @@ class TimestampLLMChatSession(LLMChatSession):
         context.extend([_ts_message(m) for m in self.history])
         return context
 
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         self.history.append({"content": user_message, "role": "user", "timestamp": datetime.now()})
         self.context = self.build_context()
         response = super().reply(user_message, agent_response)
@@ -139,7 +138,7 @@ class TimestampLLMChatSession(LLMChatSession):
 
     def load(self):
         fname = self.save_path.joinpath("history.json")
-        with open(fname, "r") as fd:
+        with open(fname) as fd:
             self.history = json.load(fd)
 
         for h in self.history:

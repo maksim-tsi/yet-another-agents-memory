@@ -1,13 +1,13 @@
-import os
-import time
-import pickle
-import requests
 import json
-import google.generativeai as genai
-from google.ai import generativelanguage as glm
-from pathlib import Path
-from typing import Optional
+import os
+import pickle
+import time
 from dataclasses import dataclass
+from pathlib import Path
+
+import google.generativeai as genai
+import requests
+from google.ai import generativelanguage as glm
 from model_interfaces.interface import ChatSession
 
 
@@ -15,7 +15,7 @@ def history_to_contents(history: list[glm.Content]) -> list[dict]:
     return [{"role": msg.role, "parts": [{"text": p.text} for p in msg.parts]} for msg in history]
 
 
-def count_tokens_by_curl(text: str = None, history: list[glm.Content] = None) -> int:
+def count_tokens_by_curl(text: str | None = None, history: list[glm.Content] | None = None) -> int:
     assert text is not None or history is not None
     api_key = os.getenv("GOOGLE_API_KEY")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:countTokens?key={api_key}"
@@ -77,7 +77,7 @@ class GeminiProInterface(ChatSession):
         self.model = genai.GenerativeModel("gemini-1.5-pro-latest")
         self.reset()
 
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         self.chat.history.append(
             glm.Content({"role": "user", "parts": [glm.Part({"text": user_message})]})
         )

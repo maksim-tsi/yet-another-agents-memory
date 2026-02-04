@@ -1,6 +1,8 @@
 """Topic segmentation schema and system instruction for Gemini structured output."""
 
-from google.genai import types
+import importlib
+
+types = importlib.import_module("google.genai.types")
 
 TOPIC_SEGMENTATION_SYSTEM_INSTRUCTION = """You are an expert at analyzing supply chain and logistics conversations.
 

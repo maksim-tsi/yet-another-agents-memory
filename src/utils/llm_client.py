@@ -20,8 +20,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Sequence, cast
+from typing import Any, ClassVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ PHOENIX_DEFAULT_PROJECT = "mlm-mas-dev"
 PHOENIX_SERVICE_NAME = "mas-memory-layer"
 
 _PHOENIX_INITIALIZED = False
-_PHOENIX_PROJECT_NAME: Optional[str] = None
+_PHOENIX_PROJECT_NAME: str | None = None
 
 
 # Phoenix/OpenTelemetry auto-instrumentation (optional)
@@ -112,7 +113,7 @@ def ensure_phoenix_instrumentation() -> None:
         "PHOENIX_PROJECT_NAME",
         f"{PHOENIX_DEFAULT_PROJECT}-{agent_type}" if agent_type else PHOENIX_DEFAULT_PROJECT,
     )
-    if _PHOENIX_INITIALIZED and _PHOENIX_PROJECT_NAME == desired_project:
+    if _PHOENIX_INITIALIZED and desired_project == _PHOENIX_PROJECT_NAME:
         return
     _init_phoenix_instrumentation()
 
@@ -127,8 +128,8 @@ class ProviderHealth:
 
     name: str
     healthy: bool
-    details: Optional[str] = None
-    last_error: Optional[str] = None
+    details: str | None = None
+    last_error: str | None = None
 
 
 @dataclass
@@ -137,9 +138,9 @@ class LLMResponse:
 
     text: str
     provider: str
-    model: Optional[str] = None
-    usage: Optional[Dict[str, Any]] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    model: str | None = None
+    usage: dict[str, Any] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -150,7 +151,7 @@ class ProviderConfig:
     timeout: float = 15.0
     priority: int = 0
     enabled: bool = True
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class BaseProvider:
@@ -159,9 +160,7 @@ class BaseProvider:
     def __init__(self, name: str) -> None:
         self.name = name
 
-    async def generate(
-        self, prompt: str, model: Optional[str] = None, **kwargs: Any
-    ) -> LLMResponse:
+    async def generate(self, prompt: str, model: str | None = None, **kwargs: Any) -> LLMResponse:
         """Generate text for the supplied prompt."""
         raise NotImplementedError()
 
@@ -174,7 +173,7 @@ class LLMClient:
     """Multi-provider orchestrator with fallback support and health diagnostics."""
 
     # Model-to-provider routing map
-    MODEL_ROUTING = {
+    MODEL_ROUTING: ClassVar[dict[str, list[str]]] = {
         "gemini-3-flash-preview": ["google", "gemini"],  # Try both possible names
         "gemini-3-pro-preview": ["google-pro", "google", "gemini"],
         "gemini-2.5-flash": ["google", "gemini"],
@@ -183,16 +182,16 @@ class LLMClient:
         "mistral-large": ["mistral"],
     }
 
-    def __init__(self, provider_configs: Optional[Iterable[ProviderConfig]] = None) -> None:
+    def __init__(self, provider_configs: Iterable[ProviderConfig] | None = None) -> None:
         self.name = "llm-client"
-        self._providers: Dict[str, BaseProvider] = {}
-        self._configs: Dict[str, ProviderConfig] = {}
+        self._providers: dict[str, BaseProvider] = {}
+        self._configs: dict[str, ProviderConfig] = {}
         if provider_configs:
             for config in provider_configs:
                 self._configs[config.name] = config
 
     def register_provider(
-        self, provider: BaseProvider, config: Optional[ProviderConfig] = None
+        self, provider: BaseProvider, config: ProviderConfig | None = None
     ) -> None:
         """Register a provider instance alongside optional configuration metadata."""
         self._providers[provider.name] = provider
@@ -213,8 +212,8 @@ class LLMClient:
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        provider_order: Optional[Sequence[str]] = None,
+        model: str | None = None,
+        provider_order: Sequence[str] | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
         """Attempt generation with the preferred provider order and fallback if necessary."""
@@ -237,7 +236,7 @@ class LLMClient:
                         break
 
         order = self._resolve_order(provider_order)
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for provider_name in order:
             provider = self._providers.get(provider_name)
             config = self._configs.get(provider_name, ProviderConfig(name=provider_name))
@@ -254,7 +253,7 @@ class LLMClient:
                     response = cast(
                         LLMResponse,
                         await asyncio.wait_for(
-                            asyncio.to_thread(lambda: coro), timeout=config.timeout
+                            asyncio.to_thread(lambda coro=coro: coro), timeout=config.timeout
                         ),
                     )
                 if not response.provider:
@@ -267,7 +266,7 @@ class LLMClient:
 
         raise last_exc or RuntimeError("No healthy LLM provider available")
 
-    def _annotate_span(self, agent_metadata: Optional[Dict[str, Any]]) -> None:
+    def _annotate_span(self, agent_metadata: dict[str, Any] | None) -> None:
         """Attach agent metadata to the active trace span if available."""
         if not agent_metadata:
             return
@@ -283,14 +282,14 @@ class LLMClient:
                 continue
             span.set_attribute(str(key), value)
 
-    async def health_check(self) -> Dict[str, ProviderHealth]:
+    async def health_check(self) -> dict[str, ProviderHealth]:
         """Return health reports for every registered provider."""
 
-        tasks: Dict[str, asyncio.Task[ProviderHealth]] = {}
+        tasks: dict[str, asyncio.Task[ProviderHealth]] = {}
         for name, provider in self._providers.items():
             tasks[name] = asyncio.create_task(provider.health_check())
 
-        reports: Dict[str, ProviderHealth] = {}
+        reports: dict[str, ProviderHealth] = {}
         for name, task in tasks.items():
             try:
                 reports[name] = await task
@@ -300,7 +299,7 @@ class LLMClient:
                 )
         return reports
 
-    def _resolve_order(self, provider_order: Optional[Sequence[str]] = None) -> List[str]:
+    def _resolve_order(self, provider_order: Sequence[str] | None = None) -> list[str]:
         """Determine the final provider order by combining config priorities and overrides."""
 
         if provider_order:

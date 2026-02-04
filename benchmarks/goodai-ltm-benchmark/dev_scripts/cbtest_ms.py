@@ -1,8 +1,8 @@
 import json
+
 import pyperclip
 from datasets.chapterbreak import ChapterBreakDataset, split_in_pages
 from utils.llm import ask_llm, make_system_message, make_user_message
-
 
 total_cost = 0
 # model = "gpt-3.5-turbo-0125"
@@ -10,19 +10,27 @@ model = "gpt-4-turbo-preview"
 ds = ChapterBreakDataset(split="ao3")
 samples = ds.get_samples(ds.load_data())
 s = samples[1]
-llm = lambda ctx: ask_llm(
-    ctx,
-    model,
-    temperature=0,
-    context_length=16384,
-    cost_callback=cost_callback,
-    max_response_tokens=1024,
-)
-fix_commas = lambda txt: txt.replace("’", "'")
+
+
+def llm(ctx):
+    return ask_llm(
+        ctx,
+        model,
+        temperature=0,
+        context_length=16384,
+        cost_callback=cost_callback,
+        max_response_tokens=1024,
+    )
+
+
+def fix_commas(txt):
+    return txt.replace("\u2019", "'")
+
+
 last_pages = fix_commas(s["ctx"])
 continuation = fix_commas(s["pos"])
 negs = [fix_commas(n) for n in s["negs"]]
-pyperclip.copy("\n-------------\n".join([last_pages, continuation] + negs))
+pyperclip.copy("\n-------------\n".join([last_pages, continuation, *negs]))
 # exit(0)  # Uncomment to just copy the sample to the clipboard
 
 

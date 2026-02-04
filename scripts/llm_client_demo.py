@@ -167,10 +167,9 @@ async def demo():
             if output_mode == "overwrite":
                 output_file_path.write_text("")
             # append mode: leave file as-is
-        elif output_format == "json-array":
+        elif output_format == "json-array" and output_mode == "overwrite":
             # For json-array mode, if overwrite create empty array, if append preserve existing
-            if output_mode == "overwrite":
-                output_file_path.write_text("[]")
+            output_file_path.write_text("[]")
 
     for provider_name in providers_to_run:
         # Allow per-provider model override, fallback to default `--model` arg

@@ -1,11 +1,11 @@
 import json
+from collections.abc import Callable
 from random import Random
-from typing import Callable
 
 import tiktoken
 from model_interfaces.interface import ChatSession
-from utils.constants import DATA_DIR
 
+from utils.constants import DATA_DIR
 
 TRIVIA_CACHE = None
 
@@ -13,7 +13,7 @@ TRIVIA_CACHE = None
 def get_trivia():
     global TRIVIA_CACHE
     if TRIVIA_CACHE is None:
-        with open(DATA_DIR.joinpath("trivia/trivia.json"), "r", encoding="utf8") as file:
+        with open(DATA_DIR.joinpath("trivia/trivia.json"), encoding="utf8") as file:
             TRIVIA_CACHE = json.load(file)["Data"]
     return TRIVIA_CACHE
 
@@ -90,7 +90,7 @@ def filler_task_characters(rnd: Random, agent: ChatSession, num_characters: int)
             print(f"Agent: {response}")
             current_characters += len(message) + len(response)
 
-    print(f"Filler: The information has ended. Please summarise the above passages for me.")
+    print("Filler: The information has ended. Please summarise the above passages for me.")
     response = agent.message_to_agent(
         "The information has ended. Please summarise the above passages for me."
     )

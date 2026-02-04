@@ -1,28 +1,28 @@
-import os
 import json
+import os
 import re
-import yaml
-import humanize
-from typing import List, Optional
-from random import Random
-from jinja2 import Environment, FileSystemLoader
-from reporting.results import TestResult
-from utils.files import gather_result_files, gather_runstats_files, make_config_path
-from utils.constants import (
-    REPORT_TEMPLATES_DIR,
-    GOODAI_RED,
-    GOODAI_GREEN,
-    METRIC_NAMES,
-    METRIC_ALT,
-    METRIC_UNITS,
-    SPIDER_LABELS_OVERRIDE,
-    REPORT_OUTPUT_DIR,
-)
-from utils.data import load_b64
-from utils.math import mean_std
-from utils.ui import display_float_or_int
 from datetime import datetime, timedelta
 from pathlib import Path
+from random import Random
+
+import humanize
+import yaml
+from jinja2 import Environment, FileSystemLoader
+from reporting.results import TestResult
+from utils.constants import (
+    GOODAI_GREEN,
+    GOODAI_RED,
+    METRIC_ALT,
+    METRIC_NAMES,
+    METRIC_UNITS,
+    REPORT_OUTPUT_DIR,
+    REPORT_TEMPLATES_DIR,
+    SPIDER_LABELS_OVERRIDE,
+)
+from utils.data import load_b64
+from utils.files import gather_result_files, gather_runstats_files, make_config_path
+from utils.math import mean_std
+from utils.ui import display_float_or_int
 
 
 def gather_results(run_name: str, agent_name: str):
@@ -53,7 +53,7 @@ def formatted_log(result: TestResult) -> list[str]:
     return task_log
 
 
-def arrange_data(results: List[TestResult]):
+def arrange_data(results: list[TestResult]):
     run_name = results[0].run_name
     agent_name = results[0].agent_name
     memory_spans = list()
@@ -82,7 +82,7 @@ def arrange_data(results: List[TestResult]):
             responses = (expected, actual, reasoning)
             responses = [tuple("\n".join(lines) for lines in responses)]
         else:
-            responses = list(zip(expected, actual, reasoning))
+            responses = list(zip(expected, actual, reasoning, strict=False))
 
         accuracy = res.score / res.max_score
         color = tuple(
@@ -124,7 +124,7 @@ def arrange_data(results: List[TestResult]):
     )
 
 
-def render_template(template_name: str, output_name: str = None, **kwargs) -> Path | str:
+def render_template(template_name: str, output_name: str | None = None, **kwargs) -> Path | str:
     file_loader = FileSystemLoader(REPORT_TEMPLATES_DIR)
     env = Environment(loader=file_loader)
     template = env.get_template(f"{template_name}.html")
@@ -145,7 +145,7 @@ def format_metric(value: float, metric_name: str) -> str:
     return f"{value:.2f}"
 
 
-def generate_report(results: List[TestResult], output_name: Optional[str] = None) -> Path:
+def generate_report(results: list[TestResult], output_name: str | None = None) -> Path:
     report_data = arrange_data(results)
     metrics = get_summary_data(report_data["run_name"], report_data["agent_name"])
     global_metrics = list()
@@ -202,7 +202,7 @@ def get_summary_data(run_name: str, agent_name: str):
     aggr_results = normalize_and_aggregate_results(results)
 
     score = score_std = 0
-    for dataset_name, dataset_results in aggr_results.items():
+    for _dataset_name, dataset_results in aggr_results.items():
         score += dataset_results["score"]
         score_std += dataset_results["std"]
 
@@ -318,7 +318,7 @@ def generate_summary_report(
 def load_results_file(filename):
     full_file = "data" + os.sep + "results" + os.sep + filename
     results_list = []
-    with open(full_file, "r", encoding="utf-8") as f:
+    with open(full_file, encoding="utf-8") as f:
         line = f.readline()
         while line != "":
             args = json.loads(line)

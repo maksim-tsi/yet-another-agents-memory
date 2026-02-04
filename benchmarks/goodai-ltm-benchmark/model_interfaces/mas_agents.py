@@ -3,10 +3,8 @@ import os
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Optional
 
 import requests
-
 from model_interfaces.interface import ChatSession
 from utils.llm import count_tokens_for_model
 
@@ -17,7 +15,7 @@ class MASWrapperSession(ChatSession):
 
     endpoint: str = "http://localhost:8080"
     session_prefix: str = "full"
-    max_prompt_size: Optional[int] = None
+    max_prompt_size: int | None = None
     request_timeout: float = 90.0
     max_retries: int = 3
     backoff_seconds: float = 0.5
@@ -44,7 +42,7 @@ class MASWrapperSession(ChatSession):
             return self.session_id
         return f"{self.session_prefix}:{self.session_id}"
 
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         if agent_response is not None:
             return agent_response
 
@@ -64,7 +62,7 @@ class MASWrapperSession(ChatSession):
         return response_text
 
     def _post_with_retry(self, payload: dict) -> dict:
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         backoff = self.backoff_seconds
         url = f"{self.endpoint}/run_turn"
 
@@ -120,7 +118,7 @@ class MASWrapperSession(ChatSession):
         fname = self.save_path.joinpath("session.json")
         if not fname.exists():
             return
-        with open(fname, "r") as fd:
+        with open(fname) as fd:
             payload = json.load(fd)
         self.session_id = payload.get("session_id", self.session_id)
         self.turn_id = payload.get("turn_id", self.turn_id)

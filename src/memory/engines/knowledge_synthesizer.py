@@ -12,19 +12,19 @@ Architecture:
 - Short-TTL caching (1-hour)
 """
 
-import logging
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timezone
 import hashlib
-import yaml
+import logging
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
-from ..models import KnowledgeDocument
-from ..tiers.semantic_memory_tier import SemanticMemoryTier
+import yaml
+
+from ...storage.metrics.collector import MetricsCollector
 from ...utils.llm_client import LLMClient
 from ...utils.providers import BaseProvider
-from ...storage.metrics.collector import MetricsCollector
-
+from ..models import KnowledgeDocument
+from ..tiers.semantic_memory_tier import SemanticMemoryTier
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class KnowledgeSynthesizer:
         self,
         semantic_tier: SemanticMemoryTier,
         llm_provider: BaseProvider,
-        domain_config_path: Optional[str] = None,
+        domain_config_path: str | None = None,
         similarity_threshold: float = 0.85,
         cache_ttl_seconds: int = 3600,
         metrics_enabled: bool = True,
@@ -69,7 +69,7 @@ class KnowledgeSynthesizer:
         self.cache_ttl_seconds = cache_ttl_seconds
 
         # In-memory cache for synthesized results
-        self._cache: Dict[str, Tuple[str, datetime]] = {}
+        self._cache: dict[str, tuple[str, datetime]] = {}
 
         # Metrics
         self.metrics = MetricsCollector() if metrics_enabled else None
@@ -82,7 +82,7 @@ class KnowledgeSynthesizer:
             f"cache_ttl={cache_ttl_seconds}s, domain={self.domain_config.get('domain', {}).get('name', 'default')}"
         )
 
-    def _load_domain_config(self, config_path: Optional[str]) -> Dict[str, Any]:
+    def _load_domain_config(self, config_path: str | None) -> dict[str, Any]:
         """Load domain configuration from YAML file."""
         if config_path is None:
             config_path = "config/domains/container_logistics.yaml"
@@ -93,7 +93,7 @@ class KnowledgeSynthesizer:
                 logger.warning(f"Domain config not found: {config_path}, using defaults")
                 return self._get_default_config()
 
-            with open(path, "r") as f:
+            with open(path) as f:
                 config = yaml.safe_load(f)
                 logger.info(f"Loaded domain config: {config.get('domain', {}).get('name')}")
                 return config
@@ -101,7 +101,7 @@ class KnowledgeSynthesizer:
             logger.error(f"Failed to load domain config: {e}")
             return self._get_default_config()
 
-    def _get_default_config(self) -> Dict[str, Any]:
+    def _get_default_config(self) -> dict[str, Any]:
         """Return default configuration."""
         return {
             "domain": {"name": "default"},
@@ -120,8 +120,8 @@ class KnowledgeSynthesizer:
         }
 
     async def synthesize(
-        self, query: str, metadata_filters: Optional[Dict[str, Any]] = None, max_results: int = 5
-    ) -> Dict[str, Any]:
+        self, query: str, metadata_filters: dict[str, Any] | None = None, max_results: int = 5
+    ) -> dict[str, Any]:
         """
         Main synthesis method: Retrieve and synthesize relevant knowledge.
 
@@ -220,7 +220,7 @@ class KnowledgeSynthesizer:
             logger.error(f"Synthesis failed: {e}")
             return {"status": "error", "error": str(e)}
 
-    def _generate_cache_key(self, query: str, metadata_filters: Optional[Dict[str, Any]]) -> str:
+    def _generate_cache_key(self, query: str, metadata_filters: dict[str, Any] | None) -> str:
         """Generate cache key from query and metadata."""
         key_parts = [query]
 
@@ -232,7 +232,7 @@ class KnowledgeSynthesizer:
         key_string = "|".join(key_parts)
         return hashlib.sha256(key_string.encode()).hexdigest()[:16]
 
-    def _get_cached_result(self, cache_key: str) -> Optional[str]:
+    def _get_cached_result(self, cache_key: str) -> str | None:
         """Retrieve cached result if valid."""
         if cache_key not in self._cache:
             return None
@@ -240,7 +240,7 @@ class KnowledgeSynthesizer:
         result, timestamp = self._cache[cache_key]
 
         # Check TTL
-        age_seconds = (datetime.now(timezone.utc) - timestamp).total_seconds()
+        age_seconds = (datetime.now(UTC) - timestamp).total_seconds()
         if age_seconds > self.cache_ttl_seconds:
             # Expired
             del self._cache[cache_key]
@@ -250,7 +250,7 @@ class KnowledgeSynthesizer:
 
     def _cache_result(self, cache_key: str, result: str):
         """Store result in cache with timestamp."""
-        self._cache[cache_key] = (result, datetime.now(timezone.utc))
+        self._cache[cache_key] = (result, datetime.now(UTC))
 
         # Cleanup old entries (simple LRU-like behavior)
         if len(self._cache) > 100:  # Max 100 cached items
@@ -258,8 +258,8 @@ class KnowledgeSynthesizer:
             del self._cache[oldest_key]
 
     async def _retrieve_with_metadata_filter(
-        self, query: str, metadata_filters: Optional[Dict[str, Any]], max_results: int
-    ) -> List[KnowledgeDocument]:
+        self, query: str, metadata_filters: dict[str, Any] | None, max_results: int
+    ) -> list[KnowledgeDocument]:
         """
         Retrieve documents with metadata-first filtering.
 
@@ -282,7 +282,7 @@ class KnowledgeSynthesizer:
                 for field, value in metadata_filters.items():
                     if isinstance(value, str):
                         filter_parts.append(f"{field}:='{value}'")
-                    elif isinstance(value, (int, float)):
+                    elif isinstance(value, int | float):
                         filter_parts.append(f"{field}:={value}")
                     elif isinstance(value, list):
                         # Multiple values (OR condition)
@@ -307,8 +307,8 @@ class KnowledgeSynthesizer:
             return []
 
     async def _score_documents(
-        self, query: str, documents: List[KnowledgeDocument]
-    ) -> List[Tuple[KnowledgeDocument, float]]:
+        self, query: str, documents: list[KnowledgeDocument]
+    ) -> list[tuple[KnowledgeDocument, float]]:
         """
         Compute similarity scores for documents.
 
@@ -333,7 +333,7 @@ class KnowledgeSynthesizer:
 
         return scored
 
-    def _detect_conflicts(self, documents: List[KnowledgeDocument]) -> List[Dict[str, Any]]:
+    def _detect_conflicts(self, documents: list[KnowledgeDocument]) -> list[dict[str, Any]]:
         """
         Detect conflicting information in documents.
 
@@ -406,7 +406,7 @@ class KnowledgeSynthesizer:
         return (has_neg1 and has_pos2) or (has_pos1 and has_neg2)
 
     async def _synthesize_with_llm(
-        self, query: str, documents: List[KnowledgeDocument], conflicts: List[Dict[str, Any]]
+        self, query: str, documents: list[KnowledgeDocument], conflicts: list[dict[str, Any]]
     ) -> str:
         """
         Use LLM to synthesize knowledge documents into query-specific response.
@@ -482,9 +482,9 @@ Synthesized Response:"""
         self._cache.clear()
         logger.info("Synthesis cache cleared")
 
-    async def get_cache_stats(self) -> Dict[str, Any]:
+    async def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         valid_entries = sum(
             1
             for _, timestamp in self._cache.values()

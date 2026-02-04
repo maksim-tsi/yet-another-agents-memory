@@ -1,10 +1,11 @@
 import sys
 import types
-import pytest
 from types import SimpleNamespace
 
-from src.utils.providers import MistralProvider
+import pytest
+
 from src.utils.llm_client import LLMResponse
+from src.utils.providers import MistralProvider
 
 
 class FakeUsage:

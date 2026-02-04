@@ -10,10 +10,11 @@ Tests cover:
 - Error handling
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock
 import json
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
+
+import pytest
 
 from src.memory.tiers.active_context_tier import ActiveContextTier
 from src.storage.base import StorageDataError
@@ -37,7 +38,7 @@ class TestActiveContextTierStore:
             "turn_id": "turn_001",
             "role": "user",
             "content": "Hello, world!",
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "metadata": {"source": "test"},
         }
 
@@ -82,9 +83,9 @@ class TestActiveContextTierStore:
             "content": "Test message",
         }
 
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         turn_id = await tier.store(turn_data)
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         assert turn_id == "turn_001"
 
@@ -208,7 +209,7 @@ class TestActiveContextTierRetrieve:
                     "turn_id": "turn_002",
                     "role": "assistant",
                     "content": "Response",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "metadata": {},
                 }
             ),
@@ -217,7 +218,7 @@ class TestActiveContextTierRetrieve:
                     "turn_id": "turn_001",
                     "role": "user",
                     "content": "Hello",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "metadata": {},
                 }
             ),
@@ -253,7 +254,7 @@ class TestActiveContextTierRetrieve:
                 "turn_id": "turn_001",
                 "role": "user",
                 "content": "Hello",
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "metadata": "{}",
             }
         ]
@@ -289,7 +290,7 @@ class TestActiveContextTierRetrieve:
                 "turn_id": "turn_001",
                 "role": "user",
                 "content": "Hello",
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "metadata": "{}",
             }
         ]
@@ -335,7 +336,7 @@ class TestActiveContextTierQuery:
                 "turn_id": "turn_001",
                 "role": "user",
                 "content": "Hello",
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "tier": "L1",
             }
         ]

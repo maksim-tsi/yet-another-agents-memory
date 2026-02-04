@@ -1,5 +1,6 @@
-import click
 import webbrowser
+
+import click
 from reporting.generate import gather_results, generate_report
 
 
@@ -27,7 +28,7 @@ def main(run_name: str, agent_name: str, output: str, show: bool):
 
 
 def _main(run_name: str, agent_name: str, output: str, show: bool = True):
-    benchmark_data, results = gather_results(run_name, agent_name)
+    _benchmark_data, results = gather_results(run_name, agent_name)
     report_path = generate_report(results, output_name=output)
     if show:
         webbrowser.open_new_tab(report_path.as_uri())

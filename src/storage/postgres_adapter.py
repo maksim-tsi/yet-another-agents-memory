@@ -9,19 +9,20 @@ Database Tables:
 - working_memory: L2 memory (session facts, TTL: 7 days)
 """
 
-import psycopg
-from psycopg_pool import AsyncConnectionPool
-from psycopg import sql
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta, timezone
 import json
 import logging
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+import psycopg
+from psycopg import sql
+from psycopg_pool import AsyncConnectionPool
 
 from .base import (
     StorageAdapter,
     StorageConnectionError,
-    StorageQueryError,
     StorageDataError,
+    StorageQueryError,
     StorageTimeoutError,
     validate_required_fields,
 )
@@ -77,7 +78,7 @@ class PostgresAdapter(StorageAdapter):
         ```
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize PostgreSQL adapter.
 
@@ -99,7 +100,7 @@ class PostgresAdapter(StorageAdapter):
         self.timeout = config.get("timeout", 5)
         self.table = config.get("table", "active_context")
         self.lock_writes = bool(config.get("lock_writes", False))
-        self.pool: Optional[AsyncConnectionPool] = None
+        self.pool: AsyncConnectionPool | None = None
 
         logger.info(
             f"PostgresAdapter initialized for table '{self.table}' "
@@ -172,7 +173,7 @@ class PostgresAdapter(StorageAdapter):
             logger.error(f"Error during disconnect: {e}", exc_info=True)
             # Don't raise - disconnect should always succeed
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store data in PostgreSQL table.
 
@@ -212,14 +213,14 @@ class PostgresAdapter(StorageAdapter):
             logger.error(f"PostgreSQL insert failed: {e}", exc_info=True)
             raise StorageQueryError(f"Insert failed: {e}") from e
 
-    async def _store_active_context(self, data: Dict[str, Any]) -> str:
+    async def _store_active_context(self, data: dict[str, Any]) -> str:
         """Store record in active_context table"""
         # Validate required fields
         validate_required_fields(data, ["session_id", "turn_id", "content"])
 
         # Set TTL if not provided (24 hours)
         if "ttl_expires_at" not in data:
-            data["ttl_expires_at"] = datetime.now(timezone.utc) + timedelta(hours=24)
+            data["ttl_expires_at"] = datetime.now(UTC) + timedelta(hours=24)
 
         # Prepare metadata
         metadata = json.dumps(data.get("metadata", {}))
@@ -231,38 +232,37 @@ class PostgresAdapter(StorageAdapter):
             RETURNING id
         """)
 
-        async with self.pool.connection() as conn:  # type: ignore
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    query,
-                    (
-                        data["session_id"],
-                        data["turn_id"],
-                        data["content"],
-                        metadata,
-                        datetime.now(timezone.utc),
-                        data["ttl_expires_at"],
-                    ),
-                )
-                result = await cur.fetchone()
-                # Explicit commit to persist insert; pool connections default to non-autocommit
-                await conn.commit()
-                if result:
-                    record_id = str(result[0])
-                else:
-                    raise StorageQueryError("Failed to insert record")
+        async with self.pool.connection() as conn, conn.cursor() as cur:  # type: ignore
+            await cur.execute(
+                query,
+                (
+                    data["session_id"],
+                    data["turn_id"],
+                    data["content"],
+                    metadata,
+                    datetime.now(UTC),
+                    data["ttl_expires_at"],
+                ),
+            )
+            result = await cur.fetchone()
+            # Explicit commit to persist insert; pool connections default to non-autocommit
+            await conn.commit()
+            if result:
+                record_id = str(result[0])
+            else:
+                raise StorageQueryError("Failed to insert record")
 
         logger.debug(f"Stored active_context record: {record_id}")
         return record_id
 
-    async def _store_working_memory(self, data: Dict[str, Any]) -> str:
+    async def _store_working_memory(self, data: dict[str, Any]) -> str:
         """Store record in working_memory table"""
         # Validate required fields
         validate_required_fields(data, ["session_id", "fact_type", "content"])
 
         # Set TTL if not provided (7 days)
         if "ttl_expires_at" not in data:
-            data["ttl_expires_at"] = datetime.now(timezone.utc) + timedelta(days=7)
+            data["ttl_expires_at"] = datetime.now(UTC) + timedelta(days=7)
 
         # Prepare metadata and arrays
         source_turn_ids = data.get("source_turn_ids", [])
@@ -275,38 +275,37 @@ class PostgresAdapter(StorageAdapter):
             RETURNING id
         """)
 
-        async with self.pool.connection() as conn:  # type: ignore
-            async with conn.cursor() as cur:
-                if self.lock_writes:
-                    lock_query = sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE").format(
-                        sql.Identifier(self.table)
-                    )
-                    await cur.execute(lock_query)
-                await cur.execute(
-                    query,
-                    (
-                        data["session_id"],
-                        data["fact_type"],
-                        data["content"],
-                        data.get("confidence", 1.0),
-                        source_turn_ids,
-                        datetime.now(timezone.utc),
-                        datetime.now(timezone.utc),
-                        data["ttl_expires_at"],
-                    ),
+        async with self.pool.connection() as conn, conn.cursor() as cur:  # type: ignore
+            if self.lock_writes:
+                lock_query = sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE").format(
+                    sql.Identifier(self.table)
                 )
-                result = await cur.fetchone()
-                # Explicit commit to persist insert; pool connections default to non-autocommit
-                await conn.commit()
-                if result:
-                    record_id = str(result[0])
-                else:
-                    raise StorageQueryError("Failed to insert record")
+                await cur.execute(lock_query)
+            await cur.execute(
+                query,
+                (
+                    data["session_id"],
+                    data["fact_type"],
+                    data["content"],
+                    data.get("confidence", 1.0),
+                    source_turn_ids,
+                    datetime.now(UTC),
+                    datetime.now(UTC),
+                    data["ttl_expires_at"],
+                ),
+            )
+            result = await cur.fetchone()
+            # Explicit commit to persist insert; pool connections default to non-autocommit
+            await conn.commit()
+            if result:
+                record_id = str(result[0])
+            else:
+                raise StorageQueryError("Failed to insert record")
 
         logger.debug(f"Stored working_memory record: {record_id}")
         return record_id
 
-    async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
+    async def retrieve(self, id: str) -> dict[str, Any] | None:
         """
         Retrieve record by ID.
 
@@ -326,43 +325,42 @@ class PostgresAdapter(StorageAdapter):
         try:
             query = sql.SQL("SELECT * FROM {} WHERE id = %s").format(sql.Identifier(self.table))
 
-            async with self.pool.connection() as conn:  # type: ignore
-                async with conn.cursor() as cur:
-                    await cur.execute(query, (int(id),))
-                    row = await cur.fetchone()
+            async with self.pool.connection() as conn, conn.cursor() as cur:
+                await cur.execute(query, (int(id),))
+                row = await cur.fetchone()
 
-                    if not row:
-                        return None
+                if not row:
+                    return None
 
                     # Get column names
-                    if cur.description:
-                        columns = [desc[0] for desc in cur.description]
-                    else:
-                        return None
+                if cur.description:
+                    columns = [desc[0] for desc in cur.description]
+                else:
+                    return None
 
                     # Convert row to dictionary
-                    result = dict(zip(columns, row))
+                result = dict(zip(columns, row, strict=False))
 
-                    # Parse JSON fields
-                    if "metadata" in result and result["metadata"]:
-                        result["metadata"] = (
-                            json.loads(result["metadata"])
-                            if isinstance(result["metadata"], str)
-                            else result["metadata"]
-                        )
+                # Parse JSON fields
+                if result.get("metadata"):
+                    result["metadata"] = (
+                        json.loads(result["metadata"])
+                        if isinstance(result["metadata"], str)
+                        else result["metadata"]
+                    )
 
                     # Convert datetime objects to ISO format
-                    for key, value in result.items():
-                        if isinstance(value, datetime):
-                            result[key] = value.isoformat()
+                for key, value in result.items():
+                    if isinstance(value, datetime):
+                        result[key] = value.isoformat()
 
-                    return result
+                return result
 
         except psycopg.Error as e:
             logger.error(f"PostgreSQL retrieve failed: {e}", exc_info=True)
             raise StorageQueryError(f"Retrieve failed: {e}") from e
 
-    async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Search records with filters.
 
@@ -437,41 +435,40 @@ class PostgresAdapter(StorageAdapter):
             )
             params.extend([limit, offset])
 
-            async with self.pool.connection() as conn:  # type: ignore
-                async with conn.cursor() as cur:
-                    await cur.execute(sql_query, params)
-                    rows = await cur.fetchall()
+            async with self.pool.connection() as conn, conn.cursor() as cur:
+                await cur.execute(sql_query, params)
+                rows = await cur.fetchall()
 
-                    if not rows:
-                        return []
+                if not rows:
+                    return []
 
-                    # Get column names
-                    if cur.description:
-                        columns = [desc[0] for desc in cur.description]
-                    else:
-                        return []
+                # Get column names
+                if cur.description:
+                    columns = [desc[0] for desc in cur.description]
+                else:
+                    return []
 
-                    # Convert rows to dictionaries
-                    results = []
-                    for row in rows:
-                        result = dict(zip(columns, row))
+                # Convert rows to dictionaries
+                results = []
+                for row in rows:
+                    result = dict(zip(columns, row, strict=False))
 
-                        # Parse JSON fields
-                        if "metadata" in result and result["metadata"]:
-                            result["metadata"] = (
-                                json.loads(result["metadata"])
-                                if isinstance(result["metadata"], str)
-                                else result["metadata"]
-                            )
+                    # Parse JSON fields
+                    if result.get("metadata"):
+                        result["metadata"] = (
+                            json.loads(result["metadata"])
+                            if isinstance(result["metadata"], str)
+                            else result["metadata"]
+                        )
 
-                        # Convert datetime to ISO format
-                        for key, value in result.items():
-                            if isinstance(value, datetime):
-                                result[key] = value.isoformat()
+                    # Convert datetime to ISO format
+                    for key, value in result.items():
+                        if isinstance(value, datetime):
+                            result[key] = value.isoformat()
 
-                        results.append(result)
+                    results.append(result)
 
-                    return results
+                return results
 
         except psycopg.Error as e:
             logger.error(f"PostgreSQL search failed: {e}", exc_info=True)
@@ -497,11 +494,10 @@ class PostgresAdapter(StorageAdapter):
         try:
             query = sql.SQL("DELETE FROM {} WHERE id = %s").format(sql.Identifier(self.table))
 
-            async with self.pool.connection() as conn:  # type: ignore
-                async with conn.cursor() as cur:
-                    await cur.execute(query, (int(id),))
-                    await conn.commit()
-                    deleted = cur.rowcount > 0
+            async with self.pool.connection() as conn, conn.cursor() as cur:
+                await cur.execute(query, (int(id),))
+                await conn.commit()
+                deleted = cur.rowcount > 0
 
             if deleted:
                 logger.debug(f"Deleted record {id} from {self.table}")
@@ -530,11 +526,10 @@ class PostgresAdapter(StorageAdapter):
                 WHERE ttl_expires_at < NOW()
             """).format(sql.Identifier(self.table))
 
-            async with self.pool.connection() as conn:  # type: ignore
-                async with conn.cursor() as cur:
-                    await cur.execute(query)
-                    await conn.commit()
-                    count = cur.rowcount
+            async with self.pool.connection() as conn, conn.cursor() as cur:
+                await cur.execute(query)
+                await conn.commit()
+                count = cur.rowcount
 
             if count > 0:
                 logger.info(f"Deleted {count} expired records from {self.table}")
@@ -545,7 +540,7 @@ class PostgresAdapter(StorageAdapter):
             logger.error(f"Failed to delete expired records: {e}", exc_info=True)
             raise StorageQueryError(f"Delete expired failed: {e}") from e
 
-    async def count(self, session_id: Optional[str] = None) -> int:
+    async def count(self, session_id: str | None = None) -> int:
         """
         Count records in table.
 
@@ -573,20 +568,19 @@ class PostgresAdapter(StorageAdapter):
                 """).format(sql.Identifier(self.table))
                 params = ()
 
-            async with self.pool.connection() as conn:  # type: ignore
-                async with conn.cursor() as cur:
-                    await cur.execute(query, params)
-                    result = await cur.fetchone()
-                    if result:
-                        return result[0]
-                    else:
-                        return 0
+            async with self.pool.connection() as conn, conn.cursor() as cur:
+                await cur.execute(query, params)
+                result = await cur.fetchone()
+                if result:
+                    return int(result[0])
+                else:
+                    return 0
 
         except psycopg.Error as e:
             logger.error(f"Count query failed: {e}", exc_info=True)
             raise StorageQueryError(f"Count failed: {e}") from e
 
-    async def insert(self, table: str, data: Dict[str, Any]) -> str:
+    async def insert(self, table: str, data: dict[str, Any]) -> str:
         """
         Insert record into specified table (helper method for tiers).
 
@@ -615,10 +609,10 @@ class PostgresAdapter(StorageAdapter):
     async def query(
         self,
         table: str,
-        filters: Optional[Dict[str, Any]] = None,
-        limit: Optional[int] = None,
+        filters: dict[str, Any] | None = None,
+        limit: int | None = None,
         **kwargs,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Query records from specified table (helper method for tiers).
 

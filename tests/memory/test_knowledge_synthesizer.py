@@ -2,8 +2,9 @@
 Tests for KnowledgeSynthesizer (Query-Time Knowledge Retrieval)
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.memory.engines.knowledge_synthesizer import KnowledgeSynthesizer
 from src.memory.models import KnowledgeDocument
@@ -287,7 +288,7 @@ async def test_conflict_detection(mock_semantic_tier, mock_llm_provider, sample_
         episode_count=1,
     )
 
-    docs_with_conflict = sample_knowledge_docs[:3] + [conflict_doc]
+    docs_with_conflict = [*sample_knowledge_docs[:3], conflict_doc]
     mock_semantic_tier.search.return_value = docs_with_conflict
 
     synthesizer = KnowledgeSynthesizer(

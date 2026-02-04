@@ -11,11 +11,11 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.utils.llm_client import LLMClient, ProviderConfig
-from src.utils.providers import GeminiProvider
-
 
 async def main() -> int:
+    from src.utils.llm_client import LLMClient, ProviderConfig
+    from src.utils.providers import GeminiProvider
+
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         print("GOOGLE_API_KEY is not set")

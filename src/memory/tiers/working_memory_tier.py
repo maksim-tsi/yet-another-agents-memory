@@ -13,18 +13,17 @@ Key Features:
 - TTL-based cleanup (7 days default)
 """
 
-from typing import Dict, Any, List, Optional
-from collections import deque
-from datetime import datetime, timedelta, timezone
 import json
 import logging
+from collections import deque
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
+from src.memory.models import Fact, FactType
 from src.memory.tiers.base_tier import BaseTier, TierOperationError
-from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.metrics.collector import MetricsCollector
 from src.storage.metrics.timer import OperationTimer
-from src.memory.models import Fact, FactType
-
+from src.storage.postgres_adapter import PostgresAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +76,8 @@ class WorkingMemoryTier(BaseTier):
     def __init__(
         self,
         postgres_adapter: PostgresAdapter,
-        metrics_collector: Optional[MetricsCollector] = None,
-        config: Optional[Dict[str, Any]] = None,
+        metrics_collector: MetricsCollector | None = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize L2 Working Memory Tier.
@@ -97,7 +96,7 @@ class WorkingMemoryTier(BaseTier):
 
         self.postgres = postgres_adapter
         # Ensure adapter targets the working_memory table for all operations
-        setattr(self.postgres, "table", "working_memory")
+        self.postgres.table = "working_memory"
         self.ciar_threshold = (
             config.get("ciar_threshold", self.DEFAULT_CIAR_THRESHOLD)
             if config
@@ -117,14 +116,14 @@ class WorkingMemoryTier(BaseTier):
             else self.AGE_DECAY_LAMBDA
         )
         self.cache_limit = config.get("cache_limit", 200) if config else 200
-        self._recent_cache: Dict[str, deque[Fact]] = {}
+        self._recent_cache: dict[str, deque[Fact]] = {}
 
         logger.info(
             f"L2 WorkingMemoryTier initialized: ciar_threshold={self.ciar_threshold}, "
             f"ttl_days={self.ttl_days}"
         )
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store a fact in L2 Working Memory.
 
@@ -149,10 +148,7 @@ class WorkingMemoryTier(BaseTier):
         async with OperationTimer(self.metrics, "l2_store"):
             try:
                 # Convert to Fact model for validation
-                if isinstance(data, dict):
-                    fact = Fact(**data)
-                else:
-                    fact = data
+                fact = Fact(**data) if isinstance(data, dict) else data
 
                 # Check CIAR threshold
                 if fact.ciar_score < self.ciar_threshold:
@@ -188,11 +184,11 @@ class WorkingMemoryTier(BaseTier):
         cache = self._recent_cache.setdefault(fact.session_id, deque(maxlen=self.cache_limit))
         cache.append(fact)
 
-    def get_recent_cached(self, session_id: str) -> List[Fact]:
+    def get_recent_cached(self, session_id: str) -> list[Fact]:
         """Return recently stored facts for a session (in-process cache)."""
         return list(self._recent_cache.get(session_id, []))
 
-    async def retrieve(self, fact_id: str) -> Optional[Fact]:
+    async def retrieve(self, fact_id: str) -> Fact | None:
         """
         Retrieve a fact by ID and update access tracking.
 
@@ -240,8 +236,8 @@ class WorkingMemoryTier(BaseTier):
                 raise TierOperationError(f"Failed to retrieve fact: {e}") from e
 
     async def query(
-        self, filters: Optional[Dict[str, Any]] = None, limit: int = 10, **kwargs
-    ) -> List[Fact]:
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+    ) -> list[Fact]:
         """
         Query facts with optional filters.
 
@@ -307,9 +303,8 @@ class WorkingMemoryTier(BaseTier):
                         fact.ciar_score = max(fact.ciar_score, self.ciar_threshold)
 
                     # Apply CIAR filter
-                    if not kwargs.get("include_low_ciar", False):
-                        if fact.ciar_score < min_ciar:
-                            continue
+                    if not kwargs.get("include_low_ciar", False) and fact.ciar_score < min_ciar:
+                        continue
 
                     facts.append(fact)
 
@@ -324,8 +319,8 @@ class WorkingMemoryTier(BaseTier):
                 raise TierOperationError(f"Failed to query L2: {e}") from e
 
     async def query_by_session(
-        self, session_id: str, min_ciar_score: Optional[float] = None, limit: int = 100
-    ) -> List[Fact]:
+        self, session_id: str, min_ciar_score: float | None = None, limit: int = 100
+    ) -> list[Fact]:
         """
         Query facts for a specific session.
 
@@ -344,8 +339,8 @@ class WorkingMemoryTier(BaseTier):
         return await self.query(filters=filters, limit=limit)
 
     async def query_by_type(
-        self, fact_type: FactType, session_id: Optional[str] = None, limit: int = 100
-    ) -> List[Fact]:
+        self, fact_type: FactType, session_id: str | None = None, limit: int = 100
+    ) -> list[Fact]:
         """
         Query facts by type.
 
@@ -364,8 +359,8 @@ class WorkingMemoryTier(BaseTier):
         return await self.query(filters=filters, limit=limit)
 
     async def search_facts(
-        self, query: str, session_id: str, min_ciar: Optional[float] = None, limit: int = 20
-    ) -> List[Fact]:
+        self, query: str, session_id: str, min_ciar: float | None = None, limit: int = 20
+    ) -> list[Fact]:
         """
         Full-text search for facts using PostgreSQL tsvector.
 
@@ -442,7 +437,7 @@ class WorkingMemoryTier(BaseTier):
                 raise TierOperationError(f"Failed to search facts: {e}") from e
 
     async def update_ciar_score(
-        self, fact_id: str, ciar_score: Optional[float] = None, **components
+        self, fact_id: str, ciar_score: float | None = None, **components
     ) -> bool:
         """
         Update CIAR score and/or components.
@@ -533,7 +528,7 @@ class WorkingMemoryTier(BaseTier):
             Number of facts deleted
         """
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.ttl_days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=self.ttl_days)
 
             # Query expired facts
             results = await self.postgres.query(
@@ -559,7 +554,7 @@ class WorkingMemoryTier(BaseTier):
             logger.error(f"Failed to cleanup expired facts: {e}")
             return 0
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check health of PostgreSQL and L2 tier statistics.
 
@@ -595,7 +590,7 @@ class WorkingMemoryTier(BaseTier):
             return {
                 "tier": "L2_working_memory",
                 "status": overall_status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "storage": {"postgres": postgres_health},
                 "statistics": {
                     "total_facts": total_facts,
@@ -614,7 +609,7 @@ class WorkingMemoryTier(BaseTier):
             return {
                 "tier": "L2_working_memory",
                 "status": "unhealthy",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "error": str(e),
             }
 

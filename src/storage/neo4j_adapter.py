@@ -12,19 +12,20 @@ Features:
 """
 
 import asyncio
-from contextlib import asynccontextmanager
 import logging
-from typing import Dict, Any, List, Optional
 import uuid
+from contextlib import asynccontextmanager, suppress
+from datetime import UTC
+from typing import Any
 
 import redis.asyncio as redis
-from neo4j import AsyncGraphDatabase, AsyncDriver
+from neo4j import AsyncDriver, AsyncGraphDatabase
 
 from .base import (
     StorageAdapter,
     StorageConnectionError,
-    StorageQueryError,
     StorageDataError,
+    StorageQueryError,
     StorageTimeoutError,
     validate_required_fields,
 )
@@ -48,7 +49,7 @@ class Neo4jLockManager:
         self.renewal_interval = renewal_interval
         self._owns_client = owns_client
         self._active_locks: set[str] = set()
-        self._renewal_task: Optional[asyncio.Task] = None
+        self._renewal_task: asyncio.Task | None = None
         self._lock_guard = asyncio.Lock()
 
     async def start(self) -> None:
@@ -61,10 +62,8 @@ class Neo4jLockManager:
         """Stop renewal task and release any active locks."""
         if self._renewal_task:
             self._renewal_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self._renewal_task
-            except asyncio.CancelledError:
-                pass
             self._renewal_task = None
 
         async with self._lock_guard:
@@ -78,7 +77,7 @@ class Neo4jLockManager:
             else:
                 await self.redis.close()
 
-    async def acquire(self, session_id: str, ttl_seconds: Optional[int] = None) -> str:
+    async def acquire(self, session_id: str, ttl_seconds: int | None = None) -> str:
         """Acquire a distributed lock for a session."""
         lock_key = f"neo4j:{session_id}"
         ttl = ttl_seconds or self.ttl_seconds
@@ -179,14 +178,14 @@ class Neo4jAdapter(StorageAdapter):
         ```
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.uri: str = config.get("uri", "")
         self.user: str = config.get("user", "neo4j")
         self.password: str = config.get("password", "")
         self.database: str = config.get("database", "neo4j")
-        self.driver: Optional[AsyncDriver] = None
-        self.lock_manager: Optional[Neo4jLockManager] = None
+        self.driver: AsyncDriver | None = None
+        self.lock_manager: Neo4jLockManager | None = None
         lock_redis_client = config.get("lock_redis_client")
         lock_redis_url = config.get("lock_redis_url")
         lock_ttl = int(config.get("lock_ttl_seconds", 30))
@@ -252,9 +251,9 @@ class Neo4jAdapter(StorageAdapter):
     async def execute_query(
         self,
         cypher: str,
-        params: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        params: dict[str, Any] | None = None,
+        session_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Execute arbitrary Cypher and return result data."""
         async with OperationTimer(self.metrics, "execute_query"):
             if not self.driver:
@@ -272,13 +271,13 @@ class Neo4jAdapter(StorageAdapter):
     async def _execute_query_internal(
         self,
         cypher: str,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        params: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         async with self.driver.session(database=self.database) as session:
             result = await session.run(cypher, params or {})
             return await result.data()
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store entity or relationship.
 
@@ -311,14 +310,14 @@ class Neo4jAdapter(StorageAdapter):
                 logger.error(f"Neo4j store failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Store failed: {e}") from e
 
-    async def _store_by_type(self, data: Dict[str, Any]) -> str:
+    async def _store_by_type(self, data: dict[str, Any]) -> str:
         if data["type"] == "entity":
             return await self._store_entity(data)
         if data["type"] == "relationship":
             return await self._store_relationship(data)
         raise StorageDataError(f"Unknown type: {data['type']}")
 
-    async def _store_entity(self, data: Dict[str, Any]) -> str:
+    async def _store_entity(self, data: dict[str, Any]) -> str:
         """Store entity node"""
         if self.driver is None:
             raise StorageConnectionError("Not connected to Neo4j")
@@ -332,14 +331,11 @@ class Neo4jAdapter(StorageAdapter):
         node_id = props.get("name", str(uuid.uuid4()))
         props["id"] = node_id
 
-        cypher = (
-            """
-            MERGE (n:%s {id: $id})
+        cypher = f"""
+            MERGE (n:{label} {{id: $id}})
             SET n += $props
             RETURN n.id AS id
         """
-            % label
-        )
 
         async with self.driver.session(database=self.database) as session:
             result = await session.run(cypher, id=node_id, props=props)
@@ -348,7 +344,7 @@ class Neo4jAdapter(StorageAdapter):
                 raise StorageQueryError("Failed to store entity")
             return record["id"]
 
-    async def _store_relationship(self, data: Dict[str, Any]) -> str:
+    async def _store_relationship(self, data: dict[str, Any]) -> str:
         """Store relationship between nodes"""
         if self.driver is None:
             raise StorageConnectionError("Not connected to Neo4j")
@@ -360,16 +356,13 @@ class Neo4jAdapter(StorageAdapter):
         rel_type = data["relationship"]
         props = data.get("properties", {})
 
-        cypher = (
-            """
-            MATCH (from {id: $from_id})
-            MATCH (to {id: $to_id})
-            MERGE (from)-[r:%s]->(to)
+        cypher = f"""
+            MATCH (from {{id: $from_id}})
+            MATCH (to {{id: $to_id}})
+            MERGE (from)-[r:{rel_type}]->(to)
             SET r += $props
             RETURN id(r) AS id
         """
-            % rel_type
-        )
 
         async with self.driver.session(database=self.database) as session:
             result = await session.run(cypher, from_id=from_id, to_id=to_id, props=props)
@@ -378,7 +371,7 @@ class Neo4jAdapter(StorageAdapter):
                 raise StorageQueryError("Failed to store relationship")
             return str(record["id"])
 
-    async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
+    async def retrieve(self, id: str) -> dict[str, Any] | None:
         """Retrieve entity by ID"""
         async with OperationTimer(self.metrics, "retrieve"):
             if not self._connected or not self.driver:
@@ -403,7 +396,7 @@ class Neo4jAdapter(StorageAdapter):
                 logger.error(f"Neo4j retrieve failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Retrieve failed: {e}") from e
 
-    async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Execute Cypher query.
 
@@ -455,7 +448,7 @@ class Neo4jAdapter(StorageAdapter):
 
     # Batch operations (optimized for Neo4j)
 
-    async def store_batch(self, items: List[Dict[str, Any]]) -> List[str]:
+    async def store_batch(self, items: list[dict[str, Any]]) -> list[str]:
         """
         Store multiple entities or relationships in a single transaction.
 
@@ -502,14 +495,11 @@ class Neo4jAdapter(StorageAdapter):
                             node_id = props.get("name", str(uuid.uuid4()))
                             props["id"] = node_id
 
-                            cypher = (
-                                """
-                                MERGE (n:%s {id: $id})
+                            cypher = f"""
+                                MERGE (n:{label} {{id: $id}})
                                 SET n += $props
                                 RETURN n.id AS id
                             """
-                                % label
-                            )
 
                             result = await tx.run(cypher, id=node_id, props=props)
                             record = await result.single()
@@ -522,16 +512,13 @@ class Neo4jAdapter(StorageAdapter):
                             rel_type = item["relationship"]
                             props = item.get("properties", {})
 
-                            cypher = (
-                                """
-                                MATCH (from {id: $from_id})
-                                MATCH (to {id: $to_id})
-                                MERGE (from)-[r:%s]->(to)
+                            cypher = f"""
+                                MATCH (from {{id: $from_id}})
+                                MATCH (to {{id: $to_id}})
+                                MERGE (from)-[r:{rel_type}]->(to)
                                 SET r += $props
                                 RETURN id(r) AS id
                             """
-                                % rel_type
-                            )
 
                             result = await tx.run(cypher, from_id=from_id, to_id=to_id, props=props)
                             record = await result.single()
@@ -550,7 +537,7 @@ class Neo4jAdapter(StorageAdapter):
             logger.error(f"Neo4j batch store failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch store failed: {e}") from e
 
-    async def retrieve_batch(self, ids: List[str]) -> List[Optional[Dict[str, Any]]]:
+    async def retrieve_batch(self, ids: list[str]) -> list[dict[str, Any] | None]:
         """
         Retrieve multiple entities by their IDs in a single query.
 
@@ -595,7 +582,7 @@ class Neo4jAdapter(StorageAdapter):
             logger.error(f"Neo4j batch retrieve failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch retrieve failed: {e}") from e
 
-    async def delete_batch(self, ids: List[str]) -> Dict[str, bool]:
+    async def delete_batch(self, ids: list[str]) -> dict[str, bool]:
         """
         Delete multiple entities by their IDs in a single transaction.
 
@@ -646,7 +633,7 @@ class Neo4jAdapter(StorageAdapter):
             logger.error(f"Neo4j batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch delete failed: {e}") from e
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check Neo4j backend health and performance.
 
@@ -664,7 +651,7 @@ class Neo4jAdapter(StorageAdapter):
             - timestamp: ISO timestamp
         """
         import time
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         start_time = time.perf_counter()
 
@@ -674,7 +661,7 @@ class Neo4jAdapter(StorageAdapter):
                     "status": "unhealthy",
                     "connected": False,
                     "details": "Not connected to Neo4j",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
             # Execute simple query to check connectivity and get stats
@@ -706,7 +693,7 @@ class Neo4jAdapter(StorageAdapter):
                 "node_count": node_count,
                 "relationship_count": rel_count,
                 "details": f'Neo4j database "{self.database}" is accessible',
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         except Exception as e:
@@ -717,12 +704,12 @@ class Neo4jAdapter(StorageAdapter):
                 "status": "unhealthy",
                 "connected": self._connected,
                 "latency_ms": round(latency_ms, 2),
-                "details": f"Health check failed: {str(e)}",
+                "details": f"Health check failed: {e!s}",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
-    async def _get_backend_metrics(self) -> Optional[Dict[str, Any]]:
+    async def _get_backend_metrics(self) -> dict[str, Any] | None:
         """Get Neo4j-specific metrics."""
         if not self._connected or not self.driver:
             return None

@@ -1,9 +1,12 @@
-import click
+import builtins
+import contextlib
 import webbrowser
 from pathlib import Path
-from utils.ui import ask_yesno
-from utils.files import gather_runstats_files
+
+import click
 from reporting.generate import generate_summary_report
+from utils.files import gather_runstats_files
+from utils.ui import ask_yesno
 
 
 @click.command("comparative-report")
@@ -47,20 +50,17 @@ def main(run_name: str, agents: list[str] | None, labels: list[str] | None, outp
         while len(agents) < 2:
             print("Enter at least two indices, separated by commas. E.g. 1,2,4")
             sel = input("Selection: ")
-            try:
+            with contextlib.suppress(builtins.BaseException):
                 agents = sorted(agent_names[s] for s in [int(s.strip()) for s in sel.split(",")])
-            except:
-                pass
 
-    if labels is None:
-        if ask_yesno(
-            question="Do you wish to provide labels for the selected agents?", default_yes=False
-        ):
-            print("Please enter the labels one by one.")
-            labels = list()
-            for name in agents:
-                agent_label = input(f"Label for {name}: ")
-                labels.append(agent_label.strip())
+    if labels is None and ask_yesno(
+        question="Do you wish to provide labels for the selected agents?", default_yes=False
+    ):
+        print("Please enter the labels one by one.")
+        labels = list()
+        for name in agents:
+            agent_label = input(f"Label for {name}: ")
+            labels.append(agent_label.strip())
 
     report_path = generate_summary_report(
         run_name=run_name,

@@ -1,11 +1,8 @@
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import List, Tuple
 
 import pystache
-
 from dataset_interfaces.interface import DatasetInterface, TestExample
-
 
 LOCATIONS = [
     "Town Hall",
@@ -58,7 +55,7 @@ class LocationsDataset(DatasetInterface):
             location_information = []
             locations = deepcopy(LOCATIONS)
 
-            for change in range(self.known_locations - 1):
+            for _change in range(self.known_locations - 1):
                 place = self.random.choice(locations)
                 locations.remove(place)
 
@@ -119,10 +116,10 @@ class LocationsDataset(DatasetInterface):
 
     def evaluate_correct(
         self,
-        questions: List[str],
-        responses: List[str],
-        expected_answers: List[str],
-    ) -> Tuple[int, int, List[str]]:
+        questions: list[str],
+        responses: list[str],
+        expected_answers: list[str],
+    ) -> tuple[int, int, list[str]]:
         return self.evaluate_correct_gpt(questions, responses, expected_answers)
 
     def apply_move(self, current_position: list[int], direction: str, distance: int) -> list[int]:
@@ -141,15 +138,15 @@ class LocationsDataset(DatasetInterface):
         return [x, y]
 
     def generate_answer(
-        self, location_info: List[Tuple[str, str, str, int]]
-    ) -> Tuple[Tuple[str, int], List[str]]:
+        self, location_info: list[tuple[str, str, str, int]]
+    ) -> tuple[tuple[str, int], list[str]]:
         # Follow the location
         # Position the current location on a 2d plane centered around the origin.
         # Generate an answer so that the final location will be (x, 0) or (0, y)
         current_pos = [0, 0]
 
-        for l in location_info[1:-1]:
-            current_pos = self.apply_move(current_pos, l[2], l[3])
+        for move in location_info[1:-1]:
+            current_pos = self.apply_move(current_pos, move[2], move[3])
 
         # If we are not currently aligned along an axis
         if current_pos[0] != 0 and current_pos[1] != 0:

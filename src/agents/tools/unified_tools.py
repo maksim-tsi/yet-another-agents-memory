@@ -6,8 +6,9 @@ over the four-tier architecture. All tools use ToolRuntime for
 context injection (session_id, user_id) per ADR-007.
 """
 
-from typing import Optional, Dict, Any, TYPE_CHECKING
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
+
 from pydantic import BaseModel, Field
 
 from src.agents.runtime import MASToolRuntime
@@ -15,7 +16,7 @@ from src.memory.models import SearchWeights
 
 if TYPE_CHECKING:
     # For type hints only - actual tool decorator will be from langchain-core
-    from langchain_core.tools import tool, ToolRuntime
+    from langchain_core.tools import ToolRuntime, tool
 else:
     try:
         from langchain_core.tools import tool
@@ -89,7 +90,7 @@ class MemoryStoreInput(BaseModel):
         default="auto",
         description="Target tier: 'auto' (system decides), 'L1' (active context), 'L2' (working memory)",
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: dict[str, Any] | None = Field(
         default=None, description="Optional metadata for the memory item"
     )
 
@@ -194,7 +195,7 @@ async def memory_query(
         return "\n".join(formatted_results)
 
     except Exception as e:
-        return f"Error searching memory: {str(e)}"
+        return f"Error searching memory: {e!s}"
 
 
 @tool(args_schema=GetContextBlockInput)
@@ -266,14 +267,14 @@ async def get_context_block(
             return "\n".join(summary)
 
     except Exception as e:
-        return f"Error retrieving context block: {str(e)}"
+        return f"Error retrieving context block: {e!s}"
 
 
 @tool(args_schema=MemoryStoreInput)
 async def memory_store(
     content: str,
     tier: str = "auto",
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
     runtime: ToolRuntime = None,
 ) -> str:
     """
@@ -319,7 +320,7 @@ async def memory_store(
                 turn_data = {
                     "role": "system",
                     "content": content,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "metadata": metadata or {},
                 }
                 await memory_system.l1_tier.store(session_id, turn_data)
@@ -334,7 +335,7 @@ async def memory_store(
                 turn_data = {
                     "role": "system",
                     "content": f"[STORE] {content}",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "metadata": {**(metadata or {}), "store_request": True},
                 }
                 await memory_system.l1_tier.store(session_id, turn_data)
@@ -346,18 +347,18 @@ async def memory_store(
             return f"Error: Invalid tier '{tier}'. Use 'auto', 'L1', or 'L2'"
 
     except Exception as e:
-        return f"Error storing content: {str(e)}"
+        return f"Error storing content: {e!s}"
 
 
 # Export tools
 UNIFIED_TOOLS = [memory_query, get_context_block, memory_store]
 
 __all__ = [
-    "memory_query",
-    "get_context_block",
-    "memory_store",
     "UNIFIED_TOOLS",
-    "MemoryQueryInput",
     "GetContextBlockInput",
+    "MemoryQueryInput",
     "MemoryStoreInput",
+    "get_context_block",
+    "memory_query",
+    "memory_store",
 ]

@@ -5,7 +5,7 @@ Implements the Certainty-Impact-Age-Recency (CIAR) scoring algorithm
 as specified in ADR-003. Calculates scores to determine which facts
 should be promoted from L1 (Active Context) to L2 (Working Memory).
 
-Formula: CIAR = (Certainty × Impact) × Age_Decay × Recency_Boost
+Formula: CIAR = (Certainty x Impact) x Age_Decay x Recency_Boost
 
 Components:
 - Certainty (C): Confidence in the fact's accuracy (0.0-1.0)
@@ -18,10 +18,11 @@ Date: November 2025
 """
 
 import math
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, Union
-import yaml
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
+
+import yaml  # type: ignore[import-untyped]
 
 from src.memory.models import Fact
 
@@ -50,7 +51,7 @@ class CIARScorer:
         CIAR Score: 0.756
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         Initialize the CIAR scorer with configuration.
 
@@ -58,37 +59,37 @@ class CIARScorer:
             config_path: Path to ciar_config.yaml, defaults to config/ciar_config.yaml
         """
         if config_path is None:
-            config_path = Path(__file__).parent.parent.parent / "config" / "ciar_config.yaml"
+            config_path_obj = Path(__file__).parent.parent.parent / "config" / "ciar_config.yaml"
         else:
-            config_path = Path(config_path)
+            config_path_obj = Path(config_path)
 
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
+        with open(config_path_obj) as f:
+            config = cast(dict[str, Any], yaml.safe_load(f))
 
-        self.config = config["ciar"]
-        self.threshold = self.config["threshold"]
+        self.config = cast(dict[str, Any], config["ciar"])
+        self.threshold = float(self.config["threshold"])
 
         # Age decay parameters
-        self.age_decay_lambda = self.config["age_decay"]["lambda"]
-        self.max_age_days = self.config["age_decay"]["max_age_days"]
-        self.min_age_score = self.config["age_decay"]["min_score"]
+        self.age_decay_lambda = float(self.config["age_decay"]["lambda"])
+        self.max_age_days = float(self.config["age_decay"]["max_age_days"])
+        self.min_age_score = float(self.config["age_decay"]["min_score"])
 
         # Recency boost parameters
-        self.recency_boost_factor = self.config["recency"]["boost_factor"]
-        self.max_recency_boost = self.config["recency"]["max_boost"]
+        self.recency_boost_factor = float(self.config["recency"]["boost_factor"])
+        self.max_recency_boost = float(self.config["recency"]["max_boost"])
 
         # Certainty parameters
-        self.default_certainty = self.config["certainty"]["default"]
-        self.certainty_heuristics = self.config["certainty"]
+        self.default_certainty = float(self.config["certainty"]["default"])
+        self.certainty_heuristics = cast(dict[str, Any], self.config["certainty"])
 
         # Impact weights
-        self.impact_weights = self.config["impact_weights"]
+        self.impact_weights = cast(dict[str, float], self.config["impact_weights"])
 
-    def calculate(self, fact: Union[Dict[str, Any], Fact]) -> float:
+    def calculate(self, fact: dict[str, Any] | Fact) -> float:
         """
         Calculate the complete CIAR score for a fact.
 
-        Formula: (Certainty × Impact) × Age_Decay × Recency_Boost
+        Formula: (Certainty x Impact) x Age_Decay x Recency_Boost
 
         Args:
             fact: Fact dictionary or Fact model instance
@@ -119,14 +120,14 @@ class CIARScorer:
         age_decay = self._calculate_age_decay(fact_dict)
         recency_boost = self._calculate_recency(fact_dict)
 
-        # Apply formula: (C × I) × AD × RB
+        # Apply formula: (C x I) x AD x RB
         base_score = certainty * impact
         temporal_score = age_decay * recency_boost
         final_score = base_score * temporal_score
 
         return final_score
 
-    def _calculate_certainty(self, fact: Dict[str, Any]) -> float:
+    def _calculate_certainty(self, fact: dict[str, Any]) -> float:
         """
         Calculate certainty score (confidence in fact's accuracy).
 
@@ -150,18 +151,18 @@ class CIARScorer:
 
         # Check for certainty indicators in content
         if any(phrase in content for phrase in ["i prefer", "i want", "i need", "always", "never"]):
-            return self.certainty_heuristics.get("explicit_statement", 0.9)
+            return float(self.certainty_heuristics.get("explicit_statement", 0.9))
         elif any(phrase in content for phrase in ["usually", "often", "typically", "generally"]):
-            return self.certainty_heuristics.get("implied_preference", 0.8)
+            return float(self.certainty_heuristics.get("implied_preference", 0.8))
         elif any(phrase in content for phrase in ["might", "maybe", "possibly", "could"]):
-            return self.certainty_heuristics.get("speculation", 0.4)
+            return float(self.certainty_heuristics.get("speculation", 0.4))
         elif any(phrase in content for phrase in ["observed", "noticed", "seen"]):
-            return self.certainty_heuristics.get("observation", 0.6)
+            return float(self.certainty_heuristics.get("observation", 0.6))
 
         # Default certainty
-        return self.default_certainty
+        return float(self.default_certainty)
 
-    def _calculate_impact(self, fact: Dict[str, Any]) -> float:
+    def _calculate_impact(self, fact: dict[str, Any]) -> float:
         """
         Calculate impact score (importance/relevance of fact).
 
@@ -189,7 +190,7 @@ class CIARScorer:
         fact_type = fact.get("fact_type", "mention").lower()
 
         # Look up impact weight for this fact type
-        impact = self.impact_weights.get(fact_type, 0.5)
+        impact = float(self.impact_weights.get(fact_type, 0.5))
 
         # Adjust impact based on metadata
         # Boost if fact has high access count (indicates importance)
@@ -200,9 +201,9 @@ class CIARScorer:
         if fact.get("is_important", False):
             impact = min(1.0, impact * 1.2)
 
-        return impact
+        return float(impact)
 
-    def _calculate_age_decay(self, fact: Dict[str, Any]) -> float:
+    def _calculate_age_decay(self, fact: dict[str, Any]) -> float:
         """
         Calculate age decay factor (older facts decay exponentially).
 
@@ -229,9 +230,9 @@ class CIARScorer:
             created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
 
         # Calculate age in days
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+            created_at = created_at.replace(tzinfo=UTC)
 
         age_delta = now - created_at
         age_days = age_delta.total_seconds() / 86400  # seconds to days
@@ -246,9 +247,9 @@ class CIARScorer:
         decay = math.exp(-self.age_decay_lambda * age_days)
 
         # Ensure minimum score
-        return max(self.min_age_score, decay)
+        return float(max(self.min_age_score, decay))
 
-    def _calculate_recency(self, fact: Dict[str, Any]) -> float:
+    def _calculate_recency(self, fact: dict[str, Any]) -> float:
         """
         Calculate recency boost (rewards frequently accessed facts).
 
@@ -273,9 +274,9 @@ class CIARScorer:
         # Cap at max_boost
         boost = min(boost, self.max_recency_boost)
 
-        return 1.0 + boost
+        return float(1.0 + boost)
 
-    def exceeds_threshold(self, fact: Union[Dict[str, Any], Fact]) -> bool:
+    def exceeds_threshold(self, fact: dict[str, Any] | Fact) -> bool:
         """
         Check if a fact's CIAR score exceeds the promotion threshold.
 
@@ -288,7 +289,7 @@ class CIARScorer:
         score = self.calculate(fact)
         return score >= self.threshold
 
-    def calculate_components(self, fact: Union[Dict[str, Any], Fact]) -> Dict[str, float]:
+    def calculate_components(self, fact: dict[str, Any] | Fact) -> dict[str, float]:
         """
         Calculate all CIAR components separately for debugging/analysis.
 
@@ -301,9 +302,9 @@ class CIARScorer:
                 - impact: Importance score (0.0-1.0)
                 - age_decay: Time decay factor (0.1-1.0)
                 - recency_boost: Access boost (1.0-1.3)
-                - base_score: certainty × impact
-                - temporal_score: age_decay × recency_boost
-                - final_score: base_score × temporal_score
+                - base_score: certainty x impact
+                - temporal_score: age_decay x recency_boost
+                - final_score: base_score x temporal_score
         """
         # Convert Fact model to dict if needed, preserving whether impact was explicitly set
         if isinstance(fact, Fact):

@@ -2,7 +2,10 @@
 Integration tests for Neo4j adapter metrics.
 """
 
+import contextlib
+
 import pytest
+
 from src.storage.neo4j_adapter import Neo4jAdapter
 
 
@@ -55,7 +58,5 @@ async def test_neo4j_metrics_integration():
     except Exception as e:
         pytest.skip(f"Neo4j not available: {e}")
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await adapter.disconnect()
-        except Exception:
-            pass

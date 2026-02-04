@@ -8,8 +8,9 @@ adapter connectivity and performance.
 
 import asyncio
 import json
-from src.storage.qdrant_adapter import QdrantAdapter
+
 from src.storage.neo4j_adapter import Neo4jAdapter
+from src.storage.qdrant_adapter import QdrantAdapter
 from src.storage.typesense_adapter import TypesenseAdapter
 
 

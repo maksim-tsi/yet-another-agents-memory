@@ -1,9 +1,10 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import List, Tuple, Any, Iterator
-from utils.ui import ordinal, colour_print
-from utils.text import standardise
+from typing import Any
 
-from dataset_interfaces.interface import TestExample, DatasetInterface, CallBackTestExample
+from dataset_interfaces.interface import CallBackTestExample, DatasetInterface, TestExample
+from utils.text import standardise
+from utils.ui import colour_print, ordinal
 
 QUOTES = [
     ("Love your Enemies, for they tell you your Faults.", "Benjamin Franklin"),
@@ -42,8 +43,7 @@ class ProspectiveMemoryDataset(DatasetInterface):
         warned = False
         while True:
             self.random.shuffle(indices)
-            for i in indices:
-                yield i
+            yield from indices
             if warned:
                 continue
             warned = True
@@ -53,10 +53,10 @@ class ProspectiveMemoryDataset(DatasetInterface):
                 "be some repetitions.",
             )
 
-    def generate_examples(self, num_examples) -> List[TestExample]:
+    def generate_examples(self, num_examples) -> list[TestExample]:
         examples = []
 
-        for _, request_num in zip(range(num_examples), self.request_num_generator()):
+        for _, request_num in zip(range(num_examples), self.request_num_generator(), strict=False):
             script = []
             # Pick a quote
             quote, author = QUOTES[request_num]
@@ -64,7 +64,7 @@ class ProspectiveMemoryDataset(DatasetInterface):
 
             n = ordinal(target)
 
-            script.append(f"{repr(quote)} - {author}")
+            script.append(f"{quote!r} - {author}")
             script.append(
                 f"After responding to the following unrelated user prompts, please append the quote from {author}, to your {n} response. Count your response to this message as the first response."
             )
@@ -86,15 +86,15 @@ class ProspectiveMemoryDataset(DatasetInterface):
         return examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[Any]
-    ) -> Tuple[int, int, List[str], List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[Any]
+    ) -> tuple[int, int, list[str], list[str]]:
         raise NotImplementedError(
             "Prospective memory checking is not handled by this method, use the callback instead"
         )
 
     def continual_evaluation_callback(
-        self, scheduler, example: TestExample, task_log: List[str]
-    ) -> Tuple[int, int, List[str], bool]:
+        self, scheduler, example: TestExample, task_log: list[str]
+    ) -> tuple[int, int, list[str], bool]:
         # Find where we asked in the master log and how many steps we need to look into the future
         question = example.script[-1]
         statement_idx = None
@@ -103,7 +103,7 @@ class ProspectiveMemoryDataset(DatasetInterface):
                 statement_idx = idx
                 break
 
-        quote, author, nth = example.expected_responses[0]
+        quote, _author, nth = example.expected_responses[0]
         agent_responses = task_log[statement_idx + 1 :][::2]
         response_w_quote_idx = nth - 1
 

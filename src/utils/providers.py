@@ -7,8 +7,8 @@ interface to be used by the `LLMClient`.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import logging
-from typing import Optional, List
 
 from .llm_client import BaseProvider, LLMResponse, ProviderHealth
 
@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 class GeminiProvider(BaseProvider):
     def __init__(self, api_key: str):
         super().__init__(name="gemini")
-        from google import genai
+        genai = importlib.import_module("google.genai")
 
         self.client = genai.Client(api_key=api_key)
 
-    async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
+    async def generate(self, prompt: str, model: str | None = None, **kwargs) -> LLMResponse:
         # Use thread to call blocking SDK functions
-        from google.genai import types
+        types = importlib.import_module("google.genai.types")
 
         model = model or "gemini-3-flash-preview"
 
@@ -81,8 +81,8 @@ class GeminiProvider(BaseProvider):
         )
 
     async def get_embedding(
-        self, text: str, model: Optional[str] = None, output_dimensionality: int = 768
-    ) -> List[float]:
+        self, text: str, model: str | None = None, output_dimensionality: int = 768
+    ) -> list[float]:
         """Generate embedding using Gemini embedding model.
 
         Args:
@@ -94,7 +94,7 @@ class GeminiProvider(BaseProvider):
         Returns:
             List of floats representing the embedding vector.
         """
-        from google.genai import types
+        types = importlib.import_module("google.genai.types")
 
         model = model or "gemini-embedding-001"
 
@@ -122,7 +122,7 @@ class GeminiProvider(BaseProvider):
         config and a simple prompt. Providers should return a ProviderHealth with
         `healthy=False` when an exception is raised.
         """
-        from google.genai import types
+        types = importlib.import_module("google.genai.types")
 
         def sync_call():
             # call a minimally expensive empty prompt (SDK may charge tokens; this is a pragmatic choice for health checks)
@@ -147,7 +147,7 @@ class GroqProvider(BaseProvider):
 
         self.client = Groq(api_key=api_key)
 
-    async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
+    async def generate(self, prompt: str, model: str | None = None, **kwargs) -> LLMResponse:
         model = model or "llama-3.1-8b-instant"
 
         def sync_call():
@@ -204,7 +204,7 @@ class MistralProvider(BaseProvider):
 
         self.client = Mistral(api_key=api_key)
 
-    async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
+    async def generate(self, prompt: str, model: str | None = None, **kwargs) -> LLMResponse:
         model = model or "mistral-small-latest"
 
         def sync_call():

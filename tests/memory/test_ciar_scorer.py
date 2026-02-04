@@ -8,9 +8,10 @@ Author: MAS Memory Layer Team
 Date: November 2025
 """
 
-import pytest
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from src.memory.ciar_scorer import CIARScorer
 from src.memory.models import Fact
@@ -177,7 +178,7 @@ class TestCIARScorerAgeDecay:
 
     def test_age_decay_new_fact(self, scorer):
         """Should return 1.0 for brand new facts"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         fact = {"created_at": now}
         decay = scorer._calculate_age_decay(fact)
         assert decay == pytest.approx(1.0, rel=0.01)
@@ -190,7 +191,7 @@ class TestCIARScorerAgeDecay:
 
     def test_age_decay_one_day_old(self, scorer):
         """Should decay exponentially for 1-day-old fact"""
-        one_day_ago = datetime.now(timezone.utc) - timedelta(days=1)
+        one_day_ago = datetime.now(UTC) - timedelta(days=1)
         fact = {"created_at": one_day_ago}
         decay = scorer._calculate_age_decay(fact)
 
@@ -200,7 +201,7 @@ class TestCIARScorerAgeDecay:
 
     def test_age_decay_one_week_old(self, scorer):
         """Should decay significantly for 7-day-old fact"""
-        one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        one_week_ago = datetime.now(UTC) - timedelta(days=7)
         fact = {"created_at": one_week_ago}
         decay = scorer._calculate_age_decay(fact)
 
@@ -210,7 +211,7 @@ class TestCIARScorerAgeDecay:
 
     def test_age_decay_very_old_fact(self, scorer):
         """Should apply minimum score for very old facts"""
-        very_old = datetime.now(timezone.utc) - timedelta(days=100)
+        very_old = datetime.now(UTC) - timedelta(days=100)
         fact = {"created_at": very_old}
         decay = scorer._calculate_age_decay(fact)
 
@@ -220,7 +221,7 @@ class TestCIARScorerAgeDecay:
 
     def test_age_decay_with_string_timestamp(self, scorer):
         """Should handle ISO format string timestamps"""
-        timestamp_str = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        timestamp_str = (datetime.now(UTC) - timedelta(days=1)).isoformat()
         fact = {"created_at": timestamp_str}
         decay = scorer._calculate_age_decay(fact)
 
@@ -287,19 +288,19 @@ class TestCIARScorerCalculate:
             "content": "I prefer morning meetings",
             "fact_type": "preference",
             "certainty": 0.9,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "access_count": 0,
         }
         score = scorer.calculate(fact)
 
-        # High certainty (0.9) × high impact (0.9) × no decay (1.0) × no boost (1.0)
+        # High certainty (0.9) x high impact (0.9) x no decay (1.0) x no boost (1.0)
         expected = 0.9 * 0.9 * 1.0 * 1.0
         assert score == pytest.approx(expected, rel=0.01)
         assert score > 0.8
 
     def test_calculate_old_mention_fact(self, scorer):
         """Should calculate low score for old mention fact"""
-        one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        one_week_ago = datetime.now(UTC) - timedelta(days=7)
         fact = {
             "content": "User mentioned Python",
             "fact_type": "mention",
@@ -309,7 +310,7 @@ class TestCIARScorerCalculate:
         }
         score = scorer.calculate(fact)
 
-        # Low certainty (0.6) × low impact (0.3) × decay (~0.5) × no boost (1.0)
+        # Low certainty (0.6) x low impact (0.3) x decay (~0.5) x no boost (1.0)
         assert score < 0.15
 
     def test_calculate_with_recency_boost(self, scorer):
@@ -318,7 +319,7 @@ class TestCIARScorerCalculate:
             "content": "Important fact",
             "fact_type": "entity",
             "certainty": 0.8,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "access_count": 20,
         }
         score = scorer.calculate(fact)
@@ -335,7 +336,7 @@ class TestCIARScorerCalculate:
             fact_type="preference",
             session_id="session_1",
             certainty=0.85,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             access_count=5,
         )
         score = scorer.calculate(fact)
@@ -344,12 +345,12 @@ class TestCIARScorerCalculate:
         assert score > 0.0
 
     def test_calculate_formula_structure(self, scorer):
-        """Should apply formula: (C × I) × AD × RB"""
+        """Should apply formula: (C x I) x AD x RB"""
         fact = {
             "content": "Test",
             "fact_type": "preference",
             "certainty": 0.8,
-            "created_at": datetime.now(timezone.utc) - timedelta(days=1),
+            "created_at": datetime.now(UTC) - timedelta(days=1),
             "access_count": 10,
         }
 
@@ -378,14 +379,14 @@ class TestCIARScorerThreshold:
             "content": "I prefer morning meetings",
             "fact_type": "preference",
             "certainty": 0.9,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "access_count": 0,
         }
         assert scorer.exceeds_threshold(fact) is True
 
     def test_exceeds_threshold_false(self, scorer):
         """Should return False for facts below threshold"""
-        old_fact = datetime.now(timezone.utc) - timedelta(days=10)
+        old_fact = datetime.now(UTC) - timedelta(days=10)
         fact = {
             "content": "Mentioned something",
             "fact_type": "mention",
@@ -401,7 +402,7 @@ class TestCIARScorerThreshold:
         fact = {
             "fact_type": "entity",
             "certainty": 1.0,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "access_count": 0,
         }
         score = scorer.calculate(fact)
@@ -426,7 +427,7 @@ class TestCIARScorerComponents:
             "content": "Test fact",
             "fact_type": "preference",
             "certainty": 0.8,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "access_count": 5,
         }
         components = scorer.calculate_components(fact)
@@ -451,7 +452,7 @@ class TestCIARScorerComponents:
             "content": "Test",
             "fact_type": "entity",
             "certainty": 0.75,
-            "created_at": datetime.now(timezone.utc) - timedelta(days=2),
+            "created_at": datetime.now(UTC) - timedelta(days=2),
             "access_count": 8,
         }
 
@@ -468,7 +469,7 @@ class TestCIARScorerComponents:
             fact_type="constraint",
             session_id="session_1",
             certainty=0.9,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             access_count=3,
         )
 
@@ -511,7 +512,7 @@ class TestCIARScorerEdgeCases:
 
     def test_future_timestamp(self, scorer):
         """Should handle future timestamps"""
-        future = datetime.now(timezone.utc) + timedelta(days=1)
+        future = datetime.now(UTC) + timedelta(days=1)
         fact = {"created_at": future}
         decay = scorer._calculate_age_decay(fact)
 

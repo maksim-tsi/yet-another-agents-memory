@@ -1,10 +1,10 @@
 import sys
 import types
+
 import pytest
 
-
-from src.utils.providers import GeminiProvider
 from src.utils.llm_client import LLMResponse
+from src.utils.providers import GeminiProvider
 
 
 class FakeUsage:

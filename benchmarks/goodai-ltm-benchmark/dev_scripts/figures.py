@@ -1,5 +1,6 @@
-import matplotlib.pyplot as plt
 from collections import defaultdict
+
+import matplotlib.pyplot as plt
 from reporting.generate import get_summary_data
 
 
@@ -34,7 +35,7 @@ def main():
 
     # Collect data from files
     data = dict()
-    for name, short in agent_names:
+    for name, _short in agent_names:
         print(name)
         data[name] = agent_data = defaultdict(list)
         for run, _ in run_names:

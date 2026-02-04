@@ -1,11 +1,11 @@
 import asyncio
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
-from src.storage.qdrant_adapter import QdrantAdapter
-from src.storage.neo4j_adapter import Neo4jAdapter
-from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.models import Episode
+from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
+from src.storage.neo4j_adapter import Neo4jAdapter
+from src.storage.qdrant_adapter import QdrantAdapter
 
 
 async def main() -> None:
@@ -29,7 +29,7 @@ async def main() -> None:
     await n.connect()
     tier = EpisodicMemoryTier(q, n)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     episode = Episode(
         episode_id="manual-episode",
         session_id=session_id,

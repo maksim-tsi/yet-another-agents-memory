@@ -190,6 +190,20 @@ See path-specific instruction files for detailed guidelines:
 - **Documentation style**: `.github/instructions/documentation.instructions.md`
 - **Script conventions**: `.github/instructions/scripts.instructions.md`
 
+### Mypy Type Safety (Critical Patterns)
+
+Mypy strict checking is enforced via pre-commit. Follow these patterns to avoid common type errors:
+
+- **Redis Async Returns:** Always cast Redis results explicitly: `int(await self.client.exists(key))`, `bool(result)`.
+- **Dict Covariance:** Use `Mapping[str, T]` not `dict[str, T]` when accepting adapter collections (dict is invariant).
+- **Stats Dicts:** Annotate explicitly: `stats: dict[str, int] = {"count": 0}`. For mixed types, use helper: `def inc(key: str): stats[key] = int(stats.get(key, 0)) + 1`.
+- **Null Guards:** Always check `if self.client is None:` before accessing optional attributes.
+- **Adapter Signatures:** Use dict query pattern: `await adapter.search({"limit": 10})`, not keyword args.
+- **Google GenAI SDK:** Use dynamic imports `importlib.import_module("google.genai")` due to namespace package issues with mypy.
+- **Type Ignore:** Use specific error codes: `# type: ignore[import-untyped]` not bare `# type: ignore`.
+
+See `docs/plan/mypy-type-fix-plan.md` for comprehensive guidelines.
+
 ## Research Context
 
 Submission target: **AIMS 2025 Conference**. System compares hybrid 4-tier architecture against:

@@ -1,6 +1,5 @@
 from runner.run_benchmark import _main
 
-
 tests = [
     # "./configurations/blogpost_tests/benchmark-1k.yml",
     "./configurations/blogpost_tests/benchmark-10k.yml",
@@ -18,7 +17,7 @@ sizes = [
 
 logfile = "automated_log.txt"
 
-for t, m, s in zip(tests, models, sizes):
+for t, m, s in zip(tests, models, sizes, strict=False):
     try:
         _main(t, m, s, True)
         with open(logfile, "a") as f:

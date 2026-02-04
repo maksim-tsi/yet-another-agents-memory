@@ -1,15 +1,11 @@
 import logging
+from dataclasses import dataclass
 from json import JSONDecodeError
 
-from dataclasses import dataclass
-
-from typing import List, Tuple
-
 import pystache
+from dataset_interfaces.interface import DatasetInterface, TestExample
 from faker import Faker
 from goodai.helpers.json_helper import sanitize_and_parse_json
-
-from dataset_interfaces.interface import DatasetInterface, TestExample
 
 STATEMENTS = [
     "My name is {{name}}.",
@@ -41,7 +37,7 @@ class NameListDataset(DatasetInterface):
             script = []
             is_question = []
 
-            for change in range(self.name_changes):
+            for _change in range(self.name_changes):
                 name = faker.unique.first_name()
                 name_stmt = str(renderer.render(self.random.choice(STATEMENTS), {"name": name}))
                 answer_list.append(name)
@@ -60,8 +56,8 @@ class NameListDataset(DatasetInterface):
         return examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         reasoning = []
         correct = 0
         score = 0

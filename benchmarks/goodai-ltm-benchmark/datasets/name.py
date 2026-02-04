@@ -1,11 +1,8 @@
 from dataclasses import dataclass
-from typing import List, Tuple
 
 import pystache
-from faker import Faker
-
 from dataset_interfaces.interface import DatasetInterface, TestExample
-
+from faker import Faker
 
 STATEMENTS = [
     "My name is {{name}}.",
@@ -34,7 +31,7 @@ class NamesDataset(DatasetInterface):
             script = []
             is_question = []
 
-            for change in range(self.name_changes):
+            for _change in range(self.name_changes):
                 name = faker.unique.first_name()
                 name_stmt = str(renderer.render(self.random.choice(STATEMENTS), {"name": name}))
                 names.append(name)
@@ -55,8 +52,8 @@ class NamesDataset(DatasetInterface):
         return examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         name = expected_answers[0].lower()
         if expected_answers[0].lower() in responses[0].lower():
             return 1, 1, [f'"{name}" is in the response.']

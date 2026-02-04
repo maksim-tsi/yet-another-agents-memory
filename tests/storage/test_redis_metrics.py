@@ -2,7 +2,10 @@
 Integration tests for Redis adapter metrics.
 """
 
+import contextlib
+
 import pytest
+
 from src.storage.redis_adapter import RedisAdapter
 
 
@@ -76,7 +79,5 @@ async def test_redis_metrics_integration():
         pytest.skip(f"Redis not available: {e}")
     finally:
         # Clean up
-        try:
+        with contextlib.suppress(Exception):
             await adapter.disconnect()
-        except Exception:
-            pass

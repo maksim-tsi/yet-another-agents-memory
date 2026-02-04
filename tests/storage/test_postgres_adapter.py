@@ -1,10 +1,12 @@
-import pytest
-import pytest_asyncio
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
-from src.storage.postgres_adapter import PostgresAdapter
+from datetime import UTC, datetime, timedelta
+
+import pytest
+import pytest_asyncio
+
 from src.storage.base import StorageConnectionError, StorageDataError
+from src.storage.postgres_adapter import PostgresAdapter
 
 
 @pytest_asyncio.fixture
@@ -110,7 +112,7 @@ async def test_ttl_expiration(postgres_adapter, session_id):
         "session_id": session_id,
         "turn_id": 1,
         "content": "Expired message",
-        "ttl_expires_at": datetime.now(timezone.utc) - timedelta(hours=1),
+        "ttl_expires_at": datetime.now(UTC) - timedelta(hours=1),
     }
     record_id = await postgres_adapter.store(data)
 
@@ -272,13 +274,13 @@ async def test_delete_expired_records(postgres_adapter, session_id):
     await postgres_adapter.connect()
 
     # Store a record with past expiration
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
 
     data = {
         "session_id": session_id,
         "turn_id": 999,
         "content": "Expired content",
-        "ttl_expires_at": datetime.now(timezone.utc) - timedelta(hours=1),  # Already expired
+        "ttl_expires_at": datetime.now(UTC) - timedelta(hours=1),  # Already expired
     }
 
     record_id = await postgres_adapter.store(data)

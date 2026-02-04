@@ -32,11 +32,12 @@ References:
 """
 
 import binascii
-import redis.asyncio as redis
-from typing import Dict, Any, Optional
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
+
+import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ class NamespaceManager:
 
     # --- Lifecycle Event Publishing (Requires Redis Client) ---
 
-    def __init__(self, redis_client: Optional[redis.Redis] = None):
+    def __init__(self, redis_client: redis.Redis | None = None):
         """
         Initialize namespace manager with optional Redis client for publishing.
 
@@ -168,7 +169,7 @@ class NamespaceManager:
         self,
         event_type: str,
         session_id: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         max_length: int = 50000,
     ) -> str:
         """
@@ -176,7 +177,7 @@ class NamespaceManager:
 
         Uses fire-and-forget pattern (non-atomic with session state). Stream
         is trimmed automatically at ~50,000 entries (25-50MB RAM) to protect
-        Node 1 memory during burst traffic (50 ops/s × 15 min = 45k events).
+        Node 1 memory during burst traffic (50 ops/s x 15 min = 45k events).
 
         Args:
             event_type: Event type (e.g., "promotion", "consolidation", "session_end")
@@ -213,11 +214,16 @@ class NamespaceManager:
 
         stream_key = self.lifecycle_stream()
 
+        type RedisFieldDict = dict[
+            bytes | memoryview | str | int | float,
+            bytes | memoryview | str | int | float,
+        ]
+
         # Build event payload with metadata
-        event_payload = {
+        event_payload: RedisFieldDict = {
             "type": event_type,
             "session_id": session_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "data": json.dumps(data),  # Serialize nested dict
         }
 
@@ -236,7 +242,9 @@ class NamespaceManager:
                 f"(session={session_id}, event_id={event_id})"
             )
 
-            return event_id
+            if isinstance(event_id, bytes):
+                return event_id.decode("utf-8")
+            return str(event_id)
 
         except redis.RedisError as e:
             logger.error(

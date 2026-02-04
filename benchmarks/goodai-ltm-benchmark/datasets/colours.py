@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+
 import pystache
 from dataset_interfaces.interface import DatasetInterface, TestExample
-
 
 COLOURS = [
     "Red",
@@ -47,7 +46,7 @@ class ColourDataset(DatasetInterface):
             script = []
             renderer = pystache.Renderer()
 
-            for change in range(self.colour_changes):
+            for _change in range(self.colour_changes):
                 colour = self.random.choice(COLOURS)
                 if colour == "None":
                     name_stmt = "I have no favourite colour."
@@ -71,8 +70,8 @@ class ColourDataset(DatasetInterface):
         return examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         color = expected_answers[0].lower()
         if color in responses[-1].lower():
             return 1, 1, [f'"{color}" is in the response.']

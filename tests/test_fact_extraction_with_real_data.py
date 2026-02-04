@@ -1,15 +1,15 @@
 """Test fact extraction with real supply chain document."""
 
-import os
 import asyncio
 import json
+import os
 from pathlib import Path
 
 import pytest
 
+from src.memory.engines.fact_extractor import FactExtractor
 from src.utils.llm_client import LLMClient, ProviderConfig
 from src.utils.providers import GeminiProvider
-from src.memory.engines.fact_extractor import FactExtractor
 
 
 @pytest.mark.asyncio
@@ -18,7 +18,7 @@ async def test_fact_extraction_from_document():
 
     # Load document
     doc_path = Path(__file__).parent / "fixtures/embedding_test_data/supply_chain_optimization.md"
-    with open(doc_path, "r") as f:
+    with open(doc_path) as f:
         content = f.read()
 
     # Take first 2000 characters for testing (avoid token limits)

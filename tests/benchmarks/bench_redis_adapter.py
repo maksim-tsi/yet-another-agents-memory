@@ -11,13 +11,15 @@ For detailed metrics:
     pytest tests/benchmarks/bench_redis_adapter.py::test_measure_latencies -v -s
 """
 
+import os
+import statistics
+import time
+import uuid
+from datetime import UTC, datetime
+
 import pytest
 import pytest_asyncio
-import os
-import uuid
-import time
-import statistics
-from datetime import datetime, timezone
+
 from src.storage.redis_adapter import RedisAdapter
 
 
@@ -222,7 +224,7 @@ async def test_measure_latencies(redis_adapter, session_id):
                 "session_id": session_id,
                 "turn_id": i,
                 "content": f"Message {i}",
-                "metadata": {"index": i, "timestamp": datetime.now(timezone.utc).isoformat()},
+                "metadata": {"index": i, "timestamp": datetime.now(UTC).isoformat()},
             }
         )
         store_times.append((time.perf_counter() - start) * 1000)

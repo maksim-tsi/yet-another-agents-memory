@@ -1,6 +1,7 @@
 import json
-import requests
 from time import sleep
+
+import requests
 from flask import Flask, request
 
 app = Flask("MemGPTproxy")
@@ -24,7 +25,7 @@ def proxy_request(url_path):
             response = requests.post(openai_api_url, data=data, headers=headers)
             if response.status_code == 200:
                 break
-        except:
+        except Exception:
             pass
         sleep(3)
     headers = {k: v for k, v in response.headers.items()}

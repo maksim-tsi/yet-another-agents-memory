@@ -6,8 +6,8 @@ Provides full-text search, faceted filtering, and provenance tracking.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from src.memory.models import KnowledgeDocument
 from src.memory.tiers.base_tier import BaseTier
@@ -31,8 +31,8 @@ class SemanticMemoryTier(BaseTier):
     def __init__(
         self,
         typesense_adapter: TypesenseAdapter,
-        metrics_collector: Optional[MetricsCollector] = None,
-        config: Optional[Dict[str, Any]] = None,
+        metrics_collector: MetricsCollector | None = None,
+        config: dict[str, Any] | None = None,
     ):
         storage_adapters = {"typesense": typesense_adapter}
         super().__init__(storage_adapters, metrics_collector, config)
@@ -47,7 +47,7 @@ class SemanticMemoryTier(BaseTier):
         # Call parent initialize to connect adapter
         await super().initialize()
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store a knowledge document in L4.
 
@@ -59,10 +59,7 @@ class SemanticMemoryTier(BaseTier):
         """
         async with OperationTimer(self.metrics, "l4_store"):
             # Convert to KnowledgeDocument for validation
-            if isinstance(data, dict):
-                knowledge = KnowledgeDocument(**data)
-            else:
-                knowledge = data
+            knowledge = KnowledgeDocument(**data) if isinstance(data, dict) else data
 
             document = knowledge.to_typesense_document()
 
@@ -82,7 +79,7 @@ class SemanticMemoryTier(BaseTier):
 
             return knowledge.knowledge_id
 
-    async def retrieve(self, knowledge_id: str) -> Optional[KnowledgeDocument]:
+    async def retrieve(self, knowledge_id: str) -> KnowledgeDocument | None:
         """
         Retrieve knowledge document by ID.
 
@@ -113,7 +110,7 @@ class SemanticMemoryTier(BaseTier):
                 category=result.get("category"),
                 tags=result.get("tags", []),
                 domain=result.get("domain"),
-                distilled_at=datetime.fromtimestamp(result["distilled_at"], tz=timezone.utc),
+                distilled_at=datetime.fromtimestamp(result["distilled_at"], tz=UTC),
                 access_count=result["access_count"],
                 usefulness_score=result["usefulness_score"],
                 validation_count=result["validation_count"],
@@ -125,8 +122,8 @@ class SemanticMemoryTier(BaseTier):
             return knowledge
 
     async def search(
-        self, query_text: str, filters: Optional[Dict[str, Any]] = None, limit: int = 10
-    ) -> List[KnowledgeDocument]:
+        self, query_text: str, filters: dict[str, Any] | None = None, limit: int = 10
+    ) -> list[KnowledgeDocument]:
         """
         Full-text search for knowledge documents.
 
@@ -178,7 +175,7 @@ class SemanticMemoryTier(BaseTier):
                     category=doc.get("category"),
                     tags=doc.get("tags", []),
                     domain=doc.get("domain"),
-                    distilled_at=datetime.fromtimestamp(doc["distilled_at"], tz=timezone.utc),
+                    distilled_at=datetime.fromtimestamp(doc["distilled_at"], tz=UTC),
                     access_count=doc["access_count"],
                     usefulness_score=doc["usefulness_score"],
                     validation_count=doc["validation_count"],
@@ -190,8 +187,8 @@ class SemanticMemoryTier(BaseTier):
             return documents
 
     async def query(
-        self, filters: Optional[Dict[str, Any]] = None, limit: int = 10, **kwargs
-    ) -> List[KnowledgeDocument]:
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+    ) -> list[KnowledgeDocument]:
         """
         Query knowledge documents with filters (without text search).
 
@@ -224,7 +221,7 @@ class SemanticMemoryTier(BaseTier):
         # Update score
         doc.usefulness_score = usefulness_score
         doc.validation_count += 1
-        doc.last_validated = datetime.now(timezone.utc)
+        doc.last_validated = datetime.now(UTC)
 
         # Re-index
         await self.typesense.update_document(
@@ -252,7 +249,7 @@ class SemanticMemoryTier(BaseTier):
 
             return True
 
-    async def get_statistics(self) -> Dict[str, Any]:
+    async def get_statistics(self) -> dict[str, Any]:
         """
         Get collection statistics.
 
@@ -281,7 +278,7 @@ class SemanticMemoryTier(BaseTier):
             "most_accessed": max(sample, key=lambda d: d.access_count).knowledge_id,
         }
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Check health of Typesense."""
         typesense_health = await self.typesense.health_check()
 
@@ -298,7 +295,7 @@ class SemanticMemoryTier(BaseTier):
     async def _update_access(self, knowledge: KnowledgeDocument) -> None:
         """Update access tracking for a knowledge document."""
         knowledge.access_count += 1
-        knowledge.last_accessed = datetime.now(timezone.utc)
+        knowledge.last_accessed = datetime.now(UTC)
 
         await self.typesense.update_document(
             collection_name=self.collection_name,

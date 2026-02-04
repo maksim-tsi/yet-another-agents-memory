@@ -1,13 +1,15 @@
+from typing import Any
+
 import pytest
-from typing import Dict, Any
+
 from src.memory.engines.base_engine import BaseEngine
 
 
 class ConcreteEngine(BaseEngine):
-    async def process(self) -> Dict[str, Any]:
+    async def process(self) -> dict[str, Any]:
         return {"status": "processed"}
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         return {"status": "healthy"}
 
 

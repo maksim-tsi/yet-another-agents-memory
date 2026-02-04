@@ -8,14 +8,14 @@ using a single LLM call for efficiency.
 
 import json
 import logging
-from typing import List, Optional, Dict, Any
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
 
 from src.memory.schemas.topic_segmentation import (
-    TOPIC_SEGMENTATION_SYSTEM_INSTRUCTION,
     TOPIC_SEGMENTATION_SCHEMA,
+    TOPIC_SEGMENTATION_SYSTEM_INSTRUCTION,
 )
 from src.utils.llm_client import LLMClient
 
@@ -48,13 +48,13 @@ class TopicSegment(BaseModel):
     segment_id: str = Field(default_factory=lambda: str(uuid4()))
     topic: str = Field(..., min_length=3, max_length=200)
     summary: str = Field(..., min_length=10, max_length=2000)
-    key_points: List[str] = Field(default_factory=list, max_length=20)
-    turn_indices: List[int] = Field(default_factory=list)
+    key_points: list[str] = Field(default_factory=list, max_length=20)
+    turn_indices: list[int] = Field(default_factory=list)
     certainty: float = Field(default=0.7, ge=0.0, le=1.0)
     impact: float = Field(default=0.5, ge=0.0, le=1.0)
     participant_count: int = Field(default=0, ge=0)
     message_count: int = Field(default=0, ge=0)
-    temporal_context: Optional[str] = Field(
+    temporal_context: str | None = Field(
         default="", description="Temporal markers like dates, times, deadlines"
     )
 
@@ -82,7 +82,7 @@ class TopicSegmenter:
     def __init__(
         self,
         llm_client: LLMClient,
-        model_name: Optional[str] = None,
+        model_name: str | None = None,
         min_turns: int = DEFAULT_MIN_TURNS,
         max_turns: int = DEFAULT_MAX_TURNS,
     ):
@@ -92,8 +92,8 @@ class TopicSegmenter:
         self.max_turns = max_turns
 
     async def segment_turns(
-        self, turns: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
-    ) -> List[TopicSegment]:
+        self, turns: list[dict[str, Any]], metadata: dict[str, Any] | None = None
+    ) -> list[TopicSegment]:
         """
         Segment a batch of turns into coherent topics.
 
@@ -131,8 +131,8 @@ class TopicSegmenter:
             return [self._create_fallback_segment(turns, metadata)]
 
     async def _segment_with_llm(
-        self, turns: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
-    ) -> List[TopicSegment]:
+        self, turns: list[dict[str, Any]], metadata: dict[str, Any] | None = None
+    ) -> list[TopicSegment]:
         """Segment turns using LLM with native structured output."""
         # Format conversation for LLM
         formatted = self._format_conversation(turns)
@@ -171,7 +171,7 @@ class TopicSegmenter:
             for rs in raw_segments:
                 try:
                     temporal_context = rs.get("temporal_context", "")
-                    if isinstance(temporal_context, (dict, list)):
+                    if isinstance(temporal_context, dict | list):
                         temporal_context = json.dumps(temporal_context)
 
                     segment = TopicSegment(
@@ -198,9 +198,9 @@ class TopicSegmenter:
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM JSON response: {e}")
-            raise TopicSegmentationError(f"Invalid JSON from LLM: {e}")
+            raise TopicSegmentationError(f"Invalid JSON from LLM: {e}") from e
 
-    def _format_conversation(self, turns: List[Dict[str, Any]]) -> str:
+    def _format_conversation(self, turns: list[dict[str, Any]]) -> str:
         """Format turns into readable conversation text."""
         lines = []
         for idx, turn in enumerate(turns):
@@ -215,7 +215,7 @@ class TopicSegmenter:
         return "\n".join(lines)
 
     def _create_fallback_segment(
-        self, turns: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
+        self, turns: list[dict[str, Any]], metadata: dict[str, Any] | None = None
     ) -> TopicSegment:
         """Create a single fallback segment when LLM segmentation fails."""
         # Count participants

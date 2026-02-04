@@ -5,8 +5,9 @@ This test verifies that our Gemini provider can use the native structured
 output API with thinking_config and response_schema.
 """
 
-import os
 import json
+import os
+
 import pytest
 
 # Skip all tests if GOOGLE_API_KEY not available
@@ -179,8 +180,8 @@ Impact scoring:
             "technical",
             "operational",
         ], f"Invalid category: {fact['category']}"
-        assert isinstance(fact["certainty"], (int, float)), "certainty should be numeric"
-        assert isinstance(fact["impact"], (int, float)), "impact should be numeric"
+        assert isinstance(fact["certainty"], int | float), "certainty should be numeric"
+        assert isinstance(fact["impact"], int | float), "impact should be numeric"
         assert 0.0 <= fact["certainty"] <= 1.0, "certainty should be between 0.0 and 1.0"
         assert 0.0 <= fact["impact"] <= 1.0, "impact should be between 0.0 and 1.0"
 
@@ -211,8 +212,9 @@ async def test_gemini_structured_output_compatibility():
     This validates that our existing Pydantic models for other providers
     can be aligned with Gemini's native schema format.
     """
+    from typing import Literal
+
     from pydantic import BaseModel, Field
-    from typing import List, Literal
 
     # Define Pydantic model (for other providers)
     class Fact(BaseModel):
@@ -223,7 +225,7 @@ async def test_gemini_structured_output_compatibility():
         impact: float = Field(ge=0.0, le=1.0)
 
     class FactExtractionResult(BaseModel):
-        facts: List[Fact]
+        facts: list[Fact]
 
     # Get Pydantic JSON schema
     pydantic_schema = FactExtractionResult.model_json_schema()

@@ -11,18 +11,17 @@ Architecture:
 - Pattern: Write-through cache with automatic windowing
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
 import json
 import logging
+from datetime import UTC, datetime
+from typing import Any
 
 from src.memory.tiers.base_tier import BaseTier, TierOperationError
 from src.storage.base import StorageDataError, validate_required_fields
-from src.storage.redis_adapter import RedisAdapter
-from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.metrics.collector import MetricsCollector
 from src.storage.metrics.timer import OperationTimer
-
+from src.storage.postgres_adapter import PostgresAdapter
+from src.storage.redis_adapter import RedisAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +73,8 @@ class ActiveContextTier(BaseTier):
         self,
         redis_adapter: RedisAdapter,
         postgres_adapter: PostgresAdapter,
-        metrics_collector: Optional[MetricsCollector] = None,
-        config: Optional[Dict[str, Any]] = None,
+        metrics_collector: MetricsCollector | None = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize L1 Active Context Tier.
@@ -109,7 +108,7 @@ class ActiveContextTier(BaseTier):
             f"ttl_hours={self.ttl_hours}, postgres_backup={self.enable_postgres_backup}"
         )
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store a conversational turn in L1.
 
@@ -137,7 +136,7 @@ class ActiveContextTier(BaseTier):
 
                 session_id = data["session_id"]
                 turn_id = data["turn_id"]
-                timestamp = data.get("timestamp", datetime.now(timezone.utc))
+                timestamp = data.get("timestamp", datetime.now(UTC))
 
                 logger.debug(f"Storing turn {turn_id} in session {session_id}")
 
@@ -193,7 +192,7 @@ class ActiveContextTier(BaseTier):
                 logger.error(f"Failed to store turn in L1: {e}")
                 raise TierOperationError(f"Failed to store turn: {e}") from e
 
-    async def retrieve(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
+    async def retrieve(self, session_id: str) -> list[dict[str, Any]] | None:
         """
         Retrieve recent turns for a session.
 
@@ -274,8 +273,8 @@ class ActiveContextTier(BaseTier):
                 raise TierOperationError(f"Failed to retrieve session: {e}") from e
 
     async def query(
-        self, filters: Optional[Dict[str, Any]] = None, limit: int = 10, **kwargs
-    ) -> List[Dict[str, Any]]:
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+    ) -> list[dict[str, Any]]:
         """
         Query turns with filters.
 
@@ -372,7 +371,7 @@ class ActiveContextTier(BaseTier):
             logger.error(f"Failed to get window size: {e}")
             return 0
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check health of Redis and PostgreSQL.
 
@@ -396,7 +395,7 @@ class ActiveContextTier(BaseTier):
             return {
                 "tier": "L1_active_context",
                 "status": overall_status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "storage": {"redis": redis_health, "postgres": postgres_health},
                 "config": {
                     "window_size": self.window_size,
@@ -409,6 +408,6 @@ class ActiveContextTier(BaseTier):
             return {
                 "tier": "L1_active_context",
                 "status": "unhealthy",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "error": str(e),
             }

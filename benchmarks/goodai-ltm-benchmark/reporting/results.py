@@ -1,9 +1,9 @@
-from dataclasses import dataclass, field
-from typing import List
-from pathlib import Path
 import json
-from utils.files import make_result_path, parse_result_path
+from dataclasses import dataclass, field
+from pathlib import Path
+
 from dataset_interfaces.factory import DATASETS_BY_NAME
+from utils.files import make_result_path, parse_result_path
 
 
 @dataclass
@@ -13,16 +13,16 @@ class TestResult:
     dataset_name: str
     example_id: str
     description: str = ""
-    task_log: List[str] = field(default_factory=list)
-    expected_responses: List[str] = field(default_factory=list)
-    actual_responses: List[str] = field(default_factory=list)
-    reasoning: List[str] = field(default_factory=list)
+    task_log: list[str] = field(default_factory=list)
+    expected_responses: list[str] = field(default_factory=list)
+    actual_responses: list[str] = field(default_factory=list)
+    reasoning: list[str] = field(default_factory=list)
     score: int = 0
     max_score: int = 0
     tokens: int = None
     characters: int = None
     repetition: int = 0
-    full_log: List[str] = field(default_factory=list)
+    full_log: list[str] = field(default_factory=list)
     needles: int = 0
 
     def __post_init__(self):

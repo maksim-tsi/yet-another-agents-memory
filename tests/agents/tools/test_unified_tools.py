@@ -5,12 +5,12 @@ Tests for unified memory tools.
 import pytest
 
 from src.agents.tools.unified_tools import (
-    memory_query,
-    get_context_block,
-    memory_store,
-    MemoryQueryInput,
     GetContextBlockInput,
+    MemoryQueryInput,
     MemoryStoreInput,
+    get_context_block,
+    memory_query,
+    memory_store,
 )
 
 

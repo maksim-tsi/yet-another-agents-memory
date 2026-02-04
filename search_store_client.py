@@ -1,7 +1,8 @@
 # file: search_store_client.py
 
+from typing import Any
+
 import meilisearch
-from typing import List, Dict, Any, Optional
 
 
 class MeilisearchStore:
@@ -24,7 +25,7 @@ class MeilisearchStore:
             self.client.wait_for_task(task.task_uid)
             self.index = self.client.get_index(index_name)
 
-    def configure_index(self, settings: Dict[str, Any]):
+    def configure_index(self, settings: dict[str, Any]):
         """
         Configure index settings for better search experience.
 
@@ -35,7 +36,7 @@ class MeilisearchStore:
         task = self.index.update_settings(settings)
         self.client.wait_for_task(task.task_uid)
 
-    def add_documents(self, documents: List[Dict[str, Any]], primary_key: str = "id"):
+    def add_documents(self, documents: list[dict[str, Any]], primary_key: str = "id"):
         """
         Adds or updates documents in the Meilisearch index.
 
@@ -47,8 +48,8 @@ class MeilisearchStore:
         self.client.wait_for_task(task.task_uid)
 
     def search(
-        self, query: str, top_k: int = 5, filters: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, query: str, top_k: int = 5, filters: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Performs a full-text search.
 
@@ -67,11 +68,11 @@ class MeilisearchStore:
         search_results = self.index.search(query, search_params)
         return search_results["hits"]
 
-    def delete_documents(self, document_ids: List[str]):
+    def delete_documents(self, document_ids: list[str]):
         """Delete documents from the index by their IDs."""
         task = self.index.delete_documents(document_ids)
         self.client.wait_for_task(task.task_uid)
 
-    def get_document(self, document_id: str) -> Dict[str, Any]:
+    def get_document(self, document_id: str) -> dict[str, Any]:
         """Retrieve a single document by its ID."""
         return self.index.get_document(document_id)

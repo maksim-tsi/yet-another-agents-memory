@@ -1,4 +1,5 @@
 import os
+
 import google.generativeai as genai
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")

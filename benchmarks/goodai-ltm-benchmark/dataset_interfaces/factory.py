@@ -1,27 +1,26 @@
-import os
+from copy import deepcopy
 
-from dataset_interfaces.interface import TestExample, DatasetInterface
+from datasets.chapterbreak import ChapterBreakDataset
+from datasets.colours import ColourDataset
 from datasets.conficting_personal_information import ConflictingPersonalInformationDataset
 from datasets.delayed_recall import DelayedRecallDataset
 from datasets.how_to_think import HowToThinkDataset
 from datasets.instruction_recall import InstructionRecallDataset
-from datasets.prospective_memory import ProspectiveMemoryDataset
-from datasets.colours import ColourDataset
 from datasets.jokes import JokesDataset
+from datasets.kv import KVPairsDataset
 from datasets.locations import LocationsDataset
 from datasets.locations_directions import LocationsDirectionsDataset
 from datasets.name import NamesDataset
 from datasets.name_list import NameListDataset
+from datasets.prospective_memory import ProspectiveMemoryDataset
+from datasets.restaurant import RestaurantDataset
 from datasets.sally_ann import SallyAnneDataset
 from datasets.shopping import ShoppingDataset
 from datasets.spy_meeting import SpyMeetingDataset
 from datasets.trigger_response import TriggerResponseDataset
-from datasets.kv import KVPairsDataset
-from datasets.chapterbreak import ChapterBreakDataset
-from datasets.restaurant import RestaurantDataset
-from copy import deepcopy
-
 from utils.files import parse_definition_path
+
+from dataset_interfaces.interface import DatasetInterface, TestExample
 
 DATASETS = {
     "names": NamesDataset,
@@ -75,7 +74,7 @@ class DatasetFactory:
 
         # Get the name of the dataset
         path_dataset_name = parse_definition_path(test_example_path)["dataset_name"]
-        dataset = DATASETS_BY_NAME.get(path_dataset_name, None)
+        dataset = DATASETS_BY_NAME.get(path_dataset_name)
 
         if dataset is None:
             raise ValueError(

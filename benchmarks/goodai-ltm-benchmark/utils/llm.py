@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import Optional, Callable
+from collections.abc import Callable
 
 from google import genai
 from google.genai import types
@@ -27,7 +27,7 @@ GPT_CHEAPEST = GEMINI_DEFAULT_MODEL
 GPT_4_TURBO_BEST = GEMINI_DEFAULT_MODEL
 LEAST_EFFICIENT_TOKENISER = GEMINI_DEFAULT_MODEL
 
-_CLIENT: Optional[genai.Client] = None
+_CLIENT: genai.Client | None = None
 
 
 class GeminiContextWindowExceededError(Exception):
@@ -54,7 +54,7 @@ def _get_client() -> genai.Client:
 
 def _build_gemini_contents(
     context: LLMContext,
-) -> tuple[list[types.Content], Optional[list[types.Part]]]:
+) -> tuple[list[types.Content], list[types.Part] | None]:
     system_parts: list[str] = []
     contents: list[types.Content] = []
     for message in context:
@@ -77,7 +77,7 @@ def _build_gemini_contents(
     return contents, system_instruction
 
 
-def _count_tokens_response_total(response: object) -> Optional[int]:
+def _count_tokens_response_total(response: object) -> int | None:
     total = getattr(response, "total_tokens", None)
     if total is None:
         total = getattr(response, "total_token_count", None)
@@ -85,7 +85,7 @@ def _count_tokens_response_total(response: object) -> Optional[int]:
 
 
 def count_tokens_gemini(
-    model: str, context: Optional[LLMContext] = None, text: Optional[str] = None
+    model: str, context: LLMContext | None = None, text: str | None = None
 ) -> int:
     client = _get_client()
     if context is not None:
@@ -94,10 +94,10 @@ def count_tokens_gemini(
             system_text = system_instruction[0].text
             contents = [
                 types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=f"[system]\n{system_text}")],
-                )
-            ] + contents
+                    role="user", parts=[types.Part.from_text(text=f"[system]\n{system_text}")]
+                ),
+                *contents,
+            ]
         response = client.models.count_tokens(model=model, contents=contents)
         return int(_count_tokens_response_total(response) or 0)
     if text is None:
@@ -119,7 +119,7 @@ def token_cost(model: str) -> tuple[float, float]:
 def ensure_context_len(
     context: LLMContext,
     model: str = LEAST_EFFICIENT_TOKENISER,
-    max_len: Optional[int] = None,
+    max_len: int | None = None,
     response_len: int = 0,
 ) -> tuple[LLMContext, int]:
     max_len = max_len or get_max_prompt_size(model)
@@ -140,7 +140,7 @@ def ensure_context_len(
     messages.append(reversed_context.pop(0))
 
     # Take messages as pairs and reverse them for the check
-    for message_pair in zip(reversed_context[::2], reversed_context[1::2]):
+    for message_pair in zip(reversed_context[::2], reversed_context[1::2], strict=False):
         message_tokens = count_tokens_for_model(model=model, context=list(reversed(message_pair)))
         if context_tokens + message_tokens + response_len > max_len:
             break
@@ -157,7 +157,7 @@ def _is_rate_limit(exc: Exception) -> bool:
     return "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)
 
 
-def _extract_usage_metadata(response: object) -> dict[str, Optional[int]]:
+def _extract_usage_metadata(response: object) -> dict[str, int | None]:
     usage = getattr(response, "usage_metadata", None)
     if not usage:
         return {"prompt_tokens": None, "response_tokens": None, "total": None}
@@ -172,8 +172,8 @@ def ask_gemini(
     context: LLMContext,
     model: str,
     temperature: float = 1,
-    context_length: int = None,
-    cost_callback: Callable[[float], None] = None,
+    context_length: int | None = None,
+    cost_callback: Callable[[float], None] | None = None,
     timeout: float = 300,
     max_response_tokens: int = 1024,
 ) -> str:
@@ -209,7 +209,7 @@ def ask_gemini(
 
     config = types.GenerateContentConfig(**config_params)
 
-    last_exc: Optional[Exception] = None
+    last_exc: Exception | None = None
     backoff = 1.0
     for attempt in range(3):
         try:
@@ -246,8 +246,8 @@ def ask_llm(
     context: LLMContext,
     model: str,
     temperature: float = 1,
-    context_length: int = None,
-    cost_callback: Callable[[float], None] = None,
+    context_length: int | None = None,
+    cost_callback: Callable[[float], None] | None = None,
     timeout: float = 300,
     max_response_tokens: int = 1024,
 ) -> str:
@@ -282,8 +282,8 @@ def make_assistant_message(content: str) -> LLMMessage:
 def count_tokens_for_model(
     model: str = LEAST_EFFICIENT_TOKENISER,
     context: LLMContext = None,
-    script: list[str] = None,
-    text: str = None,
+    script: list[str] | None = None,
+    text: str | None = None,
 ) -> int:
     token_count = 0
 

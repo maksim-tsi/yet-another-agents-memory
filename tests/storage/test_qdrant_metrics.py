@@ -2,7 +2,10 @@
 Integration tests for Qdrant adapter metrics.
 """
 
+import contextlib
+
 import pytest
+
 from src.storage.qdrant_adapter import QdrantAdapter
 
 
@@ -52,7 +55,5 @@ async def test_qdrant_metrics_integration():
     except Exception as e:
         pytest.skip(f"Qdrant not available: {e}")
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await adapter.disconnect()
-        except Exception:
-            pass

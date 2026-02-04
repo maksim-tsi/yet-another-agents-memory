@@ -2,8 +2,9 @@
 Test fixtures for memory tier tests.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 @pytest.fixture

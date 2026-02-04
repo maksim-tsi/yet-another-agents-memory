@@ -14,20 +14,20 @@ References:
 - docs/research/redis-global-local-stream.md
 """
 
-import logging
-import hashlib
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 import asyncio
+import hashlib
+import logging
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import uuid4
 
 from src.memory.engines.base_engine import BaseEngine
-from src.memory.tiers.working_memory_tier import WorkingMemoryTier
-from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
+from src.memory.lifecycle_stream import LifecycleStreamConsumer
 from src.memory.models import Episode, Fact
+from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
+from src.memory.tiers.working_memory_tier import WorkingMemoryTier
 from src.utils.llm_client import LLMClient
 from src.utils.providers import BaseProvider
-from src.memory.lifecycle_stream import LifecycleStreamConsumer
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +54,10 @@ class ConsolidationEngine(BaseEngine):
         self,
         l2_tier: WorkingMemoryTier,
         l3_tier: EpisodicMemoryTier,
-        llm_provider: Optional[LLMClient] = None,
-        stream_consumer: Optional[LifecycleStreamConsumer] = None,
-        config: Optional[Dict[str, Any]] = None,
-        gemini_provider: Optional[BaseProvider] = None,
+        llm_provider: LLMClient | None = None,
+        stream_consumer: LifecycleStreamConsumer | None = None,
+        config: dict[str, Any] | None = None,
+        gemini_provider: BaseProvider | None = None,
     ):
         super().__init__()
         self.l2 = l2_tier
@@ -66,7 +66,7 @@ class ConsolidationEngine(BaseEngine):
             self.llm = llm_provider
         elif gemini_provider is not None:
             if not getattr(gemini_provider, "name", None):
-                setattr(gemini_provider, "name", "gemini")
+                gemini_provider.name = "gemini"
             self.llm = LLMClient()
             self.llm.register_provider(gemini_provider)
         else:
@@ -83,7 +83,8 @@ class ConsolidationEngine(BaseEngine):
         )
         self.batch_size = self.config.get("batch_size", self.DEFAULT_BATCH_SIZE)
         self._running = False
-        self._buffer: List[Fact] = []
+        self._buffer: list[Fact] = []
+        self._stream_task: asyncio.Task | None = None
 
     async def start(self) -> None:
         """
@@ -110,7 +111,7 @@ class ConsolidationEngine(BaseEngine):
             self.stream_consumer.register_handler("session_end", self._handle_session_end_event)
 
             # Start consuming in background
-            asyncio.create_task(self.stream_consumer.start())
+            self._stream_task = asyncio.create_task(self.stream_consumer.start())
             logger.info("Lifecycle stream listener started")
 
         logger.info("ConsolidationEngine started successfully")
@@ -122,7 +123,7 @@ class ConsolidationEngine(BaseEngine):
             await self.stream_consumer.stop()
         logger.info("ConsolidationEngine stopped")
 
-    async def run_recovery_sweep(self) -> Dict[str, Any]:
+    async def run_recovery_sweep(self) -> dict[str, Any]:
         """
         Wake-Up Sweep: Scan L2 for unconsolidated facts and process them.
 
@@ -133,12 +134,16 @@ class ConsolidationEngine(BaseEngine):
         Returns:
             Stats: sessions_processed, facts_consolidated, episodes_created
         """
-        stats = {
+        stats: dict[str, int | str] = {
             "sessions_processed": 0,
             "facts_consolidated": 0,
             "episodes_created": 0,
             "errors": 0,
         }
+
+        def inc(key: str, amount: int = 1) -> None:
+            """Increment a stats counter."""
+            stats[key] = int(stats.get(key, 0)) + amount  # type: ignore[arg-type]
 
         try:
             # Query L2 for all unconsolidated facts
@@ -163,22 +168,22 @@ class ConsolidationEngine(BaseEngine):
             for session_id, facts in sessions.items():
                 try:
                     result = await self._consolidate_facts(session_id, facts)
-                    stats["sessions_processed"] += 1
-                    stats["facts_consolidated"] += len(facts)
-                    stats["episodes_created"] += result.get("episodes_created", 0)
+                    inc("sessions_processed")
+                    inc("facts_consolidated", len(facts))
+                    inc("episodes_created", int(result.get("episodes_created", 0)))
                 except Exception as e:
                     logger.error(f"Wake-Up Sweep error for session {session_id}: {e}")
-                    stats["errors"] += 1
+                    inc("errors")
 
             logger.info(f"Wake-Up Sweep completed: {stats}")
             return stats
 
         except Exception as e:
             logger.error(f"Wake-Up Sweep failed: {e}")
-            stats["errors"] += 1
+            inc("errors")
             return stats
 
-    async def _handle_promotion_event(self, event: Dict[str, Any]) -> None:
+    async def _handle_promotion_event(self, event: dict[str, Any]) -> None:
         """
         Handle promotion events from lifecycle stream.
 
@@ -203,7 +208,7 @@ class ConsolidationEngine(BaseEngine):
             )
             await self._trigger_batch_consolidation()
 
-    async def _handle_session_end_event(self, event: Dict[str, Any]) -> None:
+    async def _handle_session_end_event(self, event: dict[str, Any]) -> None:
         """
         Handle session_end events from lifecycle stream.
 
@@ -228,7 +233,7 @@ class ConsolidationEngine(BaseEngine):
         except Exception as e:
             logger.error(f"Batch consolidation failed: {e}")
 
-    async def _get_unconsolidated_facts(self) -> List[Fact]:
+    async def _get_unconsolidated_facts(self) -> list[Fact]:
         """
         Query L2 for all facts where consolidated=False.
 
@@ -251,7 +256,7 @@ class ConsolidationEngine(BaseEngine):
         # TODO: Add count_unconsolidated() method to WorkingMemoryTier
         return 0
 
-    async def _consolidate_facts(self, session_id: str, facts: List[Fact]) -> Dict[str, Any]:
+    async def _consolidate_facts(self, session_id: str, facts: list[Fact]) -> dict[str, Any]:
         """
         Consolidate a list of facts into episodes.
 
@@ -262,7 +267,7 @@ class ConsolidationEngine(BaseEngine):
         Returns:
             Stats: episodes_created, errors
         """
-        stats = {"episodes_created": 0, "errors": 0}
+        stats: dict[str, int] = {"episodes_created": 0, "errors": 0}
 
         # Cluster facts by time windows
         clusters = self._cluster_facts_by_time(facts)
@@ -282,15 +287,15 @@ class ConsolidationEngine(BaseEngine):
                     }
                 )
 
-                stats["episodes_created"] += 1
+                stats["episodes_created"] = stats.get("episodes_created", 0) + 1
 
             except Exception as e:
                 logger.error(f"Error consolidating fact cluster: {e}")
-                stats["errors"] += 1
+                stats["errors"] = stats.get("errors", 0) + 1
 
         return stats
 
-    async def process(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def process(self, session_id: str | None = None) -> dict[str, Any]:
         """
         Execute consolidation cycle for a session.
 
@@ -305,11 +310,20 @@ class ConsolidationEngine(BaseEngine):
 
         return await self.process_session(session_id)
 
-    async def process_session(self, session_id: str) -> Dict[str, Any]:
+    async def process_session(self, session_id: str) -> dict[str, Any]:
         """
         Process a specific session for fact consolidation.
         """
-        stats = {"session_id": session_id, "facts_retrieved": 0, "episodes_created": 0, "errors": 0}
+        stats: dict[str, int | str] = {
+            "session_id": session_id,
+            "facts_retrieved": 0,
+            "episodes_created": 0,
+            "errors": 0,
+        }
+
+        def inc(key: str, amount: int = 1) -> None:
+            """Increment a stats counter."""
+            stats[key] = int(stats.get(key, 0)) + amount  # type: ignore[arg-type]
 
         try:
             # Ensure downstream tier is initialized so collections/constraints exist
@@ -317,7 +331,7 @@ class ConsolidationEngine(BaseEngine):
 
             # 1. Determine time range (from last episode or beginning)
             start_time = await self._get_last_consolidation_time(session_id)
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(UTC)
 
             # 2. Retrieve facts from L2 in time range
             facts = await self._get_facts_in_range(session_id, start_time, end_time)
@@ -347,17 +361,17 @@ class ConsolidationEngine(BaseEngine):
                         }
                     )
 
-                    stats["episodes_created"] += 1
+                    inc("episodes_created")
 
                 except Exception as e:
                     logger.error(f"Error creating episode: {e}")
-                    stats["errors"] += 1
+                    inc("errors")
 
             return stats
 
         except Exception as e:
             logger.error(f"Error consolidating facts for session {session_id}: {e}")
-            stats["errors"] += 1
+            inc("errors")
             stats["last_error"] = str(e)
             return stats
 
@@ -365,13 +379,13 @@ class ConsolidationEngine(BaseEngine):
         """Get the time of the last consolidated episode for this session."""
         # Query L3 for most recent episode
         # For now, return 24 hours ago as default
-        return datetime.now(timezone.utc) - timedelta(hours=self.time_window_hours)
+        return datetime.now(UTC) - timedelta(hours=self.time_window_hours)
 
     async def _get_facts_in_range(
         self, session_id: str, start_time: datetime, end_time: datetime
-    ) -> List[Fact]:
+    ) -> list[Fact]:
         """Retrieve facts from L2 within time range."""
-        facts: List[Fact] = []
+        facts: list[Fact] = []
 
         if hasattr(self.l2, "query_by_session"):
             try:
@@ -404,21 +418,18 @@ class ConsolidationEngine(BaseEngine):
                     len(facts),
                 )
 
-        filtered: List[Fact] = []
+        filtered: list[Fact] = []
         for fact_dict in facts:
-            if isinstance(fact_dict, Fact):
-                fact_data = fact_dict.model_dump()
-            else:
-                fact_data = dict(fact_dict)
+            fact_data = fact_dict.model_dump() if isinstance(fact_dict, Fact) else dict(fact_dict)
 
             extracted_at = fact_data.get("extracted_at") or fact_data.get("created_at")
             if isinstance(extracted_at, str):
                 extracted_at = datetime.fromisoformat(extracted_at)
             if extracted_at is not None and extracted_at.tzinfo is None:
                 # Normalize naive timestamps to UTC for comparison
-                extracted_at = extracted_at.replace(tzinfo=timezone.utc)
+                extracted_at = extracted_at.replace(tzinfo=UTC)
             if extracted_at is None:
-                extracted_at = datetime.now(timezone.utc)
+                extracted_at = datetime.now(UTC)
             fact_data["extracted_at"] = extracted_at
 
             fact = Fact(**fact_data)
@@ -426,7 +437,7 @@ class ConsolidationEngine(BaseEngine):
 
         return filtered
 
-    def _cluster_facts_by_time(self, facts: List[Fact]) -> List[List[Fact]]:
+    def _cluster_facts_by_time(self, facts: list[Fact]) -> list[list[Fact]]:
         """Cluster facts into time windows."""
         if not facts:
             return []
@@ -454,7 +465,7 @@ class ConsolidationEngine(BaseEngine):
 
         return clusters
 
-    async def _create_episode_from_facts(self, session_id: str, facts: List[Fact]) -> Episode:
+    async def _create_episode_from_facts(self, session_id: str, facts: list[Fact]) -> Episode:
         """Create an episode from a cluster of facts using LLM."""
         # Generate summary and narrative
         facts_text = "\n".join(
@@ -517,7 +528,7 @@ Format as JSON:
             duration_seconds=duration,
             fact_valid_from=time_window_start,
             fact_valid_to=None,
-            source_observation_timestamp=datetime.now(timezone.utc),
+            source_observation_timestamp=datetime.now(UTC),
             embedding_model=self.embedding_model,
             topics=[],
             importance_score=sum(f.ciar_score for f in facts) / len(facts),
@@ -525,7 +536,7 @@ Format as JSON:
 
         return episode
 
-    async def _generate_embedding(self, episode: Episode) -> List[float]:
+    async def _generate_embedding(self, episode: Episode) -> list[float]:
         """Generate embedding for episode content."""
         # Combine summary and narrative for embedding
         text = f"{episode.summary}. {episode.narrative or ''}"
@@ -541,7 +552,7 @@ Format as JSON:
             logger.warning("Embedding generation failed (%s); using fallback", e)
             return self._fallback_embedding(text)
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Check health of dependencies."""
         l2_health = await self.l2.health_check()
         l3_health = await self.l3.health_check()
@@ -569,7 +580,7 @@ Format as JSON:
                 return provider
         return None
 
-    def _fallback_embedding(self, text: str) -> List[float]:
+    def _fallback_embedding(self, text: str) -> list[float]:
         """Generate deterministic fallback embedding when provider is unavailable."""
         # Use 768 dims to match EpisodicMemoryTier.VECTOR_SIZE and Qdrant schema
         vector_size = getattr(self.l3, "vector_size", 768)

@@ -1,29 +1,29 @@
 import json
 import math
 import webbrowser
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Iterator, List, Tuple, Callable
+from datetime import UTC, datetime, timedelta
 from random import Random
 
 import time_machine
-
 from dataset_interfaces.interface import (
-    TestExample,
     DynamicExample,
-    SendMessageAction,
-    WaitAction,
     SendAndRegisterAction,
+    SendMessageAction,
+    TestExample,
+    WaitAction,
 )
 from model_interfaces.interface import ChatSession
 from reporting.generate import generate_report
 from reporting.results import TestResult
-from runner.config import RunConfig
-from runner.master_log import MasterLog
 from utils.constants import EventType
+from utils.files import make_master_log_path, make_runstats_path
 from utils.filling_task import filler_no_response_tokens_trivia
 from utils.ui import colour_print
-from utils.files import make_runstats_path, make_master_log_path
+
+from runner.config import RunConfig
+from runner.master_log import MasterLog
 from runner.progress import ProgressDialog
 
 
@@ -31,10 +31,7 @@ def are_compatible(a: TestExample, b: TestExample, incompatibilities: list[set[t
     cls_a, cls_b = type(a.dataset_generator), type(b.dataset_generator)
     if cls_a is cls_b:
         return False
-    for inc_set in incompatibilities:
-        if cls_a in inc_set and cls_b in inc_set:
-            return False
-    return True
+    return all(not (cls_a in inc_set and cls_b in inc_set) for inc_set in incompatibilities)
 
 
 def create_question(example: TestExample, master_log: MasterLog) -> str:
@@ -56,14 +53,14 @@ class TestRunner:
     tests: list[TestExample]
     finished_results: list[TestResult] = field(default_factory=list)
     in_progress_results: dict[str, TestResult] = field(default_factory=dict)
-    traveller: Optional[time_machine.travel] = None
+    traveller: time_machine.travel | None = None
     wait_list: dict[str, dict[str, int | datetime]] = field(default_factory=dict)
     agent_token_count: int = 0
     total_token_count: int = 0
     test_managing_costs_usd: float = 0
     agent_benchmark_duration: float = 0
     skip_evaluations: bool = False
-    result_callbacks: List[Tuple[Callable, TestExample]] = field(default_factory=list)
+    result_callbacks: list[tuple[Callable, TestExample]] = field(default_factory=list)
     master_log: MasterLog = None
     progress_dialog: ProgressDialog = None
     random: Random = field(default_factory=lambda: Random(0))
@@ -112,7 +109,7 @@ class TestRunner:
 
     def travel_to_dt(self, target_date: datetime):
         self.reset_time()
-        self.traveller = time_machine.travel(target_date.astimezone(timezone.utc))
+        self.traveller = time_machine.travel(target_date.astimezone(UTC))
         self.traveller.start()
 
     def forward_time(self, **kwargs):
@@ -195,7 +192,7 @@ class TestRunner:
         self.progress_dialog.notify_message(self.total_token_count)
         return message_tokens + reply_tokens
 
-    def get_blocked_test(self, waiting_on: str) -> Optional[str]:
+    def get_blocked_test(self, waiting_on: str) -> str | None:
         assert waiting_on in ["tokens", "time"]
         target = dict(
             tokens=self.total_token_count,
@@ -219,7 +216,7 @@ class TestRunner:
         return False
 
     def is_compatible(self, example: TestExample, tests: dict[str, TestExample]) -> bool:
-        for waiting_id in self.wait_list.keys():
+        for waiting_id in self.wait_list:
             if not are_compatible(example, tests[waiting_id], self.config.incompatibilities):
                 return False
         return True
@@ -263,7 +260,7 @@ class TestRunner:
             if not self.is_waiting(token_waiting_id, remove=True):
                 return token_waiting_id
 
-        assert False, f"Couldn't find a test to run. Wait list: {self.wait_list}"
+        raise AssertionError(f"Couldn't find a test to run. Wait list: {self.wait_list}")
 
     def run_filler_task(self, num_filler_tokens: int):
         while num_filler_tokens > 0:
@@ -296,7 +293,7 @@ class TestRunner:
             )  # Since the test is performing an action, it can't be waiting.
             match evt.type:
                 case EventType.BEGIN:
-                    result, skip = self.initialise_result(test)
+                    result, _skip = self.initialise_result(test)
                     test.start_token = self.master_log.get_start_token(evt.test_id)
                     self.in_progress_results[evt.test_id] = result
                 case EventType.SEND_MESSAGE:
@@ -425,7 +422,7 @@ class TestRunner:
                         test_is_waiting = True
                     elif (wait_time := action.time.total_seconds()) > 0:
                         self.forward_time(seconds=wait_time)
-                elif isinstance(action, (SendMessageAction, SendAndRegisterAction)):
+                elif isinstance(action, SendMessageAction | SendAndRegisterAction):
                     # TODO: the test should autonomously create the question
                     if example.is_temporal and action.is_question:
                         action.message = create_question(example, self.master_log)
@@ -544,17 +541,16 @@ class TestRunner:
                 " If you are relying on the test being inside of the memory span, then any test failures could be caused by this overrun.",
             )
 
-        if not self.skip_evaluations:
-            if not example.uses_callback:
-                score, max_score, reason = example.evaluation_fn(
-                    questions,
-                    question_responses,
-                    example.expected_responses,
-                )
+        if not self.skip_evaluations and not example.uses_callback:
+            score, max_score, reason = example.evaluation_fn(
+                questions,
+                question_responses,
+                example.expected_responses,
+            )
 
-                result.score = score
-                result.max_score = max_score
-                result.reasoning = reason
+            result.score = score
+            result.max_score = max_score
+            result.reasoning = reason
 
         result.needles = len(example.script) - example.number_of_questions
         result.task_log = task_log

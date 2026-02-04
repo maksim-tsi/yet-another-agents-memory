@@ -1,11 +1,10 @@
-import os
 import json
-from typing import List, Tuple
-
-from utils.llm import ask_llm, make_system_message, make_user_message
-from utils.data import get_file
+import os
 from dataclasses import dataclass
+
 from dataset_interfaces.interface import DatasetInterface, TestExample
+from utils.data import get_file
+from utils.llm import ask_llm, make_system_message, make_user_message
 
 MSC_DATASETS_VERSION = "v0.1"
 MSC_URL = f"http://parl.ai/downloads/msc/msc_{MSC_DATASETS_VERSION}.tar.gz"
@@ -177,8 +176,8 @@ class MultiSessionChatDataset(DatasetInterface):
         return test_examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         # TODO: Consider computing the ROUGE-L score
         # pip install rouge-score
         answer_data = json.loads(expected_answers[0])
@@ -198,7 +197,7 @@ class MultiSessionChatDataset(DatasetInterface):
         response = ask_llm(context, "gemini-2.5-flash-lite", temperature=0)
         try:
             json_dict = json.loads(response)
-            score = 1 if "yes" == json_dict["conclusion"].lower().strip() else 0
+            score = 1 if json_dict["conclusion"].lower().strip() == "yes" else 0
             return score, 1, [json_dict["reasoning"]]
         except (json.JSONDecodeError, KeyError) as exc:
             return 0, 1, [str(exc)]

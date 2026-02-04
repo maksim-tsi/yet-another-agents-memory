@@ -78,7 +78,7 @@ def test_model(client, model_name: str, description: str) -> bool:
 
     except Exception as e:
         print(f"\n❌ ERROR testing {description}: {type(e).__name__}")
-        print(f"   {str(e)}")
+        print(f"   {e!s}")
 
         # Check for rate limit errors
         if "429" in str(e) or "rate" in str(e).lower():
@@ -153,7 +153,7 @@ def test_mistral():
 
     except Exception as e:
         print(f"\n❌ ERROR: {type(e).__name__}")
-        print(f"   {str(e)}")
+        print(f"   {e!s}")
         return False
 
 

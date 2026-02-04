@@ -5,10 +5,12 @@ Tests the batch compression and topic segmentation functionality
 per ADR-003 requirements.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.memory.engines.topic_segmenter import TopicSegmenter, TopicSegment
+import pytest
+from pydantic import ValidationError
+
+from src.memory.engines.topic_segmenter import TopicSegment, TopicSegmenter
 from src.utils.llm_client import LLMClient
 
 
@@ -179,7 +181,7 @@ class TestTopicSegment:
 
     def test_topic_segment_validation_topic_too_short(self):
         """Test validation fails for topic that's too short."""
-        with pytest.raises(Exception):  # Pydantic ValidationError
+        with pytest.raises(ValidationError):
             TopicSegment(
                 topic="AB",  # Too short (< 3 chars)
                 summary="This should fail validation.",
@@ -189,7 +191,7 @@ class TestTopicSegment:
 
     def test_topic_segment_validation_summary_too_short(self):
         """Test validation fails for summary that's too short."""
-        with pytest.raises(Exception):  # Pydantic ValidationError
+        with pytest.raises(ValidationError):
             TopicSegment(
                 topic="Valid Topic",
                 summary="Short",  # Too short (< 10 chars)

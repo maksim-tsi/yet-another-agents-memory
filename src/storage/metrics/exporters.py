@@ -2,11 +2,11 @@
 Export metrics in various formats.
 """
 
-from typing import Dict, Any, Union
 import json
+from typing import Any
 
 
-def export_metrics(metrics: Dict[str, Any], format: str = "dict") -> Union[Dict, str]:
+def export_metrics(metrics: dict[str, Any], format: str = "dict") -> dict | str:
     """
     Export metrics in specified format.
 
@@ -31,7 +31,7 @@ def export_metrics(metrics: Dict[str, Any], format: str = "dict") -> Union[Dict,
         raise ValueError(f"Unsupported format: {format}")
 
 
-def _to_prometheus(metrics: Dict[str, Any]) -> str:
+def _to_prometheus(metrics: dict[str, Any]) -> str:
     """Convert metrics to Prometheus format."""
     lines = []
     lines.append("# HELP storage_operations_total Total storage operations")
@@ -60,10 +60,7 @@ def _to_prometheus(metrics: Dict[str, Any]) -> str:
                 if percentile.startswith("p"):
                     # Convert percentile string like 'p50' to float 0.5
                     percentile_num = percentile[1:]
-                    if percentile_num.isdigit():
-                        quantile = int(percentile_num) / 100.0
-                    else:
-                        quantile = 0.5  # fallback
+                    quantile = int(percentile_num) / 100.0 if percentile_num.isdigit() else 0.5
                     lines.append(
                         f'storage_operation_duration_milliseconds{{operation="{operation}",quantile="{quantile}"}} {value}'
                     )
@@ -71,7 +68,7 @@ def _to_prometheus(metrics: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _to_csv(metrics: Dict[str, Any]) -> str:
+def _to_csv(metrics: dict[str, Any]) -> str:
     """Convert metrics to CSV format."""
     lines = ["timestamp,operation,total_count,success_count,error_count,avg_latency_ms"]
 
@@ -109,7 +106,7 @@ def _to_csv(metrics: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _to_markdown(metrics: Dict[str, Any]) -> str:
+def _to_markdown(metrics: dict[str, Any]) -> str:
     """Convert metrics to Markdown format."""
     lines = ["# Storage Adapter Metrics", ""]
     lines.append(f"**Timestamp**: {metrics.get('timestamp', 'N/A')}")

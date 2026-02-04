@@ -1,12 +1,12 @@
-import os
 import json
+import os
 import time
-from typing import Optional
-from openai import OpenAI, ChatCompletion
 from dataclasses import dataclass, field
-from transformers import AutoTokenizer, PreTrainedTokenizerFast
+
 from model_interfaces.interface import ChatSession
-from utils.llm import LLMContext, make_user_message, make_assistant_message
+from openai import ChatCompletion, OpenAI
+from transformers import AutoTokenizer, PreTrainedTokenizerFast
+from utils.llm import LLMContext, make_assistant_message, make_user_message
 
 
 @dataclass
@@ -51,7 +51,7 @@ class HFChatSession(ChatSession):
                     raise exc
                 time.sleep(3)
 
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         self.context.append(make_user_message(user_message))
         self.tokens_used_last += self.token_len(user_message) + self.max_response_tokens
         while self.tokens_used_last > self.max_prompt_size:
@@ -78,7 +78,7 @@ class HFChatSession(ChatSession):
 
     def load(self):
         fname = self.save_path.joinpath("context.json")
-        with open(fname, "r") as fd:
+        with open(fname) as fd:
             self.context = json.load(fd)
 
     def token_len(self, text: str) -> int:

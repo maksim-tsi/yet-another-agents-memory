@@ -12,7 +12,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -22,9 +22,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Load environment variables
 load_dotenv()
 
-from src.storage.redis_adapter import RedisAdapter  # noqa: E402
-from src.storage.qdrant_adapter import QdrantAdapter  # noqa: E402
 from src.storage.neo4j_adapter import Neo4jAdapter  # noqa: E402
+from src.storage.qdrant_adapter import QdrantAdapter  # noqa: E402
+from src.storage.redis_adapter import RedisAdapter  # noqa: E402
 from src.storage.typesense_adapter import TypesenseAdapter  # noqa: E402
 from tests.benchmarks.workload_generator import WorkloadGenerator, WorkloadOperation  # noqa: E402
 
@@ -46,7 +46,7 @@ class StorageBenchmark:
     5. Saves results to JSON for analysis
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize benchmark runner.
 
@@ -60,7 +60,7 @@ class StorageBenchmark:
         self.adapters = {}
         self.adapter_configs = self._get_adapter_configs()
 
-    def _default_config(self) -> Dict[str, Any]:
+    def _default_config(self) -> dict[str, Any]:
         """Get default benchmark configuration."""
         return {
             "workload_size": 10000,
@@ -68,7 +68,7 @@ class StorageBenchmark:
             "adapters": ["redis_l1", "redis_l2", "qdrant", "neo4j", "typesense"],
         }
 
-    def _get_adapter_configs(self) -> Dict[str, Dict[str, Any]]:
+    def _get_adapter_configs(self) -> dict[str, dict[str, Any]]:
         """
         Get configuration for each adapter.
 
@@ -120,7 +120,7 @@ class StorageBenchmark:
             },
         }
 
-    async def initialize_adapters(self, adapter_names: List[str]) -> None:
+    async def initialize_adapters(self, adapter_names: list[str]) -> None:
         """
         Initialize and connect to storage adapters.
 
@@ -165,8 +165,8 @@ class StorageBenchmark:
                 logger.error(f"✗ Error disconnecting {name}: {e}")
 
     async def run_benchmark(
-        self, workload_size: Optional[int] = None, workload_seed: Optional[int] = None
-    ) -> Dict[str, Any]:
+        self, workload_size: int | None = None, workload_seed: int | None = None
+    ) -> dict[str, Any]:
         """
         Run complete benchmark suite.
 
@@ -242,8 +242,8 @@ class StorageBenchmark:
         return results
 
     async def _run_adapter_benchmark(
-        self, adapter: Any, adapter_name: str, workload: List[WorkloadOperation]
-    ) -> Dict[str, Any]:
+        self, adapter: Any, adapter_name: str, workload: list[WorkloadOperation]
+    ) -> dict[str, Any]:
         """
         Run benchmark for a single adapter.
 
@@ -315,7 +315,7 @@ class StorageBenchmark:
         else:
             raise ValueError(f"Unknown operation type: {op.op_type}")
 
-    def _save_results(self, results: Dict[str, Any]) -> Path:
+    def _save_results(self, results: dict[str, Any]) -> Path:
         """
         Save benchmark results to JSON file.
 

@@ -1,10 +1,9 @@
 import json
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
 
 import browser_cookie3
-from model_interfaces.interface import ChatSession
 import requests
+from model_interfaces.interface import ChatSession
 
 
 def try_extract_session_cookie(cj):
@@ -49,7 +48,7 @@ class CharlieMnemonic(ChatSession):
                 self.token, self.user_name = try_extract_session_cookie(cj)
                 if self.token != "" and self.user_name != "":
                     break
-            except:
+            except Exception:
                 continue
 
         if self.token == "":
@@ -80,9 +79,9 @@ class CharlieMnemonic(ChatSession):
             "value": self.max_prompt_size,
         }
 
-        update = requests.post(self.endpoint + "/update_settings/", headers=headers, json=body)
+        requests.post(self.endpoint + "/update_settings/", headers=headers, json=body)
 
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         headers = {
             "Content-Type": "application/json",
             "Cookie": f"session_token={self.token}",
@@ -126,9 +125,7 @@ class CharlieMnemonic(ChatSession):
             "Cookie": f"session_token={self.token}",
         }
         body = {"username": self.user_name}
-        delete_req = requests.post(
-            self.endpoint + "/delete_data_keep_settings", headers=headers, json=body
-        )
+        requests.post(self.endpoint + "/delete_data_keep_settings", headers=headers, json=body)
 
     def load(self):
         # Charlie mnemonic is web based and so doesn't need to be manually told to resume a conversation

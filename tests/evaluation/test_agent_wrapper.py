@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import sys
 import types
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -65,7 +65,7 @@ def wrapper_state(mocker: pytest.MockFixture) -> agent_wrapper.AgentWrapperState
             content="Acknowledged.",
             turn_id=request.turn_id,
             metadata={"source": "unit"},
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     agent = mocker.Mock(spec=agent_wrapper.BaseAgent)

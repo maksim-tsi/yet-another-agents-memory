@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,10 +24,10 @@ class RunTurnRequest(BaseModel):
     role: str = Field(..., description="Role for the incoming message.")
     content: str = Field(..., description="Message text content.")
     turn_id: int = Field(..., description="Monotonic turn index in the conversation.")
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: dict[str, Any] | None = Field(
         default=None, description="Optional metadata for the request."
     )
-    timestamp: Optional[datetime] = Field(
+    timestamp: datetime | None = Field(
         default=None,
         description="Optional timestamp for the incoming turn.",
     )
@@ -48,11 +48,11 @@ class RunTurnRequest(BaseModel):
 
     @field_validator("timestamp")
     @classmethod
-    def _ensure_timezone(cls, value: Optional[datetime]) -> Optional[datetime]:
+    def _ensure_timezone(cls, value: datetime | None) -> datetime | None:
         if value is None:
             return value
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
 
 
@@ -72,11 +72,11 @@ class RunTurnResponse(BaseModel):
     role: str = Field(..., description="Role for the response message.")
     content: str = Field(..., description="Response text content.")
     turn_id: int = Field(..., description="Turn index corresponding to the request.")
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: dict[str, Any] | None = Field(
         default=None, description="Optional metadata for the response."
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="Timestamp when the response was generated.",
     )
 

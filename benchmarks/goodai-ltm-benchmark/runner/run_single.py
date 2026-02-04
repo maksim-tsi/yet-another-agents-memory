@@ -1,7 +1,8 @@
 import click
 from dataset_interfaces.factory import DATASETS
+
 from runner.config import RunConfig
-from runner.run_benchmark import get_chat_session, check_result_files, generate_test_examples
+from runner.run_benchmark import check_result_files, generate_test_examples, get_chat_session
 from runner.scheduler import TestRunner
 
 

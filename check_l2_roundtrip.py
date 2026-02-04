@@ -1,9 +1,9 @@
 import asyncio
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
-from src.storage.postgres_adapter import PostgresAdapter
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
+from src.storage.postgres_adapter import PostgresAdapter
 
 
 async def main() -> None:
@@ -29,7 +29,7 @@ async def main() -> None:
                 "certainty": 0.9,
                 "impact": 0.9,
                 "ciar_score": 0.81,
-                "created_at": datetime.now(timezone.utc) - timedelta(minutes=i),
+                "created_at": datetime.now(UTC) - timedelta(minutes=i),
             }
         )
 

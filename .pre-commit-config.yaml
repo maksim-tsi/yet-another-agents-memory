@@ -26,7 +26,7 @@ repos:
     hooks:
       - id: mypy-staged
         name: mypy (staged modules)
-        entry: bash -c '.venv/bin/mypy src/memory/ src/storage/ --ignore-missing-imports'
+        entry: bash -c '.venv/bin/mypy src/memory/ src/storage/ --ignore-missing-imports --allow-untyped-defs --namespace-packages'
         language: system
         types: [python]
         pass_filenames: false

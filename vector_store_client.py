@@ -1,7 +1,8 @@
 # file: vector_store_client.py
 
 import uuid
-from typing import List, Dict, Any, Optional, Union
+from typing import Any
+
 from qdrant_client import QdrantClient, models
 from sentence_transformers import SentenceTransformer
 
@@ -47,7 +48,7 @@ class QdrantVectorStore:
             ),
         )
 
-    def add_documents(self, documents: List[Dict[str, Any]]) -> List[Union[str, int]]:
+    def add_documents(self, documents: list[dict[str, Any]]) -> list[str | int]:
         """
         Embeds and stores a list of documents in Qdrant.
         Each document is a dict with 'content' and an optional 'id'.
@@ -62,7 +63,7 @@ class QdrantVectorStore:
         doc_ids = []
         for doc in documents:
             doc_id = doc.get("id", str(uuid.uuid4()))
-            point_id = doc_id if isinstance(doc_id, (int, str)) else str(doc_id)
+            point_id = doc_id if isinstance(doc_id, int | str) else str(doc_id)
             doc_ids.append(point_id)
 
             vector = self.encoder.encode(doc["content"]).tolist()
@@ -73,8 +74,8 @@ class QdrantVectorStore:
         return doc_ids
 
     def query_similar(
-        self, query_text: str, top_k: int = 5, filters: Optional[models.Filter] = None
-    ) -> List[Dict[str, Any]]:
+        self, query_text: str, top_k: int = 5, filters: models.Filter | None = None
+    ) -> list[dict[str, Any]]:
         """
         Finds the most similar documents to a query string.
 
@@ -95,7 +96,7 @@ class QdrantVectorStore:
         )
         return [hit.payload for hit in hits]
 
-    def delete_documents(self, ids: List[Union[str, int]]):
+    def delete_documents(self, ids: list[str | int]):
         """Deletes documents by their IDs."""
         self.client.delete(
             collection_name=self.collection_name,

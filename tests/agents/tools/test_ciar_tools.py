@@ -5,18 +5,19 @@ Tests the CIAR calculation, filtering, and explanation tools with mocked
 CIARScorer dependency.
 """
 
-import pytest
 import json
-from unittest.mock import Mock, AsyncMock
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from src.agents.tools.ciar_tools import (
-    ciar_calculate,
-    ciar_filter,
-    ciar_explain,
     CIARCalculateInput,
-    CIARFilterInput,
     CIARExplainInput,
+    CIARFilterInput,
+    ciar_calculate,
+    ciar_explain,
+    ciar_filter,
 )
 
 
@@ -184,7 +185,7 @@ class TestCIARFilterTool:
         """Test filtering with mixed high/low CIAR scores."""
         mock_runtime = AsyncMock()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         facts = [
             {
                 "content": "High fact 1",
@@ -228,7 +229,7 @@ class TestCIARFilterTool:
         """Test filtering where all facts pass threshold."""
         mock_runtime = AsyncMock()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         facts = [
             {
                 "content": f"High fact {i}",

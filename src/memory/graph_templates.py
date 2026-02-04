@@ -26,8 +26,8 @@ Template Categories:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
 from enum import Enum
+from typing import Any
 
 
 class TemplateCategory(str, Enum):
@@ -61,14 +61,14 @@ class GraphQueryTemplate:
 
     name: str
     cypher_template: str
-    required_params: List[str]
-    optional_params: Dict[str, Any] = field(default_factory=dict)
+    required_params: list[str]
+    optional_params: dict[str, Any] = field(default_factory=dict)
     description: str = ""
     category: TemplateCategory = TemplateCategory.TRACKING
     returns: str = ""
-    examples: List[Dict[str, Any]] = field(default_factory=list)
+    examples: list[dict[str, Any]] = field(default_factory=list)
 
-    def validate_params(self, params: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+    def validate_params(self, params: dict[str, Any]) -> tuple[bool, str | None]:
         """
         Validate that all required parameters are provided.
 
@@ -83,7 +83,7 @@ class GraphQueryTemplate:
             return False, f"Missing required parameters: {', '.join(missing)}"
         return True, None
 
-    def merge_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def merge_params(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Merge provided params with optional defaults.
 
@@ -301,7 +301,7 @@ GET_ENTITY_TIMELINE = GraphQueryTemplate(
 # TEMPLATE REGISTRY
 # ============================================================================
 
-TEMPLATE_REGISTRY: Dict[str, GraphQueryTemplate] = {
+TEMPLATE_REGISTRY: dict[str, GraphQueryTemplate] = {
     "get_container_journey": GET_CONTAINER_JOURNEY,
     "get_shipment_parties": GET_SHIPMENT_PARTIES,
     "find_delay_causes": FIND_DELAY_CAUSES,
@@ -311,7 +311,7 @@ TEMPLATE_REGISTRY: Dict[str, GraphQueryTemplate] = {
 }
 
 
-def get_template(name: str) -> Optional[GraphQueryTemplate]:
+def get_template(name: str) -> GraphQueryTemplate | None:
     """
     Retrieve a query template by name.
 
@@ -324,7 +324,7 @@ def get_template(name: str) -> Optional[GraphQueryTemplate]:
     return TEMPLATE_REGISTRY.get(name)
 
 
-def list_templates(category: Optional[TemplateCategory] = None) -> List[GraphQueryTemplate]:
+def list_templates(category: TemplateCategory | None = None) -> list[GraphQueryTemplate]:
     """
     List all available templates, optionally filtered by category.
 
@@ -341,8 +341,8 @@ def list_templates(category: Optional[TemplateCategory] = None) -> List[GraphQue
 
 
 def validate_and_execute_template(
-    name: str, params: Dict[str, Any]
-) -> tuple[bool, Optional[str], Optional[str]]:
+    name: str, params: dict[str, Any]
+) -> tuple[bool, str | None, str | None]:
     """
     Validate template exists and parameters are complete.
 

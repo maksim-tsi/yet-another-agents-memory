@@ -5,16 +5,18 @@ Tests the refactored PromotionEngine that implements ADR-003's
 batch compression strategy using TopicSegmenter.
 """
 
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from src.memory.ciar_scorer import CIARScorer
+from src.memory.engines.fact_extractor import FactExtractor
 from src.memory.engines.promotion_engine import PromotionEngine
+from src.memory.engines.topic_segmenter import TopicSegment, TopicSegmenter
+from src.memory.models import Fact, FactCategory, FactType
 from src.memory.tiers.active_context_tier import ActiveContextTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
-from src.memory.engines.topic_segmenter import TopicSegmenter, TopicSegment
-from src.memory.engines.fact_extractor import FactExtractor
-from src.memory.ciar_scorer import CIARScorer
-from src.memory.models import Fact, FactType, FactCategory
-from datetime import datetime, timezone
 
 
 @pytest.fixture
@@ -178,7 +180,7 @@ async def test_process_session_batch_success(
         certainty=0.9,
         impact=0.8,
         source_type="llm",
-        extracted_at=datetime.now(timezone.utc),
+        extracted_at=datetime.now(UTC),
         ciar_score=0.0,
         age_decay=1.0,
         recency_boost=1.0,
@@ -195,7 +197,7 @@ async def test_process_session_batch_success(
         certainty=0.95,
         impact=0.9,
         source_type="llm",
-        extracted_at=datetime.now(timezone.utc),
+        extracted_at=datetime.now(UTC),
         ciar_score=0.0,
         age_decay=1.0,
         recency_boost=1.0,
@@ -315,7 +317,7 @@ async def test_score_segment(engine):
     score = await engine._score_segment(segment)
 
     # For fresh segments: age_decay=1.0, recency_boost=1.0
-    # CIAR = (0.8 × 0.9) × 1.0 × 1.0 = 0.72
+    # CIAR = (0.8 x 0.9) x 1.0 x 1.0 = 0.72
     assert score == 0.72
 
 

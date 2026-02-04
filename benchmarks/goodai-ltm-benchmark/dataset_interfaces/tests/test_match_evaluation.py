@@ -1,5 +1,4 @@
 import unittest
-from typing import List
 
 from dataset_interfaces.interface import DatasetInterface
 
@@ -202,7 +201,7 @@ Anne would look for Sally at the restaurant where they recently shared a meal.
     @may_skip("controlled by _skip_tests")
     def test_match_6(self):
         question = ["Which joke did I tell you about 1 hours 45 minutes 3 seconds ago?"]
-        expected_answer = ["Two fish are in a tank. One says, ‘How do you drive this thing?’"]
+        expected_answer = ["Two fish are in a tank. One says, 'How do you drive this thing?'"]
         provided_answer = [
             """
         You told me the joke about two fish in a tank, with one asking how to drive it, 1 hour 45 minutes and 3 seconds ago. It's always a funny one! Is there anything else I ca
@@ -214,10 +213,10 @@ n help you with?
     @may_skip("controlled by _skip_tests")
     def test_no_match_6a(self):
         question = ["Which joke did I tell you about 2 hours 50 minutes ago?"]
-        expected_answer = ["Knock, knock. Who’s there? Tank. Tank who? You’re welcome."]
+        expected_answer = ["Knock, knock. Who's there? Tank. Tank who? You're welcome."]
         provided_answer = [
             """
-        You told me this joke: Knock, knock. Who’s there? Luke. Luke who? Luke through the peep hole and find out.
+        You told me this joke: Knock, knock. Who's there? Luke. Luke who? Luke through the peep hole and find out.
         """
         ]
         self.assert_match(0, question, expected_answer, provided_answer)
@@ -225,7 +224,7 @@ n help you with?
     @may_skip("controlled by _skip_tests")
     def test_no_match_6b(self):
         question = ["Which joke did I tell you about 3 hours 3 minutes 3 seconds  ago?"]
-        expected_answer = ["Two fish are in a tank. One says, ‘How do you drive this thing?’"]
+        expected_answer = ["Two fish are in a tank. One says, 'How do you drive this thing?'"]
         provided_answer = [
             """
 I'm sorry, but I don't have the capability to remember specific jokes or conversations from that long ago. My memory only extends to the most recent interactions. Is there anything else I can assist you with?
@@ -254,14 +253,14 @@ I'm sorry, but I don't have the capability to remember specific jokes or convers
     def assert_match(
         self,
         expect_correct: int,
-        questions: List[str],
-        expected_answers: List[str],
-        provided_answers: List[str],
+        questions: list[str],
+        expected_answers: list[str],
+        provided_answers: list[str],
     ):
         num_correct, total, r = DatasetInterface.evaluate_correct_gpt_impl(
             questions, provided_answers, expected_answers
         )
-        self.assertEquals(
+        self.assertEqual(
             num_correct,
             expect_correct,
             f"On question '{questions}' expected match to be {expect_correct} with {total} questions "

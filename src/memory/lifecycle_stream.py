@@ -32,10 +32,12 @@ References:
 - docs/research/consolidation-hooks-and-signals.md
 """
 
-import redis.asyncio as redis
-from typing import Dict, Any, Callable, Awaitable
-import logging
 import asyncio
+import logging
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+import redis.asyncio as redis
 
 from .namespace import NamespaceManager
 
@@ -75,7 +77,7 @@ class LifecycleStreamConsumer:
         self.batch_size = batch_size
         self.stream_key = NamespaceManager.lifecycle_stream()
         self._running = False
-        self._handlers: Dict[str, Callable[[Dict[str, Any]], Awaitable[None]]] = {}
+        self._handlers: dict[str, Callable[[dict[str, Any]], Awaitable[None]]] = {}
 
     async def initialize(self) -> None:
         """
@@ -110,7 +112,7 @@ class LifecycleStreamConsumer:
     def register_handler(
         self,
         event_type: str,
-        handler: Callable[[Dict[str, Any]], Awaitable[None]],
+        handler: Callable[[dict[str, Any]], Awaitable[None]],
     ) -> None:
         """
         Register an async handler for a specific event type.
@@ -165,7 +167,7 @@ class LifecycleStreamConsumer:
                     continue
 
                 # Process each message
-                for stream_key, stream_messages in messages:
+                for _stream_key, stream_messages in messages:
                     for message_id, fields in stream_messages:
                         await self._process_message(message_id, fields)
 
@@ -228,7 +230,7 @@ class LifecycleStreamConsumer:
     async def _process_message(
         self,
         message_id: str,
-        fields: Dict[bytes, bytes],
+        fields: dict[bytes, bytes],
     ) -> None:
         """
         Process a single message and acknowledge if successful.
@@ -252,12 +254,15 @@ class LifecycleStreamConsumer:
             logger.debug(f"Processing event: {event_type} (session={session_id}, id={message_id})")
 
             # Find and execute handler
-            handler = self._handlers.get(event_type)
-
-            if handler:
-                await handler(event)
+            if event_type is None:
+                logger.warning("Received lifecycle event without type: %s", event)
             else:
-                logger.warning(f"No handler registered for event type: {event_type}")
+                handler = self._handlers.get(event_type)
+
+                if handler:
+                    await handler(event)
+                else:
+                    logger.warning(f"No handler registered for event type: {event_type}")
 
             # Acknowledge successful processing
             await self.redis.xack(
@@ -272,7 +277,7 @@ class LifecycleStreamConsumer:
             logger.error(f"Failed to process message {message_id}: {e}. Message will be retried.")
             # Don't ACK - message will remain pending for retry
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check consumer health and stream status.
 
@@ -355,7 +360,7 @@ class LifecycleStreamProducer:
         self,
         event_type: str,
         session_id: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
     ) -> str:
         """
         Publish a lifecycle event to the global stream.

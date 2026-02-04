@@ -3,7 +3,8 @@ Context manager to time and automatically record operations.
 """
 
 import time
-from typing import Dict, Any, Optional
+from typing import Any
+
 from .collector import MetricsCollector
 
 
@@ -18,12 +19,12 @@ class OperationTimer:
     """
 
     def __init__(
-        self, collector: MetricsCollector, operation: str, metadata: Optional[Dict[str, Any]] = None
+        self, collector: MetricsCollector, operation: str, metadata: dict[str, Any] | None = None
     ):
         self.collector = collector
         self.operation = operation
         self.metadata = metadata or {}
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
         self.success = True
 
     def start(self):

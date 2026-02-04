@@ -1,5 +1,6 @@
+from dataclasses import dataclass, field
 from pathlib import Path
-from dataclasses import dataclass
+
 from dataset_interfaces.gpt_generated import GPTGenerated
 from utils.constants import DATA_DIR
 
@@ -8,7 +9,11 @@ from utils.constants import DATA_DIR
 class InstructionRecallDataset(GPTGenerated):
     name: str = "Instruction Recall"
     description: str = "Give the agent a list of instructions, then ask it multiple questions about these instructions"
-    generation_file: Path = DATA_DIR.joinpath("gpt_generation_prompts/5-2_instruction_recall.json")
+    generation_file: Path = field(
+        default_factory=lambda: DATA_DIR.joinpath(
+            "gpt_generation_prompts/5-2_instruction_recall.json"
+        )
+    )
     reset_message: str = "Forget all of the instructions for operating the technology that I have given you up until this message."
 
 

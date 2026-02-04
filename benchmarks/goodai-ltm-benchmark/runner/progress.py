@@ -7,16 +7,16 @@ except ModuleNotFoundError:  # pragma: no cover - headless environments
     tk = None
     ttk = None
     _TK_AVAILABLE = False
+from collections import defaultdict
+
 from dataset_interfaces.interface import TestExample
 from reporting.results import TestResult
-from collections import defaultdict
 from utils.math import mean_std
 
 
 def blinker_gen():
     while True:
-        for c in r"/-\|":
-            yield c
+        yield from r"/-\|"
 
 
 if _TK_AVAILABLE:

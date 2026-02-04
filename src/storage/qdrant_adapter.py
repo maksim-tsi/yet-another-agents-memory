@@ -2,25 +2,27 @@
 Qdrant storage adapter for episodic memory vectors.
 """
 
-import uuid
-from typing import Dict, Any, List, Optional
 import logging
+import uuid
+from datetime import UTC
+from typing import Any
+
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
-    PointStruct,
-    VectorParams,
     Distance,
-    Filter,
     FieldCondition,
+    Filter,
     MatchValue,
     PointIdsList,
+    PointStruct,
+    VectorParams,
 )
 
 from .base import (
     StorageAdapter,
     StorageConnectionError,
-    StorageQueryError,
     StorageDataError,
+    StorageQueryError,
     validate_required_fields,
 )
 from .metrics import OperationTimer
@@ -70,14 +72,14 @@ class QdrantAdapter(StorageAdapter):
         ```
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.url = config.get("url")
         self.api_key = config.get("api_key")
         self.collection_name = config.get("collection_name", "semantic_memory")
         self.vector_size = config.get("vector_size", 384)
         self.distance = config.get("distance", "Cosine")
-        self.client: Optional[AsyncQdrantClient] = None
+        self.client: AsyncQdrantClient | None = None
 
         if not self.url:
             raise StorageDataError("Qdrant URL is required")
@@ -146,7 +148,7 @@ class QdrantAdapter(StorageAdapter):
                 logger.error(f"Error during Qdrant disconnect: {e}", exc_info=True)
                 # Don't raise - disconnect should always succeed
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store vector embedding with payload.
 
@@ -204,11 +206,11 @@ class QdrantAdapter(StorageAdapter):
                 logger.error(f"Qdrant store failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to store in Qdrant: {e}") from e
 
-    async def upsert(self, data: Dict[str, Any]) -> str:
+    async def upsert(self, data: dict[str, Any]) -> str:
         """Alias for store to match adapter expectations."""
         return await self.store(data)
 
-    async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
+    async def retrieve(self, id: str) -> dict[str, Any] | None:
         """
         Retrieve vector by ID.
 
@@ -255,7 +257,7 @@ class QdrantAdapter(StorageAdapter):
                 logger.error(f"Qdrant retrieve failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to retrieve from Qdrant: {e}") from e
 
-    async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Search for similar vectors.
 
@@ -370,12 +372,12 @@ class QdrantAdapter(StorageAdapter):
 
     async def scroll(
         self,
-        filter_dict: Optional[Dict[str, Any]] = None,
+        filter_dict: dict[str, Any] | None = None,
         limit: int = 100,
         with_payload: bool = True,
         with_vectors: bool = False,
-        collection_name: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        collection_name: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Scroll through points using filter-only retrieval (no vector similarity).
 
@@ -446,7 +448,7 @@ class QdrantAdapter(StorageAdapter):
                 logger.error(f"Qdrant scroll failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to scroll Qdrant: {e}") from e
 
-    def _build_qdrant_filter(self, filter_dict: Dict[str, Any]) -> Optional[Filter]:
+    def _build_qdrant_filter(self, filter_dict: dict[str, Any]) -> Filter | None:
         """
         Build a Qdrant Filter from a dictionary specification.
 
@@ -544,7 +546,7 @@ class QdrantAdapter(StorageAdapter):
             should_conditions = []
 
             for key, value in filter_dict.items():
-                if isinstance(value, (dict, list)):
+                if isinstance(value, dict | list):
                     continue
 
                 if key == "session_id":
@@ -564,7 +566,7 @@ class QdrantAdapter(StorageAdapter):
 
     # Batch operations (optimized for Qdrant)
 
-    async def store_batch(self, items: List[Dict[str, Any]]) -> List[str]:
+    async def store_batch(self, items: list[dict[str, Any]]) -> list[str]:
         """
         Store multiple vectors in a single batch operation.
 
@@ -628,7 +630,7 @@ class QdrantAdapter(StorageAdapter):
             logger.error(f"Qdrant batch store failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to batch store in Qdrant: {e}") from e
 
-    async def retrieve_batch(self, ids: List[str]) -> List[Optional[Dict[str, Any]]]:
+    async def retrieve_batch(self, ids: list[str]) -> list[dict[str, Any] | None]:
         """
         Retrieve multiple vectors by their IDs in a single operation.
 
@@ -688,7 +690,7 @@ class QdrantAdapter(StorageAdapter):
             logger.error(f"Qdrant batch retrieve failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to batch retrieve from Qdrant: {e}") from e
 
-    async def delete_batch(self, ids: List[str]) -> Dict[str, bool]:
+    async def delete_batch(self, ids: list[str]) -> dict[str, bool]:
         """
         Delete multiple vectors by their IDs in a single operation.
 
@@ -735,7 +737,7 @@ class QdrantAdapter(StorageAdapter):
             logger.error(f"Qdrant batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to batch delete from Qdrant: {e}") from e
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check Qdrant backend health and performance.
 
@@ -752,7 +754,7 @@ class QdrantAdapter(StorageAdapter):
             - timestamp: ISO timestamp
         """
         import time
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         start_time = time.perf_counter()
 
@@ -762,7 +764,7 @@ class QdrantAdapter(StorageAdapter):
                     "status": "unhealthy",
                     "connected": False,
                     "details": "Not connected to Qdrant",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
             # Check collection exists and get info
@@ -798,7 +800,7 @@ class QdrantAdapter(StorageAdapter):
                 "vector_count": collection_info.points_count or 0,
                 "vector_size": vector_size,
                 "details": f'Qdrant collection "{self.collection_name}" is accessible',
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         except Exception as e:
@@ -809,12 +811,12 @@ class QdrantAdapter(StorageAdapter):
                 "status": "unhealthy",
                 "connected": self._connected,
                 "latency_ms": round(latency_ms, 2),
-                "details": f"Health check failed: {str(e)}",
+                "details": f"Health check failed: {e!s}",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
-    async def _get_backend_metrics(self) -> Optional[Dict[str, Any]]:
+    async def _get_backend_metrics(self) -> dict[str, Any] | None:
         """Get Qdrant-specific metrics."""
         if not self._connected or not self.client:
             return None
@@ -848,7 +850,7 @@ class QdrantAdapter(StorageAdapter):
 
     # Collection management methods
 
-    async def create_collection(self, name: str, config: Optional[Dict[str, Any]] = None) -> bool:
+    async def create_collection(self, name: str, config: dict[str, Any] | None = None) -> bool:
         """
         Create a new collection with the specified configuration.
 
@@ -895,7 +897,7 @@ class QdrantAdapter(StorageAdapter):
             logger.error(f"Failed to create collection {name}: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to create collection {name}: {e}") from e
 
-    async def update_collection(self, name: str, config: Dict[str, Any]) -> bool:
+    async def update_collection(self, name: str, config: dict[str, Any]) -> bool:
         """
         Update an existing collection with new configuration.
 
@@ -931,7 +933,7 @@ class QdrantAdapter(StorageAdapter):
             logger.error(f"Failed to update collection {name}: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to update collection {name}: {e}") from e
 
-    async def get_collection_info(self, name: str) -> Dict[str, Any]:
+    async def get_collection_info(self, name: str) -> dict[str, Any]:
         """
         Get detailed information about a collection.
 
@@ -976,7 +978,7 @@ class QdrantAdapter(StorageAdapter):
             logger.error(f"Failed to get collection info for {name}: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to get collection info for {name}: {e}") from e
 
-    async def list_collections(self) -> List[str]:
+    async def list_collections(self) -> list[str]:
         """
         List all available collections.
 

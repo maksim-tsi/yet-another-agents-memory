@@ -12,14 +12,14 @@ Components:
 
 __version__ = "1.0.0"
 
-from .workload_generator import WorkloadGenerator, WorkloadOperation, create_workload_config
 from .bench_storage_adapters import StorageBenchmark
 from .results_analyzer import BenchmarkAnalyzer
+from .workload_generator import WorkloadGenerator, WorkloadOperation, create_workload_config
 
 __all__ = [
+    "BenchmarkAnalyzer",
+    "StorageBenchmark",
     "WorkloadGenerator",
     "WorkloadOperation",
     "create_workload_config",
-    "StorageBenchmark",
-    "BenchmarkAnalyzer",
 ]

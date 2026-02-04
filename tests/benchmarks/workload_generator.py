@@ -9,8 +9,8 @@ import random
 import string
 import uuid
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass
@@ -19,9 +19,9 @@ class WorkloadOperation:
 
     op_type: str  # 'store', 'retrieve', 'search', 'delete'
     adapter: str  # 'redis_l1', 'redis_l2', 'qdrant', 'neo4j', 'typesense'
-    data: Optional[Dict[str, Any]] = None
-    query: Optional[Dict[str, Any]] = None
-    item_id: Optional[str] = None
+    data: dict[str, Any] | None = None
+    query: dict[str, Any] | None = None
+    item_id: str | None = None
 
 
 class WorkloadGenerator:
@@ -41,7 +41,7 @@ class WorkloadGenerator:
     - 5% deletes
     """
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: int | None = None):
         """
         Initialize workload generator.
 
@@ -63,8 +63,8 @@ class WorkloadGenerator:
         self.neo4j_entity_ids = []
 
     def generate_workload(
-        self, size: int = 10000, distribution: Optional[Dict[str, float]] = None
-    ) -> List[WorkloadOperation]:
+        self, size: int = 10000, distribution: dict[str, float] | None = None
+    ) -> list[WorkloadOperation]:
         """
         Generate workload with specified size and distribution.
 
@@ -88,7 +88,7 @@ class WorkloadGenerator:
 
         operations = []
 
-        for i in range(size):
+        for _i in range(size):
             # Select adapter based on distribution
             adapter = self._select_adapter(distribution)
 
@@ -130,7 +130,7 @@ class WorkloadGenerator:
 
         return operations
 
-    def _select_adapter(self, distribution: Dict[str, float]) -> str:
+    def _select_adapter(self, distribution: dict[str, float]) -> str:
         """Select adapter based on probability distribution."""
         rand = random.random()
         cumulative = 0.0
@@ -167,7 +167,7 @@ class WorkloadGenerator:
             "turn_id": turn_id,
             "content": self._random_text(50, 200),
             "role": random.choice(["user", "assistant"]),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         # Track stored ID (using session_id as proxy)
@@ -184,7 +184,7 @@ class WorkloadGenerator:
             "vector": [random.random() for _ in range(384)],  # 384-dim embedding
             "content": self._random_text(100, 500),  # Required field at top level
             "session_id": random.choice(self.session_ids),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         self.stored_ids["qdrant"].append(doc_id)
@@ -210,7 +210,7 @@ class WorkloadGenerator:
             "properties": {
                 "name": self._random_text(5, 20),
                 "session_id": random.choice(self.session_ids),
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             },
         }
 
@@ -241,7 +241,7 @@ class WorkloadGenerator:
             "relationship": random.choice(["KNOWS", "RELATED_TO", "MENTIONS", "FOLLOWS"]),
             "properties": {
                 "session_id": random.choice(self.session_ids),
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             },
         }
 
@@ -258,7 +258,7 @@ class WorkloadGenerator:
             "session_id": random.choice(self.session_ids),
             "content": self._random_text(100, 1000),
             "title": self._random_text(5, 50),
-            "timestamp": int(datetime.now(timezone.utc).timestamp()),
+            "timestamp": int(datetime.now(UTC).timestamp()),
         }
 
         self.stored_ids["typesense"].append(doc_id)
@@ -350,7 +350,7 @@ class WorkloadGenerator:
         return " ".join(words)
 
 
-def create_workload_config(name: str, size: int, seed: int = 42) -> Dict[str, Any]:
+def create_workload_config(name: str, size: int, seed: int = 42) -> dict[str, Any]:
     """
     Create workload configuration.
 

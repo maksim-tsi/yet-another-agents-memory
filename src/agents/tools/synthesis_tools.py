@@ -9,11 +9,11 @@ Tools:
 - synthesize_knowledge: Retrieve and synthesize knowledge documents with conflict detection
 """
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
-from pydantic import BaseModel, Field
 import json
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig as ToolRuntime
@@ -24,7 +24,6 @@ else:
         ToolRuntime = Any
 
 from src.agents.runtime import MASToolRuntime
-
 
 # ============================================================================
 # Input Schemas (Pydantic Models)
@@ -37,7 +36,7 @@ class SynthesizeKnowledgeInput(BaseModel):
     query: str = Field(
         description="Query or context for knowledge synthesis (e.g., 'What are common causes of port delays?')"
     )
-    metadata_filters: Optional[Dict[str, Any]] = Field(
+    metadata_filters: dict[str, Any] | None = Field(
         default=None,
         description="Domain-specific metadata filters (e.g., {'port_code': 'USLAX', 'carrier': 'MAERSK'})",
     )
@@ -54,7 +53,7 @@ class SynthesizeKnowledgeInput(BaseModel):
 @tool(args_schema=SynthesizeKnowledgeInput)
 async def synthesize_knowledge(
     query: str,
-    metadata_filters: Optional[Dict[str, Any]] = None,
+    metadata_filters: dict[str, Any] | None = None,
     max_results: int = 5,
     runtime: ToolRuntime = None,
 ) -> str:
@@ -141,7 +140,7 @@ async def synthesize_knowledge(
         return json.dumps(response, indent=2, default=str)
 
     except Exception as e:
-        return f"Error synthesizing knowledge: {str(e)}"
+        return f"Error synthesizing knowledge: {e!s}"
 
 
 # ============================================================================

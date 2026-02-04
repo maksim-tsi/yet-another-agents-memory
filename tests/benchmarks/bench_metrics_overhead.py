@@ -4,8 +4,10 @@ Benchmark metrics collection overhead.
 Verifies that metrics collection adds reasonable overhead to operations.
 """
 
-import pytest
 import time
+
+import pytest
+
 from src.storage.redis_adapter import RedisAdapter
 
 

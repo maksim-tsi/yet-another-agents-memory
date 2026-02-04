@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from utils.constants import DATA_DIR
 
 
@@ -32,10 +33,11 @@ def download_gdrive_file(file_id: str, destination: str | Path):
 
 
 def download_file(url: str, file: Path):
-    import tqdm
     from urllib.request import urlretrieve
 
-    pbar = tqdm.tqdm(unit="B", unit_scale=True, desc="Downloading {}".format(file.name))
+    import tqdm
+
+    pbar = tqdm.tqdm(unit="B", unit_scale=True, desc=f"Downloading {file.name}")
 
     def update_hook(block_number, read_size, total_size):
         pbar.total = total_size

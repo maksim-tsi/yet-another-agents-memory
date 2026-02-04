@@ -5,9 +5,9 @@ Provides convenient access to MAS Memory Layer components via
 the LangChain ToolRuntime pattern (ADR-007).
 """
 
-from typing import Optional, Any, Dict, TYPE_CHECKING, TypedDict, Annotated, List
-from dataclasses import dataclass
 import inspect
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Annotated, Any, TypedDict
 
 from langgraph.graph import add_messages
 
@@ -29,12 +29,12 @@ class MASContext:
     """
 
     session_id: str
-    user_id: Optional[str] = None
-    organization_id: Optional[str] = None
-    agent_id: Optional[str] = None
+    user_id: str | None = None
+    organization_id: str | None = None
+    agent_id: str | None = None
 
     # Memory system reference (injected at runtime)
-    memory_system: Optional[Any] = None  # Type: UnifiedMemorySystem
+    memory_system: Any | None = None  # Type: UnifiedMemorySystem
 
     # Configuration flags
     enable_l1_cache: bool = True
@@ -45,17 +45,17 @@ class MASContext:
 class AgentState(TypedDict):
     """LangGraph state for MAS agents."""
 
-    messages: Annotated[List[Dict[str, Any]], add_messages]
+    messages: Annotated[list[dict[str, Any]], add_messages]
     session_id: str
     turn_id: int
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
     # Memory tier content
-    active_context: List[str]
-    working_facts: List[Any]
-    episodic_chunks: List[str]
-    entity_graph: Dict[str, Any]
-    semantic_knowledge: List[Any]
+    active_context: list[str]
+    working_facts: list[Any]
+    episodic_chunks: list[str]
+    entity_graph: dict[str, Any]
+    semantic_knowledge: list[Any]
 
     # Agent output
     response: str
@@ -113,7 +113,7 @@ class MASToolRuntime:
             return context.session_id
         raise KeyError("session_id not found in ToolRuntime.context")
 
-    def get_user_id(self) -> Optional[str]:
+    def get_user_id(self) -> str | None:
         """
         Get current user ID from context.
 
@@ -127,7 +127,7 @@ class MASToolRuntime:
             return context.user_id
         return None
 
-    def get_agent_id(self) -> Optional[str]:
+    def get_agent_id(self) -> str | None:
         """
         Get current agent ID from context.
 
@@ -141,7 +141,7 @@ class MASToolRuntime:
             return context.agent_id
         return None
 
-    def get_organization_id(self) -> Optional[str]:
+    def get_organization_id(self) -> str | None:
         """
         Get current organization ID from context.
 
@@ -155,7 +155,7 @@ class MASToolRuntime:
             return context.organization_id
         return None
 
-    def get_memory_system(self) -> Optional[Any]:
+    def get_memory_system(self) -> Any | None:
         """
         Get reference to UnifiedMemorySystem from context.
 
@@ -236,7 +236,7 @@ class MASToolRuntime:
 
     # --- Store Access Methods ---
 
-    async def get_from_store(self, namespace: tuple, key: str) -> Optional[Any]:
+    async def get_from_store(self, namespace: tuple, key: str) -> Any | None:
         """
         Retrieve value from persistent store.
 
@@ -267,7 +267,7 @@ class MASToolRuntime:
 
     # --- Streaming Methods ---
 
-    async def stream_update(self, update: Dict[str, Any]) -> None:
+    async def stream_update(self, update: dict[str, Any]) -> None:
         """
         Stream custom update to client.
 
@@ -279,7 +279,7 @@ class MASToolRuntime:
 
     # --- Utility Methods ---
 
-    def get_tool_call_id(self) -> Optional[str]:
+    def get_tool_call_id(self) -> str | None:
         """
         Get unique ID for current tool invocation.
 
@@ -288,7 +288,7 @@ class MASToolRuntime:
         """
         return getattr(self._runtime, "tool_call_id", None)
 
-    def get_config(self) -> Optional[Any]:
+    def get_config(self) -> Any | None:
         """
         Get RunnableConfig for current execution.
 

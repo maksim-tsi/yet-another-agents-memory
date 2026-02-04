@@ -2,13 +2,14 @@
 Unit and integration tests for Neo4jAdapter.
 """
 
-import pytest
 import os
 import uuid
-import asyncio
 from unittest.mock import AsyncMock, Mock, patch
-from src.storage.neo4j_adapter import Neo4jAdapter
+
+import pytest
+
 from src.storage.base import StorageConnectionError, StorageDataError, StorageQueryError
+from src.storage.neo4j_adapter import Neo4jAdapter
 
 # ============================================================================
 # Unit Tests (with mocks)
@@ -63,7 +64,7 @@ class TestNeo4jAdapterUnit:
 
     async def test_disconnect(self, mock_neo4j_driver):
         """Test disconnection."""
-        mock_driver, mock_session = mock_neo4j_driver
+        mock_driver, _mock_session = mock_neo4j_driver
 
         with patch("src.storage.neo4j_adapter.AsyncGraphDatabase.driver", return_value=mock_driver):
             config = {"uri": "bolt://localhost:7687", "user": "neo4j", "password": "password"}
@@ -138,7 +139,7 @@ class TestNeo4jAdapterUnit:
 
     async def test_store_invalid_type(self, mock_neo4j_driver):
         """Test storage with invalid type."""
-        mock_driver, mock_session = mock_neo4j_driver
+        mock_driver, _mock_session = mock_neo4j_driver
 
         with patch("src.storage.neo4j_adapter.AsyncGraphDatabase.driver", return_value=mock_driver):
             config = {"uri": "bolt://localhost:7687", "user": "neo4j", "password": "password"}
@@ -152,7 +153,7 @@ class TestNeo4jAdapterUnit:
 
     async def test_store_missing_required_fields(self, mock_neo4j_driver):
         """Test storage with missing required fields."""
-        mock_driver, mock_session = mock_neo4j_driver
+        mock_driver, _mock_session = mock_neo4j_driver
 
         with patch("src.storage.neo4j_adapter.AsyncGraphDatabase.driver", return_value=mock_driver):
             config = {"uri": "bolt://localhost:7687", "user": "neo4j", "password": "password"}
@@ -236,7 +237,7 @@ class TestNeo4jAdapterUnit:
 
     async def test_search_missing_cypher(self, mock_neo4j_driver):
         """Test search with missing cypher query."""
-        mock_driver, mock_session = mock_neo4j_driver
+        mock_driver, _mock_session = mock_neo4j_driver
 
         with patch("src.storage.neo4j_adapter.AsyncGraphDatabase.driver", return_value=mock_driver):
             config = {"uri": "bolt://localhost:7687", "user": "neo4j", "password": "password"}
@@ -853,7 +854,7 @@ class TestNeo4jErrorHandling:
         mock_connect_result.single = AsyncMock()
 
         # Mock timeout error
-        mock_session.run = AsyncMock(side_effect=[mock_connect_result, asyncio.TimeoutError()])
+        mock_session.run = AsyncMock(side_effect=[mock_connect_result, TimeoutError()])
 
         with patch("src.storage.neo4j_adapter.AsyncGraphDatabase.driver", return_value=mock_driver):
             config = {"uri": "bolt://localhost:7687", "user": "neo4j", "password": "password"}
@@ -1486,7 +1487,7 @@ class TestNeo4jBatchStoreEdgeCases:
 
     async def test_batch_store_empty_list(self, mock_neo4j_driver):
         """Test batch store with empty list."""
-        mock_driver, mock_session = mock_neo4j_driver
+        mock_driver, _mock_session = mock_neo4j_driver
 
         with patch("src.storage.neo4j_adapter.AsyncGraphDatabase.driver", return_value=mock_driver):
             config = {"uri": "bolt://localhost:7687", "user": "neo4j", "password": "password"}

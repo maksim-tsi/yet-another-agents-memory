@@ -9,12 +9,11 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from src.storage.redis_adapter import RedisAdapter
+from src.storage.neo4j_adapter import Neo4jAdapter
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.qdrant_adapter import QdrantAdapter
-from src.storage.neo4j_adapter import Neo4jAdapter
+from src.storage.redis_adapter import RedisAdapter
 from src.storage.typesense_adapter import TypesenseAdapter
-
 
 THRESHOLD_P95_MS = 200.0
 ITERATIONS = 5

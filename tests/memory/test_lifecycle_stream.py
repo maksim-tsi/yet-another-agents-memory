@@ -11,13 +11,15 @@ Test Coverage:
 - Health checks
 """
 
+import asyncio
+import contextlib
+import json
+import os
+import uuid
+
 import pytest
 import pytest_asyncio
 import redis.asyncio as redis
-import os
-import uuid
-import json
-import asyncio
 
 from src.memory.lifecycle_stream import (
     LifecycleStreamConsumer,
@@ -91,10 +93,8 @@ async def cleanup_stream(redis_client):
 
     # Delete stream
     stream_key = NamespaceManager.lifecycle_stream()
-    try:
+    with contextlib.suppress(Exception):
         await redis_client.delete(stream_key)
-    except Exception:
-        pass
 
 
 class TestConsumerInitialization:

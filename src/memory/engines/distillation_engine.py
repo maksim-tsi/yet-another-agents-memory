@@ -13,20 +13,20 @@ Architecture:
 """
 
 import logging
-import uuid
-from typing import Dict, List, Optional, Any
 import time
-import yaml
+import uuid
 from pathlib import Path
+from typing import Any
 
+import yaml
+
+from ...storage.metrics.collector import MetricsCollector
+from ...utils.llm_client import LLMClient
+from ...utils.providers import BaseProvider
 from ..models import Episode, KnowledgeDocument
 from ..tiers.episodic_memory_tier import EpisodicMemoryTier
 from ..tiers.semantic_memory_tier import SemanticMemoryTier
-from ...utils.llm_client import LLMClient
-from ...utils.providers import BaseProvider
-from ...storage.metrics.collector import MetricsCollector
 from .base_engine import BaseEngine
-
 
 logger = logging.getLogger(__name__)
 
@@ -46,15 +46,15 @@ class DistillationEngine(BaseEngine):
 
     def __init__(
         self,
-        episodic_tier: Optional[EpisodicMemoryTier] = None,
-        semantic_tier: Optional[SemanticMemoryTier] = None,
-        llm_provider: Optional[BaseProvider] = None,
-        domain_config_path: Optional[str] = None,
+        episodic_tier: EpisodicMemoryTier | None = None,
+        semantic_tier: SemanticMemoryTier | None = None,
+        llm_provider: BaseProvider | None = None,
+        domain_config_path: str | None = None,
         episode_threshold: int = 5,
         metrics_enabled: bool = True,
-        config: Optional[Dict[str, Any]] = None,
-        l3_tier: Optional[EpisodicMemoryTier] = None,
-        l4_tier: Optional[SemanticMemoryTier] = None,
+        config: dict[str, Any] | None = None,
+        l3_tier: EpisodicMemoryTier | None = None,
+        l4_tier: SemanticMemoryTier | None = None,
         **_: Any,
     ):
         """
@@ -96,7 +96,7 @@ class DistillationEngine(BaseEngine):
             f"domain={self.domain_config.get('domain', {}).get('name', 'default')}"
         )
 
-    def _load_domain_config(self, config_path: Optional[str]) -> Dict[str, Any]:
+    def _load_domain_config(self, config_path: str | None) -> dict[str, Any]:
         """Load domain configuration from YAML file."""
         if config_path is None:
             # Default to container logistics domain
@@ -108,7 +108,7 @@ class DistillationEngine(BaseEngine):
                 logger.warning(f"Domain config not found: {config_path}, using defaults")
                 return self._get_default_config()
 
-            with open(path, "r") as f:
+            with open(path) as f:
                 config = yaml.safe_load(f)
                 logger.info(f"Loaded domain config: {config.get('domain', {}).get('name')}")
                 return config
@@ -116,7 +116,7 @@ class DistillationEngine(BaseEngine):
             logger.error(f"Failed to load domain config: {e}")
             return self._get_default_config()
 
-    def _get_default_config(self) -> Dict[str, Any]:
+    def _get_default_config(self) -> dict[str, Any]:
         """Return default configuration if config file is not available."""
         return {
             "domain": {"name": "default"},
@@ -144,7 +144,7 @@ class DistillationEngine(BaseEngine):
             },
         }
 
-    async def process(self, **kwargs) -> Dict[str, Any]:
+    async def process(self, **kwargs) -> dict[str, Any]:
         """
         Main processing method: Check for episodes and create knowledge documents.
 
@@ -231,15 +231,15 @@ class DistillationEngine(BaseEngine):
                 return {"status": "error", "error": str(e)}
 
     async def distill(
-        self, session_id: Optional[str] = None, track_provenance: bool = True, **kwargs
-    ) -> Dict[str, Any]:
+        self, session_id: str | None = None, track_provenance: bool = True, **kwargs
+    ) -> dict[str, Any]:
         """Backwards-compatible alias for process()."""
         return await self.process(
             session_id=session_id, track_provenance=track_provenance, force_process=True, **kwargs
         )
 
     async def _count_episodes(
-        self, session_id: Optional[str] = None, time_range: Optional[tuple] = None
+        self, session_id: str | None = None, time_range: tuple | None = None
     ) -> int:
         """
         Count episodes in L3 that match the criteria.
@@ -261,8 +261,8 @@ class DistillationEngine(BaseEngine):
             return 0
 
     async def _retrieve_episodes(
-        self, session_id: Optional[str] = None, time_range: Optional[tuple] = None, limit: int = 100
-    ) -> List[Episode]:
+        self, session_id: str | None = None, time_range: tuple | None = None, limit: int = 100
+    ) -> list[Episode]:
         """
         Retrieve episodes from L3 for knowledge synthesis.
 
@@ -276,7 +276,7 @@ class DistillationEngine(BaseEngine):
         """
         try:
             if time_range:
-                start_time, end_time = time_range
+                _start_time, _end_time = time_range
                 episodes = await self.episodic_tier.query(filters=None, limit=limit)
             else:
                 episodes = await self.episodic_tier.query(
@@ -305,11 +305,11 @@ class DistillationEngine(BaseEngine):
 
     async def _create_knowledge_document(
         self,
-        episodes: List[Episode],
+        episodes: list[Episode],
         knowledge_type: str,
-        type_config: Dict[str, Any],
-        session_id: Optional[str] = None,
-    ) -> Optional[KnowledgeDocument]:
+        type_config: dict[str, Any],
+        session_id: str | None = None,
+    ) -> KnowledgeDocument | None:
         """
         Create a knowledge document from episodes using LLM.
 
@@ -382,7 +382,7 @@ Provide a structured response with the following fields:
             return None
 
     def _create_rule_based_document(
-        self, episodes: List[Episode], knowledge_type: str, session_id: Optional[str]
+        self, episodes: list[Episode], knowledge_type: str, session_id: str | None
     ) -> KnowledgeDocument:
         """Fallback synthesis when LLM output cannot be parsed."""
         summaries = [ep.summary for ep in episodes if getattr(ep, "summary", "")]
@@ -401,7 +401,7 @@ Provide a structured response with the following fields:
             domain=self.domain_config.get("domain", {}).get("name"),
         )
 
-    def _parse_llm_response(self, response: str, knowledge_type: str) -> tuple[str, str, List[str]]:
+    def _parse_llm_response(self, response: str, knowledge_type: str) -> tuple[str, str, list[str]]:
         """
         Parse LLM response into structured components.
 
@@ -443,7 +443,7 @@ Provide a structured response with the following fields:
 
         return content, title, key_points
 
-    def _extract_metadata(self, episodes: List[Episode]) -> Dict[str, Any]:
+    def _extract_metadata(self, episodes: list[Episode]) -> dict[str, Any]:
         """
         Extract rich metadata from episodes.
 
@@ -505,7 +505,7 @@ Provide a structured response with the following fields:
 
         return metadata
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check health of distillation engine components.
 

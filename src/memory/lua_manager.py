@@ -28,10 +28,14 @@ Usage:
     )
 """
 
-import redis.asyncio as redis
-from typing import Dict, Any, List
-from pathlib import Path
+import asyncio
 import logging
+from collections.abc import Awaitable
+from pathlib import Path
+from typing import Any, cast
+
+import redis.asyncio as redis
+from redis.exceptions import NoScriptError
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +62,7 @@ class LuaScriptManager:
         """
         self.redis = redis_client
         self._script_dir = Path(__file__).parent / "lua"
-        self._script_shas: Dict[str, str] = {}
+        self._script_shas: dict[str, str] = {}
         self._scripts_loaded = False
 
     async def load_scripts(self) -> None:
@@ -103,8 +107,8 @@ class LuaScriptManager:
     async def _execute_script(
         self,
         script_name: str,
-        keys: List[str],
-        args: List[Any],
+        keys: list[str],
+        args: list[Any],
     ) -> Any:
         """
         Execute a cached Lua script using EVALSHA with EVAL fallback.
@@ -130,15 +134,19 @@ class LuaScriptManager:
 
         try:
             # Try EVALSHA first (cached script)
-            result = await self.redis.evalsha(sha, len(keys), *keys, *args)
+            result = self.redis.evalsha(sha, len(keys), *keys, *args)
+            if asyncio.iscoroutine(result):
+                return await cast(Awaitable[Any], result)
             return result
 
-        except redis.NoScriptError:
+        except NoScriptError:
             # Script evicted from cache - reload and retry
             logger.warning(f"Script {script_name} evicted from cache, reloading...")
             await self.load_scripts()
             sha = self._script_shas[script_name]
-            result = await self.redis.evalsha(sha, len(keys), *keys, *args)
+            result = self.redis.evalsha(sha, len(keys), *keys, *args)
+            if asyncio.iscoroutine(result):
+                return await cast(Awaitable[Any], result)
             return result
 
     # --- High-Level Script Execution Methods ---
@@ -149,7 +157,7 @@ class LuaScriptManager:
         l2_index_key: str,
         ciar_threshold: float,
         batch_size: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Execute atomic L1→L2 promotion with CIAR filtering.
 
@@ -182,13 +190,14 @@ class LuaScriptManager:
         if isinstance(result, bytes):
             result = result.decode("utf-8")
 
-        return json.loads(result)
+        parsed = json.loads(result)
+        return cast(list[dict[str, Any]], parsed)
 
     async def execute_workspace_update(
         self,
         workspace_key: str,
         expected_version: int,
-        new_data: Dict[str, Any],
+        new_data: dict[str, Any],
         update_type: str = "replace",
     ) -> int:
         """
@@ -232,7 +241,7 @@ class LuaScriptManager:
     async def execute_smart_append(
         self,
         list_key: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         window_size: int,
         ttl_seconds: int,
     ) -> int:
@@ -270,7 +279,7 @@ class LuaScriptManager:
 
         return int(result)
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check if all scripts are loaded and cached in Redis.
 

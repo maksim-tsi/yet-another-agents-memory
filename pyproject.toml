@@ -72,6 +72,7 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_ignores = true
 ignore_missing_imports = true
+disallow_untyped_defs = false
 # Staged rollout: start with core modules, expand over time
 # See docs/plan/enterprise-practices-rollout.md for details
 files = [

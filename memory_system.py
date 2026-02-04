@@ -1,48 +1,49 @@
 # file: memory_system.py
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field, ValidationError
-from datetime import datetime
-import uuid
-import redis
 import json
+import uuid
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Any, Literal
+
+import redis
+from pydantic import BaseModel, Field, ValidationError
+
+# Import the facade for the persistent knowledge layer
+from knowledge_store_manager import KnowledgeStoreManager
+from src.memory.engines.consolidation_engine import ConsolidationEngine
+from src.memory.engines.distillation_engine import DistillationEngine
+
+# Import lifecycle engines
+from src.memory.engines.promotion_engine import PromotionEngine
+
+# Import data models
+from src.memory.models import ContextBlock, Episode, Fact, KnowledgeDocument, SearchWeights
 
 # Import tier classes
 from src.memory.tiers import (
     ActiveContextTier,
-    WorkingMemoryTier,
     EpisodicMemoryTier,
     SemanticMemoryTier,
+    WorkingMemoryTier,
 )
-
-# Import lifecycle engines
-from src.memory.engines.promotion_engine import PromotionEngine
-from src.memory.engines.consolidation_engine import ConsolidationEngine
-from src.memory.engines.distillation_engine import DistillationEngine
-
-# Import data models
-from src.memory.models import Fact, Episode, KnowledgeDocument, ContextBlock, SearchWeights
-
-# Import the facade for the persistent knowledge layer
-from knowledge_store_manager import KnowledgeStoreManager
 
 # --- Data Schemas for Operating Memory (Data Contracts) ---
 
 
 class PersonalMemoryState(BaseModel):
     agent_id: str
-    current_task_id: Optional[str] = None
-    scratchpad: Dict[str, Any] = Field(default_factory=dict)
-    promotion_candidates: Dict[str, Any] = Field(default_factory=dict)
+    current_task_id: str | None = None
+    scratchpad: dict[str, Any] = Field(default_factory=dict)
+    promotion_candidates: dict[str, Any] = Field(default_factory=dict)
     last_updated: datetime = Field(default_factory=datetime.utcnow)
 
 
 class SharedWorkspaceState(BaseModel):
     event_id: str = Field(default_factory=lambda: f"evt_{uuid.uuid4().hex}")
     status: Literal["active", "resolved", "cancelled"] = "active"
-    shared_data: Dict[str, Any] = Field(default_factory=dict)
-    participating_agents: List[str] = Field(default_factory=list)
+    shared_data: dict[str, Any] = Field(default_factory=dict)
+    participating_agents: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_updated: datetime = Field(default_factory=datetime.utcnow)
 
@@ -74,7 +75,7 @@ class HybridMemorySystem(ABC):
         pass
 
     @abstractmethod
-    def publish_update(self, event_id: str, update_summary: Dict) -> None:
+    def publish_update(self, event_id: str, update_summary: dict) -> None:
         pass
 
     # --- Persistent Knowledge Methods ---
@@ -84,34 +85,34 @@ class HybridMemorySystem(ABC):
         store_type: Literal["vector", "graph", "search"],
         query_text: str,
         top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """Queries the persistent knowledge layer."""
         pass
 
     # --- Lifecycle Engine Methods ---
     @abstractmethod
-    async def run_promotion_cycle(self, session_id: str) -> List[Fact]:
+    async def run_promotion_cycle(self, session_id: str) -> list[Fact]:
         """Execute L1→L2 promotion cycle with CIAR filtering."""
         pass
 
     @abstractmethod
-    async def run_consolidation_cycle(self, session_id: str) -> List[Episode]:
+    async def run_consolidation_cycle(self, session_id: str) -> list[Episode]:
         """Execute L2→L3 consolidation cycle."""
         pass
 
     @abstractmethod
     async def run_distillation_cycle(
-        self, session_id: Optional[str] = None
-    ) -> List[KnowledgeDocument]:
+        self, session_id: str | None = None
+    ) -> list[KnowledgeDocument]:
         """Execute L3→L4 distillation cycle."""
         pass
 
     # --- Cross-Tier Query Methods ---
     @abstractmethod
     async def query_memory(
-        self, session_id: str, query: str, limit: int = 10, weights: Optional[SearchWeights] = None
-    ) -> List[Dict[str, Any]]:
+        self, session_id: str, query: str, limit: int = 10, weights: SearchWeights | None = None
+    ) -> list[dict[str, Any]]:
         """Hybrid semantic search across L2, L3, and L4 tiers."""
         pass
 
@@ -139,13 +140,13 @@ class UnifiedMemorySystem(HybridMemorySystem):
         self,
         redis_client: redis.StrictRedis,
         knowledge_manager: KnowledgeStoreManager,
-        l1_tier: Optional[ActiveContextTier] = None,
-        l2_tier: Optional[WorkingMemoryTier] = None,
-        l3_tier: Optional[EpisodicMemoryTier] = None,
-        l4_tier: Optional[SemanticMemoryTier] = None,
-        promotion_engine: Optional[PromotionEngine] = None,
-        consolidation_engine: Optional[ConsolidationEngine] = None,
-        distillation_engine: Optional[DistillationEngine] = None,
+        l1_tier: ActiveContextTier | None = None,
+        l2_tier: WorkingMemoryTier | None = None,
+        l3_tier: EpisodicMemoryTier | None = None,
+        l4_tier: SemanticMemoryTier | None = None,
+        promotion_engine: PromotionEngine | None = None,
+        consolidation_engine: ConsolidationEngine | None = None,
+        distillation_engine: DistillationEngine | None = None,
     ):
         """
         Initializes the memory system with clients for all layers.
@@ -234,7 +235,7 @@ class UnifiedMemorySystem(HybridMemorySystem):
         }
         self.publish_update(state.event_id, update_summary)
 
-    def publish_update(self, event_id: str, update_summary: Dict) -> None:
+    def publish_update(self, event_id: str, update_summary: dict) -> None:
         channel = self._get_channel_key(event_id)
         self.redis_client.publish(channel, json.dumps(update_summary))
 
@@ -244,8 +245,8 @@ class UnifiedMemorySystem(HybridMemorySystem):
         store_type: Literal["vector", "graph", "search"],
         query_text: str,
         top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """Delegates the query to the knowledge store manager."""
         return self.knowledge_manager.query(
             store_type=store_type, query_text=query_text, top_k=top_k, filters=filters
@@ -253,7 +254,7 @@ class UnifiedMemorySystem(HybridMemorySystem):
 
     # --- Lifecycle Engine Implementation ---
 
-    async def run_promotion_cycle(self, session_id: str) -> List[Fact]:
+    async def run_promotion_cycle(self, session_id: str) -> list[Fact]:
         """
         Execute L1→L2 promotion cycle with CIAR filtering.
 
@@ -275,7 +276,7 @@ class UnifiedMemorySystem(HybridMemorySystem):
         facts = await self.promotion_engine.promote_session(session_id)
         return facts
 
-    async def run_consolidation_cycle(self, session_id: str) -> List[Episode]:
+    async def run_consolidation_cycle(self, session_id: str) -> list[Episode]:
         """
         Execute L2→L3 consolidation cycle.
 
@@ -298,8 +299,8 @@ class UnifiedMemorySystem(HybridMemorySystem):
         return episodes
 
     async def run_distillation_cycle(
-        self, session_id: Optional[str] = None
-    ) -> List[KnowledgeDocument]:
+        self, session_id: str | None = None
+    ) -> list[KnowledgeDocument]:
         """
         Execute L3→L4 distillation cycle.
 
@@ -327,8 +328,8 @@ class UnifiedMemorySystem(HybridMemorySystem):
     # --- Cross-Tier Query Implementation ---
 
     async def query_memory(
-        self, session_id: str, query: str, limit: int = 10, weights: Optional[SearchWeights] = None
-    ) -> List[Dict[str, Any]]:
+        self, session_id: str, query: str, limit: int = 10, weights: SearchWeights | None = None
+    ) -> list[dict[str, Any]]:
         """
         Hybrid semantic search across L2, L3, and L4 tiers.
 

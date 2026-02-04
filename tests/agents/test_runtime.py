@@ -2,12 +2,13 @@
 Tests for MASToolRuntime wrapper.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
+from unittest.mock import AsyncMock, Mock
 
-from src.agents.runtime import MASToolRuntime, MASContext
+import pytest
+
+from src.agents.runtime import MASContext, MASToolRuntime
 
 
 @dataclass
@@ -16,10 +17,10 @@ class MockToolRuntime:
 
     context: Any
     state: dict
-    store: Optional[Any] = None
-    stream_writer: Optional[Any] = None
-    tool_call_id: Optional[str] = None
-    config: Optional[Any] = None
+    store: Any | None = None
+    stream_writer: Any | None = None
+    tool_call_id: str | None = None
+    config: Any | None = None
 
 
 class TestMASContext:

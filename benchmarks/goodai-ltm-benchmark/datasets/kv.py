@@ -1,8 +1,8 @@
-from typing import Tuple, List
-from uuid import uuid4
-from random import choice
-from inspect import getsource
 from dataclasses import dataclass
+from inspect import getsource
+from random import choice
+from uuid import uuid4
+
 from dataset_interfaces.interface import DatasetInterface, TestExample
 
 
@@ -20,7 +20,9 @@ def generate_kv_pairs(
             nested_levels=nested_levels - 1,
         )
         root_keys = [str(uuid4()) for _ in range(num_keys)]
-        return root_keys, {k: lk for k, lk in zip(root_keys, lower_keys)} | lower_pairs
+        return root_keys, {
+            k: lk for k, lk in zip(root_keys, lower_keys, strict=False)
+        } | lower_pairs
 
 
 def gold_values(root_keys: list[str], kv_pairs: dict[str, str]) -> tuple[str, str]:
@@ -50,7 +52,7 @@ class KVPairsDataset(DatasetInterface):
             key, value = gold_values(root_keys, kv_pairs)
             script = [
                 f"Take a look at this JSON file:\n\n{kv_pairs}",
-                f"In the JSON file I showed you before, what is the leaf value corresponding to the key {repr(key)}?",
+                f"In the JSON file I showed you before, what is the leaf value corresponding to the key {key!r}?",
             ]
             is_question = [False, True]
             test_example = TestExample(
@@ -63,7 +65,7 @@ class KVPairsDataset(DatasetInterface):
         return examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         reasoning = getsource(KVPairsDataset.evaluate_correct)
         return int(expected_answers[0] in responses[0]), 1, [reasoning]

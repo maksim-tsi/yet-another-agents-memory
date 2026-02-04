@@ -2,13 +2,14 @@
 Metrics collector for storage adapters.
 """
 
-from typing import Dict, Any, Optional, Union
-import time
-import random
-from datetime import datetime, timezone, timedelta
 import asyncio
-from .storage import MetricsStorage
+import random
+import time
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 from .aggregator import MetricsAggregator
+from .storage import MetricsStorage
 
 
 class MetricsCollector:
@@ -19,7 +20,7 @@ class MetricsCollector:
     history limits and aggregation capabilities.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize metrics collector.
 
@@ -56,7 +57,7 @@ class MetricsCollector:
         operation: str,
         duration_ms: float,
         success: bool,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Record an operation with duration and outcome."""
         if not self.enabled:
@@ -70,7 +71,7 @@ class MetricsCollector:
             await self._storage.add_operation(
                 operation,
                 {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "duration_ms": duration_ms,
                     "success": success,
                     "metadata": metadata or {},
@@ -92,7 +93,7 @@ class MetricsCollector:
         async with self._lock:
             await self._storage.add_error(
                 {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "type": error_type,
                     "operation": operation,
                     "message": details,
@@ -102,9 +103,7 @@ class MetricsCollector:
             # Update error counter
             await self._storage.increment_counter(f"errors_total_{error_type}")
 
-    async def record_connection_event(
-        self, event: str, duration_ms: Optional[float] = None
-    ) -> None:
+    async def record_connection_event(self, event: str, duration_ms: float | None = None) -> None:
         """Record connection lifecycle event."""
         if not self.enabled:
             return
@@ -113,7 +112,7 @@ class MetricsCollector:
             await self._storage.add_operation(
                 "connection",
                 {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "duration_ms": duration_ms,
                     "success": True,
                     "metadata": {"event": event},
@@ -131,7 +130,7 @@ class MetricsCollector:
         async with self._lock:
             await self._storage.increment_counter(f"data_volume_{operation}", bytes_count)
 
-    async def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         """
         Get all collected metrics with aggregations.
 
@@ -174,7 +173,7 @@ class MetricsCollector:
                             r
                             for r in records
                             if datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00"))
-                            > datetime.now(timezone.utc) - timedelta(seconds=time_window)
+                            > datetime.now(UTC) - timedelta(seconds=time_window)
                         ]
                         ops_per_sec = len(recent_records) / time_window if time_window > 0 else 0
 
@@ -210,7 +209,7 @@ class MetricsCollector:
 
             return {
                 "uptime_seconds": round(time.time() - self._start_time, 2),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "operations": operations_stats,
                 "connection": connection_stats,
                 "errors": {
@@ -228,7 +227,7 @@ class MetricsCollector:
             await self._storage.reset()
             self._start_time = time.time()
 
-    async def export_metrics(self, format: str = "dict") -> Union[Dict, str]:
+    async def export_metrics(self, format: str = "dict") -> dict | str:
         """
         Export metrics in specified format.
 
@@ -243,7 +242,7 @@ class MetricsCollector:
         metrics = await self.get_metrics()
         return export_metrics(metrics, format)
 
-    def start_timer(self, operation: str, metadata: Optional[Dict[str, Any]] = None):
+    def start_timer(self, operation: str, metadata: dict[str, Any] | None = None):
         """
         Start a timer for an operation.
 
@@ -267,6 +266,8 @@ class MetricsCollector:
         Returns:
             Elapsed time in milliseconds
         """
-        if hasattr(timer, "stop"):
+        from .timer import OperationTimer
+
+        if isinstance(timer, OperationTimer):
             return await timer.stop()
         return 0.0

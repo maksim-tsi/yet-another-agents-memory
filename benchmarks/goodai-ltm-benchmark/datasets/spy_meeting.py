@@ -1,10 +1,8 @@
 import re
 from dataclasses import dataclass
-from typing import Tuple, List
-
-from faker import Faker
 
 from dataset_interfaces.interface import DatasetInterface, TestExample
+from faker import Faker
 
 PLACE_TEMPLATE = "{}: We will rendezvous {}."
 TIME_TEMPLATE = "{}: The time we will meet is {}."
@@ -55,7 +53,7 @@ class SpyMeetingDataset(DatasetInterface):
             names = []
             expected_responses = []
             faker.unique.clear()
-            for k in range(3):
+            for _k in range(3):
                 names.append(faker.unique.name())
 
             is_question = [False]
@@ -68,7 +66,7 @@ class SpyMeetingDataset(DatasetInterface):
                 (CODED_INFO_PLACE, PLACE_TEMPLATE),
             ]
 
-            for k in range(3):
+            for _k in range(3):
                 name = self.random.choice(names)
                 names.remove(name)
                 topic = self.random.choice(topic_list)
@@ -98,8 +96,8 @@ class SpyMeetingDataset(DatasetInterface):
         return examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[float, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[float, int, list[str]]:
         reasoning = []
         response = responses[0]
         correct_score = 0

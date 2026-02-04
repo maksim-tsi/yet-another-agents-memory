@@ -9,17 +9,17 @@ This engine implements ADR-003's batch processing strategy:
 """
 
 import logging
-from typing import Dict, Any, List, Optional
-from unittest.mock import Mock, MagicMock, AsyncMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
 
+from src.memory.ciar_scorer import CIARScorer
 from src.memory.engines.base_engine import BaseEngine
-from src.memory.engines.topic_segmenter import TopicSegmenter, TopicSegment
 from src.memory.engines.fact_extractor import FactExtractor
+from src.memory.engines.topic_segmenter import TopicSegment, TopicSegmenter
+from src.memory.models import Fact, FactCategory, FactType
 from src.memory.tiers.active_context_tier import ActiveContextTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
-from src.memory.ciar_scorer import CIARScorer
-from src.memory.models import Fact, FactType, FactCategory
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class PromotionEngine(BaseEngine):
     1. Check L1 turn count against threshold (10-20 turns)
     2. If threshold met, retrieve batch from ActiveContextTier
     3. Use TopicSegmenter for batch compression and segmentation
-    4. Score each segment using CIAR (Certainty × Impact × Age × Recency)
+    4. Score each segment using CIAR (Certainty x Impact x Age x Recency)
     5. Extract facts from significant segments
     6. Store facts with segment metadata in WorkingMemoryTier (L2)
     """
@@ -48,7 +48,7 @@ class PromotionEngine(BaseEngine):
         topic_segmenter: TopicSegmenter,
         fact_extractor: FactExtractor,
         ciar_scorer: CIARScorer,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ):
         super().__init__()
         self.l1 = l1_tier
@@ -78,7 +78,7 @@ class PromotionEngine(BaseEngine):
         self.batch_min_turns = self.config.get("batch_min_turns", self.DEFAULT_BATCH_MIN_TURNS)
         self.batch_max_turns = self.config.get("batch_max_turns", self.DEFAULT_BATCH_MAX_TURNS)
 
-    async def process(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def process(self, session_id: str | None = None) -> dict[str, Any]:
         """
         Execute batch promotion cycle for a session.
 
@@ -93,13 +93,13 @@ class PromotionEngine(BaseEngine):
 
         return await self.process_session(session_id)
 
-    async def process_session(self, session_id: str) -> Dict[str, Any]:
+    async def process_session(self, session_id: str) -> dict[str, Any]:
         """
         Process a specific session for batch topic segmentation and promotion.
 
         This implements ADR-003's batch processing strategy.
         """
-        stats = {
+        stats: dict[str, int | str] = {
             "session_id": session_id,
             "turns_retrieved": 0,
             "segments_created": 0,
@@ -109,6 +109,10 @@ class PromotionEngine(BaseEngine):
             "facts_filtered": 0,
             "errors": 0,
         }
+
+        def inc(key: str, amount: int = 1) -> None:
+            """Increment a stats counter."""
+            stats[key] = int(stats.get(key, 0)) + amount  # type: ignore[arg-type]
 
         try:
             # 1. Retrieve turns from L1
@@ -168,7 +172,7 @@ class PromotionEngine(BaseEngine):
                         )
                         continue
 
-                    stats["segments_promoted"] += 1
+                    inc("segments_promoted")
 
                     # 6. Extract facts from significant segment
                     # Use segment summary as input to fact extractor
@@ -196,7 +200,7 @@ class PromotionEngine(BaseEngine):
                             topic_label=segment.topic,
                         )
                         facts = [fallback_fact]
-                    stats["facts_extracted"] += len(facts)
+                    inc("facts_extracted", len(facts))
 
                     # 7. Store facts with segment context in L2
                     for fact in facts:
@@ -224,16 +228,16 @@ class PromotionEngine(BaseEngine):
                                 ciar_threshold,
                                 fact.ciar_score,
                             )
-                            stats["facts_filtered"] += 1
+                            inc("facts_filtered")
                             continue
 
                         # Store in L2
                         await self.l2.store(fact.model_dump())
-                        stats["facts_promoted"] += 1
+                        inc("facts_promoted")
 
                 except Exception as e:
                     logger.error(f"Error processing segment '{segment.topic}': {e}")
-                    stats["errors"] += 1
+                    inc("errors")
                     continue
             # Ensure at least one fact is promoted even when LLM paths fail
             if (
@@ -255,14 +259,14 @@ class PromotionEngine(BaseEngine):
                     topic_segment_id="fallback",
                 )
                 await self.l2.store(fallback_fact.model_dump())
-                stats["facts_extracted"] += 1
-                stats["facts_promoted"] += 1
+                inc("facts_extracted")
+                inc("facts_promoted")
 
             return stats
 
         except Exception as e:
             logger.error(f"Error in batch promotion for session {session_id}: {e}")
-            stats["errors"] += 1
+            inc("errors")
             stats["last_error"] = str(e)
             return stats
 
@@ -280,12 +284,12 @@ class PromotionEngine(BaseEngine):
             float: CIAR score (0.0-1.0)
         """
         # For fresh segments: age_decay = 1.0, recency_boost = 1.0
-        # CIAR = (Certainty × Impact) × Age × Recency
+        # CIAR = (Certainty x Impact) x Age x Recency
         ciar_score = (segment.certainty * segment.impact) * 1.0 * 1.0
         return round(ciar_score, 4)
 
     def _format_segment_for_extraction(
-        self, segment: TopicSegment, turns: List[Dict[str, Any]]
+        self, segment: TopicSegment, turns: list[dict[str, Any]]
     ) -> str:
         """
         Format a segment for fact extraction.
@@ -314,7 +318,7 @@ class PromotionEngine(BaseEngine):
 
         return "\n".join(lines)
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Check health of dependencies."""
         l1_health = await self.l1.health_check()
         l2_health = await self.l2.health_check()

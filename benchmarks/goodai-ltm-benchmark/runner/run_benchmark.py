@@ -1,42 +1,41 @@
 import logging
-import os.path
 import os
+import os.path
 import re
 import shutil
 import time
-from typing import Optional
+from pathlib import Path
 
 import click
 import yaml
-
-from pathlib import Path
-from dataset_interfaces.factory import DatasetFactory, DATASETS
+from dataset_interfaces.factory import DATASETS, DatasetFactory
 from dataset_interfaces.interface import TestExample
-from model_interfaces.length_bias_agent import LengthBiasAgent
-from model_interfaces.interface import ChatSession
-from model_interfaces.llm_interface import LLMChatSession, TimestampLLMChatSession
-from model_interfaces.memgpt_interface import MemGPTChatSession
 from model_interfaces.cost_estimation import CostEstimationChatSession
-from model_interfaces.human import HumanChatSession
-from model_interfaces.huggingface_interface import HFChatSession
 from model_interfaces.gemini_interface import GeminiProInterface
-from model_interfaces.mas_agents import MASFullSession, MASRAGSession, MASFullContextSession
-from runner.config import RunConfig
-from runner.scheduler import TestRunner
-from utils.ui import ask_yesno, colour_print
+from model_interfaces.huggingface_interface import HFChatSession
+from model_interfaces.human import HumanChatSession
+from model_interfaces.interface import ChatSession
+from model_interfaces.length_bias_agent import LengthBiasAgent
+from model_interfaces.llm_interface import LLMChatSession, TimestampLLMChatSession
+from model_interfaces.mas_agents import MASFullContextSession, MASFullSession, MASRAGSession
+from model_interfaces.memgpt_interface import MemGPTChatSession
+from utils.constants import MAIN_DIR, TESTS_DIR
 from utils.files import (
-    gather_testdef_files,
-    gather_result_files,
-    make_run_path,
-    make_config_path,
     gather_persistence_files,
+    gather_result_files,
+    gather_testdef_files,
+    make_config_path,
+    make_run_path,
 )
 from utils.llm import GPT_4_TURBO_BEST
-from utils.constants import MAIN_DIR, TESTS_DIR
+from utils.ui import ask_yesno, colour_print
+
+from runner.config import RunConfig
+from runner.scheduler import TestRunner
 
 
 def get_chat_session(
-    name: str, max_prompt_size: Optional[int], run_name: str, is_local=False
+    name: str, max_prompt_size: int | None, run_name: str, is_local=False
 ) -> ChatSession:
     kwargs = {"max_prompt_size": max_prompt_size} if max_prompt_size is not None else {}
     kwargs["run_name"] = run_name
@@ -58,11 +57,11 @@ def get_chat_session(
         return MASFullContextSession(**kwargs)
 
     if name.startswith("ltm_agent_"):
-        from model_interfaces.ltm_agent_wrapper import LTMAgentWrapper, LTMAgentVariant
+        from model_interfaces.ltm_agent_wrapper import LTMAgentVariant, LTMAgentWrapper
 
         match = re.match(r"^ltm_agent_(?P<variant>\d)(?:\((?P<model>.+)\))?$", name)
         if match is None:
-            raise ValueError(f"Unrecognized LTM Agent {repr(name)}.")
+            raise ValueError(f"Unrecognized LTM Agent {name!r}.")
         params = match.groupdict()
         model = params["model"] or GPT_4_TURBO_BEST
         variant = {
@@ -71,15 +70,15 @@ def get_chat_session(
             "3": LTMAgentVariant.TEXT_SCRATCHPAD,
         }.get(params["variant"], None)
         if variant is None:
-            raise ValueError(f"Unrecognized LTM Agent variant {repr(params['variant'])}.")
+            raise ValueError(f"Unrecognized LTM Agent variant {params['variant']!r}.")
         return LTMAgentWrapper(model=model, variant=variant, **kwargs)
     if name == "length_bias":
         return LengthBiasAgent(model=GPT_4_TURBO_BEST, **kwargs)
     if name.startswith("cost("):
-        in_cost, out_cost = [
+        in_cost, out_cost = (
             float(p.strip()) / 1_000
             for p in name.removeprefix("cost(").removesuffix(")").split(",")
-        ]
+        )
         return CostEstimationChatSession(cost_in_token=in_cost, cost_out_token=out_cost, **kwargs)
     if name == "human":
         return HumanChatSession(**kwargs)
@@ -88,10 +87,7 @@ def get_chat_session(
         return HFChatSession(model=name, **kwargs)
 
     try:
-        if name.startswith("ts-"):
-            cls = TimestampLLMChatSession
-        else:
-            cls = LLMChatSession
+        cls = TimestampLLMChatSession if name.startswith("ts-") else LLMChatSession
 
         return cls(model=name.removeprefix("ts-"), **kwargs)
     except ValueError:
@@ -158,24 +154,23 @@ def check_result_files(
         for file in all_files:
             os.remove(file)
         all_files = []
-    if len(all_files) > 0:
-        if not pass_default:
+    if all_files and not pass_default:
+        if not ask_yesno(
+            f"There are {len(all_files)} existing file that have been found for run name '{run_name}' "
+            f"and agent '{agent_name}'.",
+            question="Do you want to resume the run?",
+        ):
             if not ask_yesno(
-                f"There are {len(all_files)} existing file that have been found for run name '{run_name}' "
-                f"and agent '{agent_name}'.",
-                question="Do you want to resume the run?",
+                "ALL RESULT FILES WILL BE LOST for the current run name and agent.",
+                default_yes=False,
             ):
-                if not ask_yesno(
-                    "ALL RESULT FILES WILL BE LOST for the current run name and agent.",
-                    default_yes=False,
-                ):
-                    colour_print("red", "Run aborted.")
-                    exit()
-                for file in all_files:
-                    os.remove(file)
-                resume = False
-            else:
-                resume = True
+                colour_print("red", "Run aborted.")
+                exit()
+            for file in all_files:
+                os.remove(file)
+            resume = False
+        else:
+            resume = True
     return resume
 
 
@@ -211,7 +206,7 @@ def check_result_files(
 def main(
     configuration: str,
     agent_name: str,
-    max_prompt_size: Optional[int],
+    max_prompt_size: int | None,
     y: bool = False,
     local: bool = False,
     isolated: bool = False,
@@ -222,7 +217,7 @@ def main(
 def _main(
     configuration: str,
     agent_name: str,
-    max_prompt_size: Optional[int],
+    max_prompt_size: int | None,
     y: bool = False,
     is_local: bool = False,
     isolated: bool = False,

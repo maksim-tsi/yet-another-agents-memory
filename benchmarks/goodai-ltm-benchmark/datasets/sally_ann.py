@@ -1,12 +1,11 @@
 import re
-from pathlib import Path
+from dataclasses import dataclass, field
 from json import JSONDecodeError
-from dataclasses import dataclass
-from typing import List, Tuple
-from dataset_interfaces.interface import DatasetInterface, TestExample
-from utils.constants import DATA_DIR
-from goodai.helpers.json_helper import sanitize_and_parse_json
+from pathlib import Path
 
+from dataset_interfaces.interface import DatasetInterface, TestExample
+from goodai.helpers.json_helper import sanitize_and_parse_json
+from utils.constants import DATA_DIR
 
 patterns = dict(
     world_model=[
@@ -46,7 +45,7 @@ def fix_plural(sentence: str) -> str:
 class SallyAnneDataset(DatasetInterface):
     name: str = "SallyAnne"
     description: str = "Give the agent a series of events. Then ask it a question about how the actors in those events would think."
-    data_location: Path = DATA_DIR.joinpath("tomi_data", "test.txt")
+    data_location: Path = field(default_factory=lambda: DATA_DIR.joinpath("tomi_data", "test.txt"))
     question_type: str = "any"  # world_model / theory_of_mind / any
 
     def __post_init__(self):
@@ -85,11 +84,11 @@ class SallyAnneDataset(DatasetInterface):
                         )
                     sample_lines = list()
 
-    def generate_examples(self, num_examples: int) -> List[TestExample]:
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         examples = list()
         samples = self.samples.copy()
         self.random.shuffle(samples)
-        for i, sample in enumerate(samples[:num_examples]):
+        for _i, sample in enumerate(samples[:num_examples]):
             script = [
                 "They are broadcasting a program on TV. I will keep you updated on what happens, and at the end, I will "
                 "ask you a question about what happened on the show. Okay?"
@@ -110,8 +109,8 @@ class SallyAnneDataset(DatasetInterface):
         return examples
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         score = 0
         max_score = 1
 
@@ -127,7 +126,7 @@ class SallyAnneDataset(DatasetInterface):
         ):
             score = 1
             reasoning = (
-                f"The agent answered with {repr(answer_dict['answer'])}, which is the right answer."
+                f"The agent answered with {answer_dict['answer']!r}, which is the right answer."
             )
         else:
             reasoning = f"Invalid answer: {answer_dict}"

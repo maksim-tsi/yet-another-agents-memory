@@ -1,19 +1,20 @@
 import json
+from collections.abc import Callable, Iterator
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Dict, List, Any, Callable, Iterator
+from typing import Any
 
-from utils.constants import EventType, EVENT_SENDER
+from utils.constants import EVENT_SENDER, EventType
 
 
 @dataclass
 class LogEvent:
     type: EventType
     timestamp: datetime
-    test_id: Optional[str] = None
-    data: Optional[Dict[str, Any]] = field(default_factory=dict)
+    test_id: str | None = None
+    data: dict[str, Any] | None = field(default_factory=dict)
 
     def to_json(self):
         return {
@@ -43,7 +44,7 @@ class LogEvent:
 
 class MasterLog:
     def __init__(self, save_file: Path):
-        self.log: List[LogEvent] = []
+        self.log: list[LogEvent] = []
         self.save_file = save_file
 
     def add_send_message(
@@ -121,7 +122,7 @@ class MasterLog:
         with open(self.save_file, "a") as fd:
             fd.write(json.dumps(event.to_json()) + "\n")
 
-    def human_readable_full_log(self, test_id: str, message: str) -> List[str]:
+    def human_readable_full_log(self, test_id: str, message: str) -> list[str]:
         # Collate all the messages from the index point
         messages = []
         index = self.find_message(test_id, message)
@@ -179,11 +180,11 @@ class MasterLog:
                 and event.data["message"] == message
             ):
                 return idx
-        raise ValueError(f"Message {repr(message)} for test {repr(test_id)} not found in log.")
+        raise ValueError(f"Message {message!r} for test {test_id!r} not found in log.")
 
     def load(self):
         self.log = []
-        with open(self.save_file, "r") as fd:
+        with open(self.save_file) as fd:
             events_list = [json.loads(x) for x in fd.readlines()]
 
         for event in events_list:
@@ -197,16 +198,15 @@ class MasterLog:
                 EventType.RESPONSE_MESSAGE,
                 EventType.SEND_FILL,
                 EventType.RESPONSE_FILL,
-            ]:
-                if test_id == "" or event.test_id == test_id:
-                    sender = (
-                        "Test"
-                        if event.type == EventType.SEND_MESSAGE
-                        else "System"
-                        if event.type == EventType.SEND_FILL
-                        else "Agent"
-                    )
-                    messages.append(f"{sender} ({event.timestamp}): {event.data['message']}")
+            ] and (test_id == "" or event.test_id == test_id):
+                sender = (
+                    "Test"
+                    if event.type == EventType.SEND_MESSAGE
+                    else "System"
+                    if event.type == EventType.SEND_FILL
+                    else "Agent"
+                )
+                messages.append(f"{sender} ({event.timestamp}): {event.data['message']}")
 
         return messages
 
@@ -219,19 +219,18 @@ class MasterLog:
                 EventType.RESPONSE_MESSAGE,
                 EventType.SEND_FILL,
                 EventType.RESPONSE_FILL,
-            ]:
-                if test_id == event.test_id or getting_all_messages:
-                    sender = (
-                        "Test"
-                        if event.type == EventType.SEND_MESSAGE
-                        else "System"
-                        if event.type == EventType.SEND_FILL
-                        else "Agent"
-                    )
-                    messages.append(f"{sender} ({event.timestamp}): {event.data['message']}")
+            ] and (test_id == event.test_id or getting_all_messages):
+                sender = (
+                    "Test"
+                    if event.type == EventType.SEND_MESSAGE
+                    else "System"
+                    if event.type == EventType.SEND_FILL
+                    else "Agent"
+                )
+                messages.append(f"{sender} ({event.timestamp}): {event.data['message']}")
 
-                    if event.data["is_question"]:
-                        getting_all_messages = True
+                if event.data["is_question"]:
+                    getting_all_messages = True
 
         return messages
 
@@ -239,7 +238,7 @@ class MasterLog:
         self,
         test_id: str,
         event_type: EventType | set[EventType] = None,
-        filter_fn: Callable[[LogEvent], bool] = None,
+        filter_fn: Callable[[LogEvent], bool] | None = None,
     ) -> Iterator[LogEvent]:
         for event in self.log:
             if event.test_id != test_id:
@@ -248,15 +247,13 @@ class MasterLog:
                 if isinstance(event_type, EventType):
                     if event.type != event_type:
                         continue
-                elif isinstance(event_type, set):
-                    if event.type not in event_type:
-                        continue
-            if filter_fn is not None:
-                if not filter_fn(event):
+                elif isinstance(event_type, set) and event.type not in event_type:
                     continue
+            if filter_fn is not None and not filter_fn(event):
+                continue
             yield event
 
-    def as_context(self, test_id: str = None) -> list[dict[str, str | datetime]]:
+    def as_context(self, test_id: str | None = None) -> list[dict[str, str | datetime]]:
         context = []
 
         for event in self.log:

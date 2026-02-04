@@ -2,11 +2,10 @@ import codecs
 import json
 import os
 import threading
-from typing import Optional
 
-from utils.llm import count_tokens_for_model
 from goodai.ltm.agent import LTMAgent, LTMAgentVariant
 from model_interfaces.interface import ChatSession
+from utils.llm import count_tokens_for_model
 
 _log_prompts = os.environ.get("LTM_BENCH_PROMPT_LOGGING", "False").lower() in ["true", "yes", "1"]
 
@@ -57,7 +56,7 @@ class LTMAgentWrapper(ChatSession):
         model = self.model.replace("/", "-")
         return f"{super().name} - {model} - {self.max_prompt_size} - {self.variant.name}"
 
-    def reply(self, user_message: str, agent_response: Optional[str] = None) -> str:
+    def reply(self, user_message: str, agent_response: str | None = None) -> str:
         def _cost_fn(amount: float):
             self.costs_usd += amount
 
@@ -73,7 +72,7 @@ class LTMAgentWrapper(ChatSession):
 
     def load(self):
         fname = self.save_path.joinpath("full_agent.json")
-        with open(fname, "r") as fd:
+        with open(fname) as fd:
             state_text = fd.read()
         self.agent.from_state_text(state_text)
 

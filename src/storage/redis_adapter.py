@@ -31,23 +31,25 @@ performance for high-frequency caching workloads.
 Benchmarks run with: pytest tests/benchmarks/bench_redis_adapter.py -v -s
 """
 
-import redis.asyncio as redis
-from redis.asyncio import Redis
-from typing import Dict, Any, List, Optional
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
+
+import redis.asyncio as redis
+from redis.asyncio import Redis
+
+from src.memory.namespace import NamespaceManager
 
 from .base import (
     StorageAdapter,
     StorageConnectionError,
-    StorageQueryError,
     StorageDataError,
+    StorageQueryError,
     StorageTimeoutError,
     validate_required_fields,
 )
 from .metrics import OperationTimer
-from src.memory.namespace import NamespaceManager
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +130,7 @@ class RedisAdapter(StorageAdapter):
         ```
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize Redis adapter.
 
@@ -159,7 +161,7 @@ class RedisAdapter(StorageAdapter):
         self.ttl_seconds = config.get("ttl_seconds", 86400)  # 24 hours
         self.refresh_ttl_on_read = config.get("refresh_ttl_on_read", False)
 
-        self.client: Optional[Redis] = None
+        self.client: Redis | None = None
 
         logger.info(
             f"RedisAdapter initialized (window: {self.window_size}, "
@@ -240,7 +242,7 @@ class RedisAdapter(StorageAdapter):
                 logger.error(f"Error during Redis disconnect: {e}", exc_info=True)
                 # Don't raise - disconnect should always succeed
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store conversation turn in session's Redis list.
 
@@ -288,7 +290,7 @@ class RedisAdapter(StorageAdapter):
                 turn_data = {
                     "turn_id": turn_id,
                     "content": data["content"],
-                    "timestamp": data.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                    "timestamp": data.get("timestamp", datetime.now(UTC).isoformat()),
                     "metadata": data.get("metadata", {}),
                 }
 
@@ -319,7 +321,7 @@ class RedisAdapter(StorageAdapter):
             except redis.RedisError as e:
                 logger.error(f"Redis store failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to store in Redis: {e}") from e
-            except json.JSONEncodeError as e:
+            except (TypeError, ValueError) as e:
                 logger.error(f"JSON encoding failed: {e}", exc_info=True)
                 raise StorageDataError(f"Failed to encode data: {e}") from e
 
@@ -341,7 +343,7 @@ class RedisAdapter(StorageAdapter):
         """
         return NamespaceManager.l1_turns(session_id)
 
-    async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
+    async def retrieve(self, id: str) -> dict[str, Any] | None:
         """
         Retrieve specific turn from session list.
 
@@ -401,7 +403,7 @@ class RedisAdapter(StorageAdapter):
                 logger.error(f"Invalid ID format: {e}", exc_info=True)
                 raise StorageDataError(f"Invalid ID: {id}") from e
 
-    async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Get recent turns for a session.
 
@@ -527,6 +529,9 @@ class RedisAdapter(StorageAdapter):
 
     async def _delete_turn(self, id: str) -> bool:
         """Delete specific turn from session list"""
+        if not self.client:
+            raise StorageConnectionError("Not connected to Redis")
+
         # Parse ID
         parts = id.rsplit(":", 1)
         key = parts[0]
@@ -541,7 +546,7 @@ class RedisAdapter(StorageAdapter):
             if turn_data.get("turn_id") == turn_id:
                 # Remove this item from list
                 removed = await self.client.lrem(key, 1, item)
-                if removed > 0:
+                if int(removed) > 0:
                     logger.debug(f"Deleted turn {turn_id} from {key}")
                     return True
 
@@ -576,7 +581,7 @@ class RedisAdapter(StorageAdapter):
         try:
             key = self._make_key(session_id)
             size = await self.client.llen(key)
-            return size
+            return int(size)
         except redis.RedisError as e:
             logger.error(f"Failed to get session size: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to get size: {e}") from e
@@ -597,7 +602,7 @@ class RedisAdapter(StorageAdapter):
         try:
             key = self._make_key(session_id)
             exists = await self.client.exists(key)
-            return exists > 0
+            return int(exists) > 0
         except redis.RedisError as e:
             logger.error(f"Failed to check session existence: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to check existence: {e}") from e
@@ -618,12 +623,12 @@ class RedisAdapter(StorageAdapter):
         try:
             key = self._make_key(session_id)
             result = await self.client.expire(key, self.ttl_seconds)
-            return result
+            return bool(result)
         except redis.RedisError as e:
             logger.error(f"Failed to refresh TTL: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to refresh TTL: {e}") from e
 
-    async def scan_keys(self, pattern: str) -> List[str]:
+    async def scan_keys(self, pattern: str) -> list[str]:
         """
         Scan for keys matching a pattern.
 
@@ -656,7 +661,7 @@ class RedisAdapter(StorageAdapter):
             logger.error(f"Redis scan failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to scan keys: {e}") from e
 
-    async def delete_keys(self, keys: List[str]) -> int:
+    async def delete_keys(self, keys: list[str]) -> int:
         """
         Delete multiple keys in a single operation.
 
@@ -681,7 +686,7 @@ class RedisAdapter(StorageAdapter):
         try:
             deleted = await self.client.delete(*keys)
             logger.debug(f"Deleted {deleted} keys")
-            return deleted
+            return int(deleted)
         except redis.RedisError as e:
             logger.error(f"Redis delete_keys failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to delete keys: {e}") from e
@@ -691,28 +696,33 @@ class RedisAdapter(StorageAdapter):
         """Push values to head of list."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        return await self.client.lpush(key, *values)
+        result = await self.client.lpush(key, *values)
+        return int(result)
 
     async def ltrim(self, key: str, start: int, stop: int) -> bool:
         """Trim list to specified range."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        return await self.client.ltrim(key, start, stop)
+        result = await self.client.ltrim(key, start, stop)
+        return bool(result)
 
-    async def lrange(self, key: str, start: int, stop: int) -> List[bytes]:
+    async def lrange(self, key: str, start: int, stop: int) -> list[bytes]:
         """Get range of elements from list."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        return await self.client.lrange(key, start, stop)
+        result = await self.client.lrange(key, start, stop)
+        return list(result)
 
     async def llen(self, key: str) -> int:
         """Get length of list."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        return await self.client.llen(key)
+        result = await self.client.llen(key)
+        return int(result)
 
     async def expire(self, key: str, seconds: int) -> bool:
         """Set TTL on key."""
         if not self.client:
             raise StorageConnectionError("Not connected to Redis")
-        return await self.client.expire(key, seconds)
+        result = await self.client.expire(key, seconds)
+        return bool(result)

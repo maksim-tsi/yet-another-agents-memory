@@ -11,18 +11,20 @@ Features:
 - Schema management
 """
 
-import httpx
-import json
 import asyncio
-from typing import Dict, Any, List, Optional
+import json
 import logging
 import uuid
+from datetime import UTC
+from typing import Any
+
+import httpx
 
 from .base import (
     StorageAdapter,
     StorageConnectionError,
-    StorageQueryError,
     StorageDataError,
+    StorageQueryError,
     validate_required_fields,
 )
 from .metrics import OperationTimer
@@ -76,13 +78,13 @@ class TypesenseAdapter(StorageAdapter):
         ```
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.url = config.get("url", "").rstrip("/")
         self.api_key = config.get("api_key")
         self.collection_name = config.get("collection_name", "declarative_memory")
         self.schema = config.get("schema")
-        self.client: Optional[httpx.AsyncClient] = None
+        self.client: httpx.AsyncClient | None = None
 
         if not self.url or not self.api_key:
             raise StorageDataError("Typesense URL and API key required")
@@ -95,7 +97,7 @@ class TypesenseAdapter(StorageAdapter):
         if asyncio.iscoroutine(maybe_coro):
             await maybe_coro
 
-    def _get_default_schema(self) -> Dict[str, Any]:
+    def _get_default_schema(self) -> dict[str, Any]:
         """
         Get default schema for auto-creating collection.
 
@@ -151,7 +153,7 @@ class TypesenseAdapter(StorageAdapter):
                 self._connected = False
                 logger.info("Disconnected from Typesense")
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """Index document in Typesense"""
         async with OperationTimer(self.metrics, "store"):
             if not self._connected or not self.client:
@@ -184,7 +186,7 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense store failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Store failed: {e}") from e
 
-    async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
+    async def retrieve(self, id: str) -> dict[str, Any] | None:
         """Retrieve document by ID"""
         async with OperationTimer(self.metrics, "retrieve"):
             if not self._connected or not self.client:
@@ -215,7 +217,7 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense retrieve failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Retrieve failed: {e}") from e
 
-    async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Full-text search.
 
@@ -280,7 +282,7 @@ class TypesenseAdapter(StorageAdapter):
 
     # Batch operations (optimized for Typesense)
 
-    async def store_batch(self, items: List[Dict[str, Any]]) -> List[str]:
+    async def store_batch(self, items: list[dict[str, Any]]) -> list[str]:
         """
         Index multiple documents in a single batch operation.
 
@@ -334,7 +336,7 @@ class TypesenseAdapter(StorageAdapter):
             logger.error(f"Typesense batch store failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch store failed: {e}") from e
 
-    async def retrieve_batch(self, ids: List[str]) -> List[Optional[Dict[str, Any]]]:
+    async def retrieve_batch(self, ids: list[str]) -> list[dict[str, Any] | None]:
         """
         Retrieve multiple documents by their IDs.
 
@@ -355,7 +357,7 @@ class TypesenseAdapter(StorageAdapter):
         # (Typesense doesn't have batch retrieve API)
         return await super().retrieve_batch(ids)
 
-    async def delete_batch(self, ids: List[str]) -> Dict[str, bool]:
+    async def delete_batch(self, ids: list[str]) -> dict[str, bool]:
         """
         Delete multiple documents by their IDs.
 
@@ -413,7 +415,7 @@ class TypesenseAdapter(StorageAdapter):
             logger.error(f"Typesense batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch delete failed: {e}") from e
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check Typesense backend health and performance.
 
@@ -430,7 +432,7 @@ class TypesenseAdapter(StorageAdapter):
             - timestamp: ISO timestamp
         """
         import time
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         start_time = time.perf_counter()
 
@@ -440,7 +442,7 @@ class TypesenseAdapter(StorageAdapter):
                     "status": "unhealthy",
                     "connected": False,
                     "details": "Not connected to Typesense",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
             # Get collection info to verify connectivity
@@ -466,7 +468,7 @@ class TypesenseAdapter(StorageAdapter):
                 "collection_name": self.collection_name,
                 "document_count": collection_info.get("num_documents", 0),
                 "details": f'Typesense collection "{self.collection_name}" is accessible',
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         except httpx.HTTPStatusError as e:
@@ -477,9 +479,9 @@ class TypesenseAdapter(StorageAdapter):
                 "status": "unhealthy",
                 "connected": self._connected,
                 "latency_ms": round(latency_ms, 2),
-                "details": f"Health check failed: {str(e)}",
+                "details": f"Health check failed: {e!s}",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         except Exception as e:
             latency_ms = (time.perf_counter() - start_time) * 1000
@@ -489,12 +491,12 @@ class TypesenseAdapter(StorageAdapter):
                 "status": "unhealthy",
                 "connected": self._connected,
                 "latency_ms": round(latency_ms, 2),
-                "details": f"Health check failed: {str(e)}",
+                "details": f"Health check failed: {e!s}",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
-    async def _get_backend_metrics(self) -> Optional[Dict[str, Any]]:
+    async def _get_backend_metrics(self) -> dict[str, Any] | None:
         """Get Typesense-specific metrics."""
         if not self._connected or not self.client:
             return None

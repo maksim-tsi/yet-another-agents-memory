@@ -1,11 +1,13 @@
 import asyncio
-import pytest
-import pytest_asyncio
 import os
 import uuid
-from datetime import datetime, timezone
-from src.storage.redis_adapter import RedisAdapter
+from datetime import UTC, datetime
+
+import pytest
+import pytest_asyncio
+
 from src.storage.base import StorageConnectionError, StorageDataError, StorageTimeoutError
+from src.storage.redis_adapter import RedisAdapter
 
 
 @pytest_asyncio.fixture
@@ -182,7 +184,7 @@ async def test_ttl_refresh_on_search_enabled(session_id):
                     "session_id": session,
                     "turn_id": 1,
                     "content": "Message",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             )
 
@@ -254,7 +256,7 @@ async def test_ttl_refresh_on_retrieve_enabled(session_id):
                     "session_id": session,
                     "turn_id": 1,
                     "content": "Message",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
             )
 
@@ -326,7 +328,7 @@ async def test_concurrent_writes_same_session(redis_adapter, cleanup_session):
                 "session_id": session_id,
                 "turn_id": i,
                 "content": f"Concurrent message {i}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         )
         for i in range(10)

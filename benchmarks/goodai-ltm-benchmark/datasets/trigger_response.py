@@ -1,14 +1,13 @@
-from json import JSONDecodeError
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import List, Tuple, Iterator
-from utils.llm import make_user_message, GPT_CHEAPEST
+from json import JSONDecodeError
+
+import pystache
+from dataset_interfaces.interface import DatasetInterface, TestExample
+from goodai.helpers.json_helper import sanitize_and_parse_json
+from utils.llm import GPT_CHEAPEST, make_user_message
 from utils.text import rouge_l, standardise
 from utils.ui import colour_print
-from goodai.helpers.json_helper import sanitize_and_parse_json
-import pystache
-
-from dataset_interfaces.interface import DatasetInterface, TestExample
-
 
 REQUESTS = [
     "ask you for the time",
@@ -65,8 +64,7 @@ class TriggerResponseDataset(DatasetInterface):
         warned = False
         while True:
             self.random.shuffle(indices)
-            for i in indices:
-                yield i
+            yield from indices
             if warned:
                 continue
             warned = True
@@ -80,7 +78,7 @@ class TriggerResponseDataset(DatasetInterface):
         examples = []
         setup = "Whenever I {{request}} then say: '{{response}}'"
 
-        for _, request_num in zip(range(num_examples), self.request_num_generator()):
+        for _, request_num in zip(range(num_examples), self.request_num_generator(), strict=False):
             answer_list = []
             request = REQUESTS[request_num]
             response = RESPONSE[request_num]
@@ -123,17 +121,17 @@ class TriggerResponseDataset(DatasetInterface):
                     > self.rouge_score_threshold
                 )
         except (ValueError, JSONDecodeError, KeyError) as exc:
-            return 0, f"Could not evaluate due to a JSON parsing error: {repr(exc)}"
+            return 0, f"Could not evaluate due to a JSON parsing error: {exc!r}"
         not_str = "" if present else "not "
         return int(present), f"'{expected}' is {not_str}in the response."
 
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[str]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[str]
+    ) -> tuple[int, int, list[str]]:
         score = 0
         max_score = len(expected_answers)
         reasoning = list()
-        for r, e in zip(responses, expected_answers):
+        for r, e in zip(responses, expected_answers, strict=False):
             score_single, reasoning_single = self.evaluate_single(r, e)
             score += score_single
             reasoning.append(reasoning_single)

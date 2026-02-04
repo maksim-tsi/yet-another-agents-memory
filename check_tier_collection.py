@@ -1,8 +1,9 @@
 import asyncio
 import os
-from src.storage.qdrant_adapter import QdrantAdapter
-from src.storage.neo4j_adapter import Neo4jAdapter
+
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
+from src.storage.neo4j_adapter import Neo4jAdapter
+from src.storage.qdrant_adapter import QdrantAdapter
 
 
 async def main() -> None:

@@ -5,10 +5,6 @@ test-driven development for progress reporting, telemetry output, and
 stall detection.
 """
 
-import json
-import os
-import tempfile
-
 import pytest
 
 

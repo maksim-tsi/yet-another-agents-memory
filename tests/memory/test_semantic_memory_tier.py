@@ -5,12 +5,15 @@ Tests distilled knowledge document storage, full-text search,
 faceted filtering, and provenance tracking.
 """
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
+
 import pytest
 import pytest_asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock
-from src.memory.tiers.semantic_memory_tier import SemanticMemoryTier
+from pydantic import ValidationError
+
 from src.memory.models import KnowledgeDocument
+from src.memory.tiers.semantic_memory_tier import SemanticMemoryTier
 from src.storage.typesense_adapter import TypesenseAdapter
 
 
@@ -55,7 +58,7 @@ def sample_knowledge():
         category="personal",
         tags=["scheduling", "preferences", "productivity"],
         domain="work-habits",
-        distilled_at=datetime.now(timezone.utc),
+        distilled_at=datetime.now(UTC),
         access_count=0,
         usefulness_score=0.7,
         validation_count=0,
@@ -115,7 +118,7 @@ class TestSemanticMemoryTierStore:
             "confidence_score": 1.5,  # Invalid score > 1.0
         }
 
-        with pytest.raises(Exception):  # Pydantic validation error
+        with pytest.raises(ValidationError):
             await semantic_tier.store(invalid_dict)
 
 
@@ -131,7 +134,7 @@ class TestSemanticMemoryTierRetrieve:
     async def test_retrieve_existing_knowledge(self, semantic_tier, sample_knowledge):
         """Test retrieving knowledge that exists."""
         # Setup mock response
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         semantic_tier.typesense.get_document = AsyncMock(
             return_value={
                 "id": "know_001",
@@ -179,7 +182,7 @@ class TestSemanticMemoryTierRetrieve:
     @pytest.mark.asyncio
     async def test_retrieve_updates_access_count(self, semantic_tier):
         """Test that retrieval updates access tracking."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         semantic_tier.typesense.get_document = AsyncMock(
             return_value={
                 "id": "know_001",
@@ -219,7 +222,7 @@ class TestSemanticMemoryTierSearch:
     async def test_search_by_text(self, semantic_tier):
         """Test full-text search."""
         # Setup mock results
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         semantic_tier.typesense.search = AsyncMock(
             return_value={
                 "hits": [
@@ -357,7 +360,7 @@ class TestSemanticMemoryTierUpdate:
     async def test_update_usefulness_score(self, semantic_tier):
         """Test updating usefulness score."""
         # Setup - document exists
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         semantic_tier.typesense.get_document = AsyncMock(
             return_value={
                 "id": "know_001",
@@ -428,7 +431,7 @@ class TestSemanticMemoryTierStatistics:
     @pytest.mark.asyncio
     async def test_get_statistics_with_data(self, semantic_tier):
         """Test statistics calculation with sample data."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Mock search to return sample documents
         semantic_tier.typesense.search = AsyncMock(
@@ -501,7 +504,7 @@ class TestSemanticMemoryTierHealthCheck:
                             "knowledge_type": "insight",
                             "confidence_score": 0.8,
                             "episode_count": 1,
-                            "distilled_at": int(datetime.now(timezone.utc).timestamp()),
+                            "distilled_at": int(datetime.now(UTC).timestamp()),
                             "access_count": 1,
                             "usefulness_score": 0.7,
                             "validation_count": 0,

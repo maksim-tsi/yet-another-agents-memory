@@ -7,7 +7,8 @@ for consistent error handling.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Union
+from datetime import UTC
+from typing import Any
 
 
 # Exception hierarchy
@@ -87,7 +88,7 @@ class StorageNotFoundError(StorageError):
 
 
 # Helper utilities
-def validate_required_fields(data: Dict[str, Any], required: List[str]) -> None:
+def validate_required_fields(data: dict[str, Any], required: list[str]) -> None:
     """
     Validate that all required fields are present in data.
 
@@ -103,7 +104,7 @@ def validate_required_fields(data: Dict[str, Any], required: List[str]) -> None:
         raise StorageDataError(f"Missing required fields: {', '.join(missing)}")
 
 
-def validate_field_types(data: Dict[str, Any], type_specs: Dict[str, type]) -> None:
+def validate_field_types(data: dict[str, Any], type_specs: dict[str, type]) -> None:
     """
     Validate that fields have expected types.
 
@@ -155,7 +156,7 @@ class StorageAdapter(ABC):
         ```
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize adapter with configuration.
 
@@ -205,7 +206,7 @@ class StorageAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store data in backend and return unique identifier.
 
@@ -237,7 +238,7 @@ class StorageAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
+    async def retrieve(self, id: str) -> dict[str, Any] | None:
         """
         Retrieve data by unique identifier.
 
@@ -265,7 +266,7 @@ class StorageAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Search for records matching query criteria.
 
@@ -332,7 +333,7 @@ class StorageAdapter(ABC):
 
     # Batch operations (optional, with default implementations)
 
-    async def store_batch(self, items: List[Dict[str, Any]]) -> List[str]:
+    async def store_batch(self, items: list[dict[str, Any]]) -> list[str]:
         """
         Store multiple items in a single batch operation.
 
@@ -369,7 +370,7 @@ class StorageAdapter(ABC):
             ids.append(id)
         return ids
 
-    async def retrieve_batch(self, ids: List[str]) -> List[Optional[Dict[str, Any]]]:
+    async def retrieve_batch(self, ids: list[str]) -> list[dict[str, Any] | None]:
         """
         Retrieve multiple items by their identifiers.
 
@@ -402,7 +403,7 @@ class StorageAdapter(ABC):
             results.append(result)
         return results
 
-    async def delete_batch(self, ids: List[str]) -> Dict[str, bool]:
+    async def delete_batch(self, ids: list[str]) -> dict[str, bool]:
         """
         Delete multiple items by their identifiers.
 
@@ -446,7 +447,7 @@ class StorageAdapter(ABC):
 
     # Health check and monitoring
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """
         Check health and performance of the storage backend.
 
@@ -471,7 +472,7 @@ class StorageAdapter(ABC):
             ```
         """
         import time
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         start_time = time.perf_counter()
 
@@ -482,7 +483,7 @@ class StorageAdapter(ABC):
                     "status": "unhealthy",
                     "connected": False,
                     "details": "Not connected to backend",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
 
             # Try a simple operation to verify backend is responsive
@@ -494,7 +495,7 @@ class StorageAdapter(ABC):
                 "connected": True,
                 "latency_ms": round(latency_ms, 2),
                 "details": "Basic connectivity check passed",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
         except Exception as e:
@@ -503,12 +504,12 @@ class StorageAdapter(ABC):
                 "status": "unhealthy",
                 "connected": self._connected,
                 "latency_ms": round(latency_ms, 2),
-                "details": f"Health check failed: {str(e)}",
+                "details": f"Health check failed: {e!s}",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
-    async def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         """
         Get collected metrics from adapter.
 
@@ -533,7 +534,7 @@ class StorageAdapter(ABC):
 
         return base_metrics
 
-    async def _get_backend_metrics(self) -> Optional[Dict[str, Any]]:
+    async def _get_backend_metrics(self) -> dict[str, Any] | None:
         """
         Override in subclasses to provide backend-specific metrics.
 
@@ -545,7 +546,7 @@ class StorageAdapter(ABC):
         """
         return None
 
-    async def export_metrics(self, format: str = "dict") -> Union[Dict, str]:
+    async def export_metrics(self, format: str = "dict") -> dict | str:
         """Export metrics in specified format."""
         return await self.metrics.export_metrics(format)
 
@@ -580,16 +581,16 @@ class StorageAdapter(ABC):
 
 
 __all__ = [
-    # Exceptions
-    "StorageError",
-    "StorageConnectionError",
-    "StorageQueryError",
-    "StorageDataError",
-    "StorageTimeoutError",
-    "StorageNotFoundError",
     # Base class
     "StorageAdapter",
+    "StorageConnectionError",
+    "StorageDataError",
+    # Exceptions
+    "StorageError",
+    "StorageNotFoundError",
+    "StorageQueryError",
+    "StorageTimeoutError",
+    "validate_field_types",
     # Utilities
     "validate_required_fields",
-    "validate_field_types",
 ]

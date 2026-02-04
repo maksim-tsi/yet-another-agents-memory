@@ -11,12 +11,12 @@ Tools:
 - ciar_explain: Get human-readable explanation of CIAR score breakdown
 """
 
-from typing import Any, Dict, List, TYPE_CHECKING
-from pydantic import BaseModel, Field
-from datetime import datetime
 import json
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig as ToolRuntime
@@ -28,7 +28,6 @@ else:
 
 from src.agents.runtime import MASToolRuntime
 from src.memory.ciar_scorer import CIARScorer
-
 
 # ============================================================================
 # Input Schemas (Pydantic Models)
@@ -66,7 +65,7 @@ class CIARCalculateInput(BaseModel):
 class CIARFilterInput(BaseModel):
     """Input schema for ciar_filter tool."""
 
-    facts: List[Dict[str, Any]] = Field(
+    facts: list[dict[str, Any]] = Field(
         description="List of fact dictionaries with keys: content, certainty, impact, fact_type, created_at, access_count"
     )
     min_threshold: float = Field(
@@ -108,7 +107,7 @@ async def ciar_calculate(
     to L2 Working Memory (threshold: 0.6). The CIAR score combines certainty,
     impact, age decay, and recency boost.
 
-    Formula: (Certainty × Impact) × Age_Decay × Recency_Boost
+    Formula: (Certainty x Impact) x Age_Decay x Recency_Boost
 
     Returns JSON with final_score, all components, and promotion eligibility.
     """
@@ -120,9 +119,9 @@ async def ciar_calculate(
         scorer = CIARScorer()
 
         # Build fact dict with current timestamp offset by days_old
-        from datetime import timedelta, timezone
+        from datetime import timedelta
 
-        created_at = datetime.now(timezone.utc) - timedelta(days=days_old)
+        created_at = datetime.now(UTC) - timedelta(days=days_old)
 
         fact_dict = {
             "content": content,
@@ -164,12 +163,12 @@ async def ciar_calculate(
         return json.dumps(result, indent=2)
 
     except Exception as e:
-        return f"Error calculating CIAR score: {str(e)}"
+        return f"Error calculating CIAR score: {e!s}"
 
 
 @tool(args_schema=CIARFilterInput)
 async def ciar_filter(
-    facts: List[Dict[str, Any]],
+    facts: list[dict[str, Any]],
     min_threshold: float = 0.6,
     return_scores: bool = True,
     runtime: ToolRuntime = None,
@@ -219,7 +218,7 @@ async def ciar_filter(
         return json.dumps(response, indent=2, default=str)
 
     except Exception as e:
-        return f"Error filtering facts by CIAR: {str(e)}"
+        return f"Error filtering facts by CIAR: {e!s}"
 
 
 @tool(args_schema=CIARExplainInput)
@@ -246,9 +245,9 @@ async def ciar_explain(
         scorer = CIARScorer()
 
         # Build fact dict
-        from datetime import timedelta, timezone
+        from datetime import timedelta
 
-        created_at = datetime.now(timezone.utc) - timedelta(days=days_old)
+        created_at = datetime.now(UTC) - timedelta(days=days_old)
 
         fact_dict = {
             "content": content,
@@ -282,14 +281,16 @@ async def ciar_explain(
         explanation.append(f"3. Age Decay (AD): {components['age_decay']:.4f}")
         explanation.append("   → Time-based decay factor")
         explanation.append(f"   → Age: {days_old} days old")
-        explanation.append(f"   → Formula: exp(-λ × days) where λ={scorer.age_decay_lambda}")
+        explanation.append(
+            f"   → Formula: exp(-lambda x days) where lambda={scorer.age_decay_lambda}"
+        )
         explanation.append("")
 
         explanation.append(f"4. Recency Boost (RB): {components['recency_boost']:.4f}")
         explanation.append("   → Access frequency reward")
         explanation.append(f"   → Access count: {access_count}")
         explanation.append(
-            f"   → Formula: 1 + (α × log(1 + count)) where α={scorer.recency_boost_factor}"
+            f"   → Formula: 1 + (alpha x log(1 + count)) where alpha={scorer.recency_boost_factor}"
         )
         explanation.append("")
 
@@ -297,13 +298,13 @@ async def ciar_explain(
         explanation.append("Calculation:")
         explanation.append("-" * 70)
         explanation.append(
-            f"Base Score = C × I = {components['certainty']:.4f} × {components['impact']:.4f} = {components['base_score']:.4f}"
+            f"Base Score = C x I = {components['certainty']:.4f} x {components['impact']:.4f} = {components['base_score']:.4f}"
         )
         explanation.append(
-            f"Temporal Score = AD × RB = {components['age_decay']:.4f} × {components['recency_boost']:.4f} = {components['temporal_score']:.4f}"
+            f"Temporal Score = AD x RB = {components['age_decay']:.4f} x {components['recency_boost']:.4f} = {components['temporal_score']:.4f}"
         )
         explanation.append(
-            f"Final CIAR Score = Base × Temporal = {components['base_score']:.4f} × {components['temporal_score']:.4f} = {components['final_score']:.4f}"
+            f"Final CIAR Score = Base x Temporal = {components['base_score']:.4f} x {components['temporal_score']:.4f} = {components['final_score']:.4f}"
         )
         explanation.append("")
 
@@ -328,7 +329,7 @@ async def ciar_explain(
         return "\n".join(explanation)
 
     except Exception as e:
-        return f"Error explaining CIAR score: {str(e)}"
+        return f"Error explaining CIAR score: {e!s}"
 
 
 # ============================================================================

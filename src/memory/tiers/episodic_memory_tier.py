@@ -9,17 +9,17 @@ This enables both "find similar experiences" (Qdrant) and
 "show me the full history" (Neo4j) query patterns.
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime
 import json
 import uuid
+from datetime import datetime
+from typing import Any
 
+from src.memory.models import Episode
 from src.memory.tiers.base_tier import BaseTier
-from src.storage.qdrant_adapter import QdrantAdapter
-from src.storage.neo4j_adapter import Neo4jAdapter
 from src.storage.metrics.collector import MetricsCollector
 from src.storage.metrics.timer import OperationTimer
-from src.memory.models import Episode
+from src.storage.neo4j_adapter import Neo4jAdapter
+from src.storage.qdrant_adapter import QdrantAdapter
 
 
 class EpisodicMemoryTier(BaseTier):
@@ -39,8 +39,8 @@ class EpisodicMemoryTier(BaseTier):
         self,
         qdrant_adapter: QdrantAdapter,
         neo4j_adapter: Neo4jAdapter,
-        metrics_collector: Optional[MetricsCollector] = None,
-        config: Optional[Dict[str, Any]] = None,
+        metrics_collector: MetricsCollector | None = None,
+        config: dict[str, Any] | None = None,
     ):
         storage_adapters = {"qdrant": qdrant_adapter, "neo4j": neo4j_adapter}
         super().__init__(storage_adapters, metrics_collector, config)
@@ -55,8 +55,8 @@ class EpisodicMemoryTier(BaseTier):
         self.config_vector_size = config.get("vector_size") if config else None
         self.vector_size = self.config_vector_size or adapter_vector_size
         # Ensure adapter uses the episodic collection name and vector size for all operations
-        setattr(self.qdrant, "collection_name", self.collection_name)
-        setattr(self.qdrant, "vector_size", self.vector_size)
+        self.qdrant.collection_name = self.collection_name
+        self.qdrant.vector_size = self.vector_size
 
     async def initialize(self) -> None:
         """Initialize Qdrant collection and Neo4j constraints."""
@@ -71,7 +71,7 @@ class EpisodicMemoryTier(BaseTier):
             if "already exists" not in str(e).lower():
                 raise
 
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store an episode with dual indexing.
 
@@ -129,7 +129,7 @@ class EpisodicMemoryTier(BaseTier):
 
             return episode.episode_id
 
-    async def retrieve(self, episode_id: str) -> Optional[Episode]:
+    async def retrieve(self, episode_id: str) -> Episode | None:
         """
         Retrieve episode by ID from Neo4j.
 
@@ -177,10 +177,10 @@ class EpisodicMemoryTier(BaseTier):
 
     async def search_similar(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         limit: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
-    ) -> List[Episode]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[Episode]:
         """
         Search for similar episodes using vector similarity.
 
@@ -233,8 +233,8 @@ class EpisodicMemoryTier(BaseTier):
             return episodes
 
     async def query_graph(
-        self, cypher_query: str, parameters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        self, cypher_query: str, parameters: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Execute custom Cypher query on Neo4j graph.
 
@@ -250,7 +250,7 @@ class EpisodicMemoryTier(BaseTier):
 
             return results
 
-    async def get_episode_entities(self, episode_id: str) -> List[Dict[str, Any]]:
+    async def get_episode_entities(self, episode_id: str) -> list[dict[str, Any]]:
         """
         Get all entities mentioned in an episode (hypergraph participants).
 
@@ -286,8 +286,8 @@ class EpisodicMemoryTier(BaseTier):
         return entities
 
     async def query_temporal(
-        self, query_time: datetime, session_id: Optional[str] = None, limit: int = 10
-    ) -> List[Episode]:
+        self, query_time: datetime, session_id: str | None = None, limit: int = 10
+    ) -> list[Episode]:
         """
         Query episodes that were valid at a specific time (bi-temporal query).
 
@@ -379,8 +379,8 @@ class EpisodicMemoryTier(BaseTier):
             return True
 
     async def query(
-        self, filters: Optional[Dict[str, Any]] = None, limit: int = 10, **kwargs
-    ) -> List[Episode]:
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+    ) -> list[Episode]:
         """
         Query episodes from Neo4j with filters.
 
@@ -434,7 +434,7 @@ class EpisodicMemoryTier(BaseTier):
 
         return episodes
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Check health of both Qdrant and Neo4j."""
         qdrant_health = await self.qdrant.health_check()
         neo4j_health = await self.neo4j.health_check()
@@ -458,7 +458,7 @@ class EpisodicMemoryTier(BaseTier):
 
     # Private helper methods
 
-    async def _store_in_qdrant(self, episode: Episode, embedding: List[float]) -> str:
+    async def _store_in_qdrant(self, episode: Episode, embedding: list[float]) -> str:
         """Store episode vector in Qdrant."""
         point_id = str(uuid.uuid4())
 
@@ -479,7 +479,7 @@ class EpisodicMemoryTier(BaseTier):
         return point_id
 
     async def _store_in_neo4j(
-        self, episode: Episode, entities: List[Dict[str, Any]], relationships: List[Dict[str, Any]]
+        self, episode: Episode, entities: list[dict[str, Any]], relationships: list[dict[str, Any]]
     ) -> str:
         """Store episode graph in Neo4j with bi-temporal properties."""
         # Create episode node

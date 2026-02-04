@@ -12,12 +12,13 @@ Tests cover:
 - Health checks
 """
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
-from src.memory.tiers.working_memory_tier import WorkingMemoryTier
+import pytest
+
 from src.memory.models import Fact, FactType
+from src.memory.tiers.working_memory_tier import WorkingMemoryTier
 
 
 class TestWorkingMemoryTierStore:
@@ -114,7 +115,7 @@ class TestWorkingMemoryTierStore:
             "impact": 0.88,
         }
 
-        with pytest.raises(ValueError, match="below threshold 0.8"):
+        with pytest.raises(ValueError, match=r"below threshold 0.8"):
             await tier.store(fact_data)
 
         await tier.cleanup()
@@ -141,8 +142,8 @@ class TestWorkingMemoryTierRetrieve:
             "fact_type": "preference",
             "fact_category": None,
             "metadata": "{}",
-            "extracted_at": datetime.now(timezone.utc),
-            "last_accessed": datetime.now(timezone.utc),
+            "extracted_at": datetime.now(UTC),
+            "last_accessed": datetime.now(UTC),
             "access_count": 0,
         }
         postgres_adapter.query = AsyncMock(return_value=[mock_fact_data])
@@ -198,8 +199,8 @@ class TestWorkingMemoryTierRetrieve:
             "fact_type": None,
             "fact_category": None,
             "metadata": "{}",
-            "extracted_at": datetime.now(timezone.utc),
-            "last_accessed": datetime.now(timezone.utc),
+            "extracted_at": datetime.now(UTC),
+            "last_accessed": datetime.now(UTC),
             "access_count": 5,  # Already accessed 5 times
         }
         postgres_adapter.query = AsyncMock(return_value=[mock_fact_data])
@@ -243,8 +244,8 @@ class TestWorkingMemoryTierQuery:
                 "fact_type": None,
                 "fact_category": None,
                 "metadata": "{}",
-                "extracted_at": datetime.now(timezone.utc),
-                "last_accessed": datetime.now(timezone.utc),
+                "extracted_at": datetime.now(UTC),
+                "last_accessed": datetime.now(UTC),
                 "access_count": 0,
             },
             {
@@ -261,8 +262,8 @@ class TestWorkingMemoryTierQuery:
                 "fact_type": None,
                 "fact_category": None,
                 "metadata": "{}",
-                "extracted_at": datetime.now(timezone.utc),
-                "last_accessed": datetime.now(timezone.utc),
+                "extracted_at": datetime.now(UTC),
+                "last_accessed": datetime.now(UTC),
                 "access_count": 0,
             },
         ]
@@ -297,8 +298,8 @@ class TestWorkingMemoryTierQuery:
                 "fact_type": "preference",
                 "fact_category": None,
                 "metadata": "{}",
-                "extracted_at": datetime.now(timezone.utc),
-                "last_accessed": datetime.now(timezone.utc),
+                "extracted_at": datetime.now(UTC),
+                "last_accessed": datetime.now(UTC),
                 "access_count": 0,
             }
         ]
@@ -332,8 +333,8 @@ class TestWorkingMemoryTierQuery:
                 "fact_type": None,
                 "fact_category": None,
                 "metadata": "{}",
-                "extracted_at": datetime.now(timezone.utc),
-                "last_accessed": datetime.now(timezone.utc),
+                "extracted_at": datetime.now(UTC),
+                "last_accessed": datetime.now(UTC),
                 "access_count": 0,
             },
             {
@@ -350,8 +351,8 @@ class TestWorkingMemoryTierQuery:
                 "fact_type": None,
                 "fact_category": None,
                 "metadata": "{}",
-                "extracted_at": datetime.now(timezone.utc),
-                "last_accessed": datetime.now(timezone.utc),
+                "extracted_at": datetime.now(UTC),
+                "last_accessed": datetime.now(UTC),
                 "access_count": 0,
             },
         ]
@@ -392,8 +393,8 @@ class TestWorkingMemoryTierCIARUpdates:
                     "fact_type": None,
                     "fact_category": None,
                     "metadata": "{}",
-                    "extracted_at": datetime.now(timezone.utc),
-                    "last_accessed": datetime.now(timezone.utc),
+                    "extracted_at": datetime.now(UTC),
+                    "last_accessed": datetime.now(UTC),
                     "access_count": 0,
                 }
             ]
@@ -426,8 +427,8 @@ class TestWorkingMemoryTierCIARUpdates:
             "fact_type": None,
             "fact_category": None,
             "metadata": "{}",
-            "extracted_at": datetime.now(timezone.utc),
-            "last_accessed": datetime.now(timezone.utc),
+            "extracted_at": datetime.now(UTC),
+            "last_accessed": datetime.now(UTC),
             "access_count": 0,
         }
         postgres_adapter.query = AsyncMock(return_value=[mock_fact])

@@ -1,21 +1,20 @@
 import json
-import math
-from copy import deepcopy
-from random import Random
-from pathlib import Path
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterator
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import List, Callable, Tuple, Optional, Any, Iterator, Dict
-from runner.master_log import MasterLog
+from pathlib import Path
+from random import Random
+from typing import Any
 
 import tiktoken
 from goodai.helpers.json_helper import sanitize_and_parse_json
-
+from runner.master_log import MasterLog
 from utils.constants import DATA_DIR
 from utils.context import flatten_context, search_context
-from utils.llm import ask_llm, LLMContext, count_tokens_for_model, GEMINI_DEFAULT_MODEL
 from utils.files import make_testdef_path
+from utils.llm import GEMINI_DEFAULT_MODEL, LLMContext, ask_llm, count_tokens_for_model
 
 _match_system_prompt = """
 You are to evaluate some provided answers, given question(s) and
@@ -41,11 +40,11 @@ Respond in JSON with the following format:
 
 
 def normalize_scores(
-    evaluate_correct_fn: Callable[[List[str], List[str], List[Any]], Tuple[int, int, List[str]]],
-    questions: List[str],
-    responses: List[str],
-    expected_answers: List[Any],
-) -> Tuple[float, int, List[str]]:
+    evaluate_correct_fn: Callable[[list[str], list[str], list[Any]], tuple[int, int, list[str]]],
+    questions: list[str],
+    responses: list[str],
+    expected_answers: list[Any],
+) -> tuple[float, int, list[str]]:
     correct, total, feedback = evaluate_correct_fn(questions, responses, expected_answers)
     normalized_score = float(correct) / total if total > 0 else 0.0
     return normalized_score, 1, feedback
@@ -62,9 +61,9 @@ class TestFinishedAction(TestAction):
 @dataclass
 class SendMessageAction(TestAction):
     message: str
-    reply: Optional[str] = None
-    reply_ts: Optional[datetime] = None
-    sent_ts: Optional[datetime] = None
+    reply: str | None = None
+    reply_ts: datetime | None = None
+    sent_ts: datetime | None = None
     is_question: bool = False
     is_filling: bool = False
     filler_response: str = None
@@ -85,7 +84,10 @@ class WaitAction(TestAction):
 class WaitCreator:
     @classmethod
     def create_wait(
-        cls, tokens: int = None, time: timedelta = None, percentage_finished: float = None
+        cls,
+        tokens: int | None = None,
+        time: timedelta | None = None,
+        percentage_finished: float | None = None,
     ):
         w_dict = {"tokens": tokens, "time": time, "percentage_finished": percentage_finished}
         return {k: v for k, v in w_dict.items() if v is not None}
@@ -108,17 +110,17 @@ class WaitCreator:
 @dataclass
 class TestExample:
     dataset_generator: "DatasetInterface" = None
-    script: List[str] = field(default_factory=list)
+    script: list[str] = field(default_factory=list)
     expected_responses: Any = None
     can_be_interleaved: bool = True
     uses_callback: bool = False
     is_temporal: bool = False
     example_id: str = ""
-    is_question: List[bool] = field(default_factory=list)
+    is_question: list[bool] = field(default_factory=list)
     number_of_questions: int = 0
     finished: bool = False
     _iter: Iterator[TestAction] = None
-    waits: List[dict] = field(default_factory=list)
+    waits: list[dict] = field(default_factory=list)
     random: Random = None  # Seeded random generator
     start_token: int = 0
 
@@ -137,15 +139,15 @@ class TestExample:
     @property
     def evaluation_fn(
         self,
-    ) -> Callable[[List[str], List[str], List[Any]], Tuple[float, int, List[str]]]:
+    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, int, list[str]]]:
         """
         Returns a callable that evaluates and normalizes the scores between 0 and 1.
         The returned tuple consists of the normalized score, the max score (always 1 for normalized scores), and feedback.
         """
 
         def evaluator(
-            questions: List[str], responses: List[str], expected_answers: List[Any]
-        ) -> Tuple[float, int, List[str]]:
+            questions: list[str], responses: list[str], expected_answers: list[Any]
+        ) -> tuple[float, int, list[str]]:
             return normalize_scores(
                 self.dataset_generator.evaluate_correct, questions, responses, expected_answers
             )
@@ -169,7 +171,7 @@ class TestExample:
 
     def action_iter(self) -> Iterator[TestAction]:
         scripts = [self.script, self.waits, self.is_question]
-        for msg, wait, is_q in zip(*scripts):
+        for msg, wait, is_q in zip(*scripts, strict=False):
             if self.uses_callback and is_q:
                 yield SendAndRegisterAction(msg, is_question=is_q)
             else:
@@ -217,7 +219,7 @@ class TestExample:
         d["example_id"] = file_path.name.removesuffix(".def.json")
         d["dataset_name"] = file_path.parent.name
         generator_attrs = {"dataset_name", "description", "reset_message"}
-        d = {k: d[k] for k in d.keys() if k not in generator_attrs}
+        d = {k: d[k] for k in d if k not in generator_attrs}
         return dataset_generator.create_example(**d)
 
     def default_waits(self):
@@ -268,7 +270,7 @@ class DynamicExample(TestExample):
     max_score: int = 0
     expected_responses: list[str] = field(default_factory=list)
     reasoning: list[str] = field(default_factory=list)
-    script: List[str] = field(default_factory=lambda: [])  # Updated dynamically by `say` method
+    script: list[str] = field(default_factory=lambda: [])  # Updated dynamically by `say` method
     action: SendMessageAction = None  # Keeps the last SendMessageAction
     wait = WaitAction
     llm_call_idx: int = -1
@@ -277,7 +279,7 @@ class DynamicExample(TestExample):
     @property
     def evaluation_fn(
         self,
-    ) -> Callable[[List[str], list[str], List[Any]], tuple[float, int, List[str]]]:
+    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, int, list[str]]]:
         return self.evaluate
 
     def __post_init__(self):
@@ -344,21 +346,21 @@ class DatasetInterface(ABC):
         return len([x for x in is_question if x])
 
     @abstractmethod
-    def generate_examples(self, num_examples: int) -> List[TestExample]:
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         pass
 
     @abstractmethod
     def evaluate_correct(
-        self, questions: List[str], responses: List[str], expected_answers: List[Any]
-    ) -> Tuple[int, int, List[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[Any]
+    ) -> tuple[int, int, list[str]]:
         pass
 
     def evaluation_fn(
         self,
-    ) -> Callable[[List[str], List[str], List[Any]], Tuple[float, int, List[str]]]:
+    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, int, list[str]]]:
         def evaluator(
-            questions: List[str], responses: List[str], expected_answers: List[Any]
-        ) -> Tuple[float, int, List[str]]:
+            questions: list[str], responses: list[str], expected_answers: list[Any]
+        ) -> tuple[float, int, list[str]]:
             return normalize_scores(self.evaluate_correct, questions, responses, expected_answers)
 
         return evaluator
@@ -382,25 +384,27 @@ class DatasetInterface(ABC):
 
     def evaluate_correct_gpt(
         self,
-        questions: List[str],
-        provided_answer: List[str],
+        questions: list[str],
+        provided_answer: list[str],
         expected_answer: Any,
-    ) -> Tuple[int, int, List[str]]:
+    ) -> tuple[int, int, list[str]]:
         return self.evaluate_correct_gpt_impl(
             questions, provided_answer, expected_answer, self.cost_callback
         )
 
     @staticmethod
     def evaluate_correct_gpt_impl(
-        questions: List[str],
-        provided_answer: List[str],
+        questions: list[str],
+        provided_answer: list[str],
         expected_answer: Any,
-        cost_callback: Callable[[float], Any] = None,
-    ) -> Tuple[int, int, List[str]]:
+        cost_callback: Callable[[float], Any] | None = None,
+    ) -> tuple[int, int, list[str]]:
         max_score = len(expected_answer)
 
         q_list = []
-        for idx, (q, e, p) in enumerate(zip(questions, expected_answer, provided_answer)):
+        for idx, (q, e, p) in enumerate(
+            zip(questions, expected_answer, provided_answer, strict=False)
+        ):
             q_list.append(
                 {"question_nr": idx, "question": q, "expected_answer": e, "answer_given": p}
             )
@@ -436,7 +440,7 @@ class DatasetInterface(ABC):
                     match_str = "match" if yes_no_list[2] else "do not match"
                     reason = reason[:-1] + f", and the numbers {match_str}."
                 reasoning.append(reason)
-        except:
+        except Exception:
             reasoning.append("JSON parse error")
 
         return score, max_score, reasoning
@@ -453,8 +457,8 @@ class DatasetInterface(ABC):
 
     def tokens_to_answer(
         self,
-        test_context: List[Dict[str, Any]],
-        full_context: List[Dict[str, str]],
+        test_context: list[dict[str, Any]],
+        full_context: list[dict[str, str]],
         example: TestExample,
     ):
         encoding = tiktoken.get_encoding("cl100k_base")
@@ -478,8 +482,8 @@ class DatasetInterface(ABC):
         return num_characters, num_tokens
 
     def continual_evaluation_callback(
-        self, scheduler, example: TestExample, task_log: List[str]
-    ) -> Tuple[int, int, List[str], bool]:
+        self, scheduler, example: TestExample, task_log: list[str]
+    ) -> tuple[int, int, list[str], bool]:
         raise NotImplementedError(
             "This dataset does not have a callback implemented. Use evaluate_correct instead."
         )
@@ -505,7 +509,7 @@ class DynamicDataset(DatasetInterface, ABC):
     def create_example(self, **kwargs) -> DynamicExample:
         return self.example_cls(dataset_generator=self, **kwargs)
 
-    def generate_examples(self, num_examples: int) -> List[TestExample]:
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         return [self.create_example() for _ in range(num_examples)]
 
     def default_waits(

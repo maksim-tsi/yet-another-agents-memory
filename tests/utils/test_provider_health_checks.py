@@ -1,10 +1,11 @@
 import sys
 import types
-import pytest
 from types import SimpleNamespace
 
-from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
+import pytest
+
 from src.utils.llm_client import ProviderHealth
+from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
 
 
 class FakeResponse:

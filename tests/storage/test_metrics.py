@@ -2,9 +2,12 @@
 Unit tests for metrics collection components.
 """
 
-import pytest
 import asyncio
-from src.storage.metrics import MetricsCollector, OperationTimer, MetricsStorage, MetricsAggregator
+from datetime import UTC
+
+import pytest
+
+from src.storage.metrics import MetricsAggregator, MetricsCollector, MetricsStorage, OperationTimer
 
 
 @pytest.mark.asyncio
@@ -132,9 +135,9 @@ class TestMetricsAggregator:
 
     def test_calculate_rates_with_bytes(self):
         """Test rate calculations including bytes."""
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         operations = [
             {"timestamp": (now - timedelta(seconds=30)).isoformat(), "metadata": {"bytes": 1000}},
             {"timestamp": (now - timedelta(seconds=20)).isoformat(), "metadata": {"bytes": 2000}},
@@ -288,7 +291,7 @@ class TestOperationTimer:
         collector = MetricsCollector()
 
         async def worker(worker_id: int):
-            for i in range(100):
+            for _i in range(100):
                 async with OperationTimer(collector, f"op_{worker_id}"):
                     # Simulate some work
                     await asyncio.sleep(0.001)

@@ -18,11 +18,11 @@ Tools:
 - l4_search_knowledge: Typesense full-text knowledge search
 """
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
-from pydantic import BaseModel, Field
 import json
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig as ToolRuntime
@@ -35,7 +35,6 @@ else:
 from src.agents.runtime import MASToolRuntime
 from src.memory.graph_templates import get_template, validate_and_execute_template
 
-
 # ============================================================================
 # Input Schemas (Pydantic Models)
 # ============================================================================
@@ -47,7 +46,7 @@ class L2SearchFactsInput(BaseModel):
     query: str = Field(
         description="Search query for PostgreSQL tsvector (e.g., 'MAEU1234567', 'Port of Los Angeles', 'customs delay')"
     )
-    min_ciar: Optional[float] = Field(
+    min_ciar: float | None = Field(
         default=None, ge=0.0, le=1.0, description="Minimum CIAR score (default: tier threshold 0.6)"
     )
     limit: int = Field(default=20, ge=1, le=100, description="Maximum results")
@@ -59,7 +58,7 @@ class L3QueryGraphInput(BaseModel):
     template_name: str = Field(
         description="Template name: 'get_container_journey', 'get_shipment_parties', 'find_delay_causes', 'get_document_flow', 'get_related_episodes', 'get_entity_timeline'"
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         description="Template parameters as key-value dict (e.g., {'container_id': 'MAEU1234567', 'max_hops': 15})"
     )
 
@@ -71,7 +70,7 @@ class L3SearchEpisodesInput(BaseModel):
         description="Natural language query to find similar episodes (will be embedded)"
     )
     limit: int = Field(default=10, ge=1, le=50, description="Maximum results")
-    filters: Optional[Dict[str, Any]] = Field(
+    filters: dict[str, Any] | None = Field(
         default=None, description="Optional Qdrant filters (e.g., {'session_id': 'session-123'})"
     )
 
@@ -80,7 +79,7 @@ class L4SearchKnowledgeInput(BaseModel):
     """Input schema for l4_search_knowledge tool."""
 
     query: str = Field(description="Search query for knowledge base (full-text search)")
-    filters: Optional[Dict[str, Any]] = Field(
+    filters: dict[str, Any] | None = Field(
         default=None,
         description="Optional Typesense filters (e.g., {'knowledge_type': 'pattern', 'category': 'delays'})",
     )
@@ -94,7 +93,7 @@ class L4SearchKnowledgeInput(BaseModel):
 
 @tool(args_schema=L2SearchFactsInput)
 async def l2_search_facts(
-    query: str, min_ciar: Optional[float] = None, limit: int = 20, runtime: ToolRuntime = None
+    query: str, min_ciar: float | None = None, limit: int = 20, runtime: ToolRuntime = None
 ) -> str:
     """
     Search L2 Working Memory for facts using PostgreSQL full-text search.
@@ -169,12 +168,12 @@ async def l2_search_facts(
         return json.dumps(results, indent=2)
 
     except Exception as e:
-        return f"Error searching L2 facts: {str(e)}"
+        return f"Error searching L2 facts: {e!s}"
 
 
 @tool(args_schema=L3QueryGraphInput)
 async def l3_query_graph(
-    template_name: str, parameters: Dict[str, Any], runtime: ToolRuntime = None
+    template_name: str, parameters: dict[str, Any], runtime: ToolRuntime = None
 ) -> str:
     """
     Query L3 Episodic Memory graph using predefined Neo4j Cypher templates.
@@ -237,14 +236,14 @@ async def l3_query_graph(
         return json.dumps(response, indent=2, default=str)
 
     except Exception as e:
-        return f"Error querying L3 graph: {str(e)}"
+        return f"Error querying L3 graph: {e!s}"
 
 
 @tool(args_schema=L3SearchEpisodesInput)
 async def l3_search_episodes(
     query: str,
     limit: int = 10,
-    filters: Optional[Dict[str, Any]] = None,
+    filters: dict[str, Any] | None = None,
     runtime: ToolRuntime = None,
 ) -> str:
     """
@@ -292,13 +291,13 @@ async def l3_search_episodes(
         )
 
     except Exception as e:
-        return f"Error searching L3 episodes: {str(e)}"
+        return f"Error searching L3 episodes: {e!s}"
 
 
 @tool(args_schema=L4SearchKnowledgeInput)
 async def l4_search_knowledge(
     query: str,
-    filters: Optional[Dict[str, Any]] = None,
+    filters: dict[str, Any] | None = None,
     limit: int = 10,
     runtime: ToolRuntime = None,
 ) -> str:
@@ -372,7 +371,7 @@ async def l4_search_knowledge(
         return json.dumps(results, indent=2)
 
     except Exception as e:
-        return f"Error searching L4 knowledge: {str(e)}"
+        return f"Error searching L4 knowledge: {e!s}"
 
 
 # ============================================================================

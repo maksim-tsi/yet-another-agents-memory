@@ -77,7 +77,7 @@ def test_model(client, model_name: str, description: str) -> bool:
 
     except Exception as e:
         print(f"\n❌ ERROR testing {description}: {type(e).__name__}")
-        print(f"   {str(e)}")
+        print(f"   {e!s}")
         return False
 
 
@@ -143,7 +143,7 @@ def test_gemini():
 
     except Exception as e:
         print(f"\n❌ ERROR: {type(e).__name__}")
-        print(f"   {str(e)}")
+        print(f"   {e!s}")
         return False
 
 

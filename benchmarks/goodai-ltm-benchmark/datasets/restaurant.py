@@ -1,16 +1,17 @@
-from json import JSONDecodeError
 import os
-from typing import Iterator
 from collections import OrderedDict
+from collections.abc import Iterator
 from dataclasses import dataclass, field
+from json import JSONDecodeError
+
 from dataset_interfaces.interface import (
     DynamicDataset,
     DynamicExample,
-    TestAction,
     SendMessageAction,
+    TestAction,
 )
-from utils.llm import make_system_message, make_user_message, LLMContext
 from goodai.helpers.json_helper import sanitize_and_parse_json
+from utils.llm import LLMContext, make_system_message, make_user_message
 
 
 class RestaurantOrderFailed(Exception):
@@ -33,8 +34,7 @@ class RestaurantExample(DynamicExample):
 
     def action_iter(self) -> Iterator[TestAction]:
         try:
-            for action in self.restaurant_script_iter():
-                yield action
+            yield from self.restaurant_script_iter()
         except RestaurantOrderFailed:
             return
 
@@ -104,7 +104,7 @@ class RestaurantExample(DynamicExample):
         yield self.wait(percentage_finished=80)
 
         # Alter the order -> does the agent notice?
-        true_item, unsolicited_item, altered_order = self.alter_order(order, old_item)
+        true_item, _unsolicited_item, altered_order = self.alter_order(order, old_item)
         altered_str = enumerate_str(altered_order)
         yield from self.say(f"Here you are: {altered_str}. Enjoy the meal.")
         self.check_notices_mishap()
@@ -132,9 +132,9 @@ class RestaurantExample(DynamicExample):
 
         try:
             response = sanitize_and_parse_json(response_json)
-        except (ValueError, JSONDecodeError):
+        except (ValueError, JSONDecodeError) as exc:
             self.reasoning.append("Could not extract ordered items due to a JSON parse error.")
-            raise RestaurantOrderFailed
+            raise RestaurantOrderFailed from exc
 
         items = list()
         for item_dict in response["order"]:
@@ -188,7 +188,7 @@ class RestaurantExample(DynamicExample):
                 i = altered_order.index(item)
                 altered_order[i] = alt_dish
                 return orig_dish, alt_dish, altered_order
-        assert False, f"Cannot alter wrong order: {order}"
+        raise AssertionError(f"Cannot alter wrong order: {order}")
 
     def check_notices_mishap(self):
         self.expected_responses.append("The agent notices the mix-up.")
@@ -239,8 +239,8 @@ class RestaurantExample(DynamicExample):
             eval_json = sanitize_and_parse_json(eval_json)
             return eval_json[key]
         except (ValueError, JSONDecodeError, KeyError) as exc:
-            self.reasoning.append(f"Could not evaluate due to a JSON parsing error: {repr(exc)}")
-            raise RestaurantOrderFailed
+            self.reasoning.append(f"Could not evaluate due to a JSON parsing error: {exc!r}")
+            raise RestaurantOrderFailed from exc
 
 
 @dataclass

@@ -5,10 +5,11 @@ Defines Pydantic models for facts, episodes, and knowledge documents
 with validation and serialization support.
 """
 
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class FactType(str, Enum):
@@ -66,23 +67,23 @@ class Fact(BaseModel):
     recency_boost: float = Field(default=1.0, ge=0.0)
 
     # Provenance
-    source_uri: Optional[str] = None
+    source_uri: str | None = None
     source_type: str = Field(default="extracted")
 
     # Topic Segmentation (ADR-003: batch processing context)
-    topic_segment_id: Optional[str] = None  # Links to source TopicSegment
-    topic_label: Optional[str] = None  # Brief topic from segment
+    topic_segment_id: str | None = None  # Links to source TopicSegment
+    topic_label: str | None = None  # Brief topic from segment
 
     # Classification
-    fact_type: Optional[FactType] = None
-    fact_category: Optional[FactCategory] = None
+    fact_type: FactType | None = None
+    fact_category: FactCategory | None = None
 
     # Metadata
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     # Timestamps
-    extracted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    last_accessed: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    extracted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_accessed: datetime = Field(default_factory=lambda: datetime.now(UTC))
     access_count: int = Field(default=0, ge=0)
 
     model_config = {"use_enum_values": True}
@@ -93,19 +94,19 @@ class Fact(BaseModel):
         """Ensure CIAR score is consistent with components if all are present."""
         values = info.data
         if all(k in values for k in ["certainty", "impact", "age_decay", "recency_boost"]):
-            expected = (
+            expected: float = float(
                 (values["certainty"] * values["impact"])
                 * values["age_decay"]
                 * values["recency_boost"]
             )
             # Allow small floating point differences
             if abs(v - expected) > 0.01:
-                return round(expected, 4)
+                return float(round(expected, 4))
         return v
 
     def mark_accessed(self) -> None:
         """Update access tracking."""
-        self.last_accessed = datetime.now(timezone.utc)
+        self.last_accessed = datetime.now(UTC)
         self.access_count += 1
         # Recalculate recency boost based on access pattern
         self.recency_boost = 1.0 + (0.05 * self.access_count)  # 5% boost per access
@@ -121,7 +122,7 @@ class Fact(BaseModel):
         Args:
             decay_lambda: Decay rate (default: 0.1 per day)
         """
-        age_days = (datetime.now(timezone.utc) - self.extracted_at).days
+        age_days = (datetime.now(UTC) - self.extracted_at).days
         self.age_decay = round(max(0.0, min(1.0, 2 ** (-decay_lambda * age_days))), 4)
         # Recalculate CIAR score
         self.ciar_score = round(
@@ -136,7 +137,7 @@ class Fact(BaseModel):
     def __getitem__(self, key: str) -> Any:
         return getattr(self, key)
 
-    def to_db_dict(self) -> Dict[str, Any]:
+    def to_db_dict(self) -> dict[str, Any]:
         """Convert to database-compatible dictionary."""
         import json
 
@@ -169,10 +170,10 @@ class Fact(BaseModel):
 class FactQuery(BaseModel):
     """Query parameters for retrieving facts."""
 
-    session_id: Optional[str] = None
-    min_ciar_score: Optional[float] = Field(default=0.6, ge=0.0, le=1.0)
-    fact_types: Optional[List[FactType]] = None
-    fact_categories: Optional[List[FactCategory]] = None
+    session_id: str | None = None
+    min_ciar_score: float | None = Field(default=0.6, ge=0.0, le=1.0)
+    fact_types: list[FactType] | None = None
+    fact_categories: list[FactCategory] | None = None
     limit: int = Field(default=10, ge=1, le=100)
     order_by: str = Field(default="ciar_score DESC")
 
@@ -191,10 +192,10 @@ class Episode(BaseModel):
 
     # Content
     summary: str = Field(..., min_length=10, max_length=10000)
-    narrative: Optional[str] = None  # Longer form narrative
+    narrative: str | None = None  # Longer form narrative
 
     # Source facts
-    source_fact_ids: List[str] = Field(default_factory=list)
+    source_fact_ids: list[str] = Field(default_factory=list)
     fact_count: int = Field(default=0, ge=0)
 
     # Temporal boundaries
@@ -204,27 +205,27 @@ class Episode(BaseModel):
 
     # Bi-temporal properties (ADR-003 requirement)
     fact_valid_from: datetime  # When facts became true
-    fact_valid_to: Optional[datetime] = None  # When facts stopped being true
+    fact_valid_to: datetime | None = None  # When facts stopped being true
     source_observation_timestamp: datetime  # When we observed/recorded this
 
     # Embeddings and indexing
     embedding_model: str = Field(default="text-embedding-ada-002")
-    vector_id: Optional[str] = None  # Qdrant point ID
-    graph_node_id: Optional[str] = None  # Neo4j node ID
+    vector_id: str | None = None  # Qdrant point ID
+    graph_node_id: str | None = None  # Neo4j node ID
 
     # Metadata
-    entities: List[Dict[str, Any]] = Field(default_factory=list)
-    relationships: List[Dict[str, Any]] = Field(default_factory=list)
-    topics: List[str] = Field(default_factory=list)
+    entities: list[dict[str, Any]] = Field(default_factory=list)
+    relationships: list[dict[str, Any]] = Field(default_factory=list)
+    topics: list[str] = Field(default_factory=list)
     importance_score: float = Field(default=0.5, ge=0.0, le=1.0)
 
     # Provenance
-    consolidated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    consolidated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     consolidation_method: str = Field(default="llm_clustering")
 
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
-    def to_qdrant_payload(self) -> Dict[str, Any]:
+    def to_qdrant_payload(self) -> dict[str, Any]:
         """Convert to Qdrant payload format."""
         return {
             "episode_id": self.episode_id,
@@ -243,7 +244,7 @@ class Episode(BaseModel):
             "consolidated_at": self.consolidated_at.isoformat(),
         }
 
-    def to_neo4j_properties(self) -> Dict[str, Any]:
+    def to_neo4j_properties(self) -> dict[str, Any]:
         """Convert to Neo4j node properties."""
         return {
             "episodeId": self.episode_id,
@@ -276,7 +277,7 @@ class KnowledgeDocument(BaseModel):
     """
 
     knowledge_id: str
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
     # Content
     title: str = Field(..., min_length=5, max_length=500)
@@ -285,30 +286,30 @@ class KnowledgeDocument(BaseModel):
 
     # Confidence and provenance
     confidence_score: float = Field(default=0.7, ge=0.0, le=1.0)
-    source_episode_ids: List[str] = Field(default_factory=list)
+    source_episode_ids: list[str] = Field(default_factory=list)
     episode_count: int = Field(default=0, ge=0)
 
     # Provenance links (for traceability)
-    provenance_links: List[str] = Field(default_factory=list)
+    provenance_links: list[str] = Field(default_factory=list)
 
     # Classification
-    category: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
-    domain: Optional[str] = None
+    category: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    domain: str | None = None
 
     # Lifecycle
-    distilled_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    last_validated: Optional[datetime] = None
+    distilled_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_validated: datetime | None = None
     validation_count: int = Field(default=0, ge=0)
 
     # Usage tracking
     access_count: int = Field(default=0, ge=0)
-    last_accessed: Optional[datetime] = None
+    last_accessed: datetime | None = None
     usefulness_score: float = Field(default=0.5, ge=0.0, le=1.0)
 
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
-    def to_typesense_document(self) -> Dict[str, Any]:
+    def to_typesense_document(self) -> dict[str, Any]:
         """Convert to Typesense document format."""
         return {
             "id": self.knowledge_id,
@@ -333,22 +334,22 @@ class KnowledgeDocument(BaseModel):
 class EpisodeQuery(BaseModel):
     """Query parameters for retrieving episodes."""
 
-    session_id: Optional[str] = None
-    min_importance: Optional[float] = Field(default=0.0, ge=0.0, le=1.0)
-    topics: Optional[List[str]] = None
-    time_range_start: Optional[datetime] = None
-    time_range_end: Optional[datetime] = None
+    session_id: str | None = None
+    min_importance: float | None = Field(default=0.0, ge=0.0, le=1.0)
+    topics: list[str] | None = None
+    time_range_start: datetime | None = None
+    time_range_end: datetime | None = None
     limit: int = Field(default=10, ge=1, le=100)
 
 
 class KnowledgeQuery(BaseModel):
     """Query parameters for retrieving knowledge documents."""
 
-    search_text: Optional[str] = None
-    knowledge_type: Optional[str] = None
-    category: Optional[str] = None
-    tags: Optional[List[str]] = None
-    min_confidence: Optional[float] = Field(default=0.0, ge=0.0, le=1.0)
+    search_text: str | None = None
+    knowledge_type: str | None = None
+    category: str | None = None
+    tags: list[str] | None = None
+    min_confidence: float | None = Field(default=0.0, ge=0.0, le=1.0)
     limit: int = Field(default=10, ge=1, le=100)
 
 
@@ -403,13 +404,13 @@ class ContextBlock(BaseModel):
     session_id: str
 
     # L1 Active Context (recent turns)
-    recent_turns: List[Dict[str, Any]] = Field(
+    recent_turns: list[dict[str, Any]] = Field(
         default_factory=list, description="Recent conversation turns from L1"
     )
     turn_count: int = Field(default=0, ge=0)
 
     # L2 Working Memory (CIAR-filtered facts)
-    significant_facts: List[Fact] = Field(
+    significant_facts: list[Fact] = Field(
         default_factory=list, description="High-CIAR facts from L2"
     )
     fact_count: int = Field(default=0, ge=0)
@@ -418,19 +419,19 @@ class ContextBlock(BaseModel):
     )
 
     # Metadata
-    assembled_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    assembled_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     l1_time_window_hours: float = Field(
         default=24.0, description="Time window for L1 turns retrieval"
     )
-    estimated_tokens: Optional[int] = Field(
+    estimated_tokens: int | None = Field(
         default=None, description="Rough token count estimate for LLM context"
     )
 
     # Optional L3/L4 summary
-    episode_summaries: List[str] = Field(
+    episode_summaries: list[str] = Field(
         default_factory=list, description="Optional episode summaries from L3"
     )
-    knowledge_snippets: List[str] = Field(
+    knowledge_snippets: list[str] = Field(
         default_factory=list, description="Optional knowledge from L4"
     )
 
@@ -514,14 +515,14 @@ class ContextBlock(BaseModel):
 
 # Export all models
 __all__ = [
-    "FactType",
-    "FactCategory",
-    "Fact",
-    "FactQuery",
+    "ContextBlock",
     "Episode",
     "EpisodeQuery",
+    "Fact",
+    "FactCategory",
+    "FactQuery",
+    "FactType",
     "KnowledgeDocument",
     "KnowledgeQuery",
     "SearchWeights",
-    "ContextBlock",
 ]

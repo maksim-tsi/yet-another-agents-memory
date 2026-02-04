@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
-
 PLOT_STD = False
 CUSTOM_COLORS = [
     "#ff9999",
@@ -74,8 +73,10 @@ def main():
     llm_names = None
     for span_label, agent_values in load_csv_data().items():
         if llm_colors is None:
-            llm_names = [name for name in agent_values.keys() if not name.startswith("LTM")]
-            llm_colors = {name: color for name, color in zip(llm_names, CUSTOM_COLORS)}
+            llm_names = [name for name in agent_values if not name.startswith("LTM")]
+            llm_colors = {
+                name: color for name, color in zip(llm_names, CUSTOM_COLORS, strict=False)
+            }
         start_pos = current_pos
         num_group_agents = 0
         for agent_name in model_order:
