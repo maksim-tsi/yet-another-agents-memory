@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import redis
 import uvicorn
@@ -23,6 +23,7 @@ from src.agents.full_context_agent import FullContextAgent
 from src.agents.memory_agent import MemoryAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.rag_agent import RAGAgent
+from src.memory.models import TurnData
 from src.memory.tiers import ActiveContextTier, WorkingMemoryTier
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.redis_adapter import RedisAdapter
@@ -404,7 +405,9 @@ def create_app(config: WrapperConfig) -> FastAPI:
     return app
 
 
-async def _store_turn(state: AgentWrapperState, message: Any, role: str) -> None:
+async def _store_turn(
+    state: AgentWrapperState, message: Any, role: Literal["user", "assistant"]
+) -> None:
     """Store a user or assistant turn in L1 for context assembly."""
 
     def _encode_turn_id(turn_id: int, message_role: str) -> int:
@@ -416,16 +419,15 @@ async def _store_turn(state: AgentWrapperState, message: Any, role: str) -> None
     timestamp = getattr(message, "timestamp", None) or datetime.now(UTC)
     metadata = getattr(message, "metadata", None) or {}
     stored_turn_id = _encode_turn_id(int(message.turn_id), role)
-    await state.l1_tier.store(
-        {
-            "session_id": message.session_id,
-            "turn_id": str(stored_turn_id),
-            "role": role,
-            "content": message.content,
-            "timestamp": timestamp,
-            "metadata": metadata,
-        }
+    turn = TurnData(
+        session_id=message.session_id,
+        turn_id=str(stored_turn_id),
+        role=role,
+        content=message.content,
+        timestamp=timestamp,
+        metadata=metadata,
     )
+    await state.l1_tier.store(turn)
 
 
 def _estimate_tokens(text: str) -> int:

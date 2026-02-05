@@ -13,7 +13,7 @@
 #   Verify: psql --version
 
 # --- Core Frameworks & Data Validation ---
-pydantic==2.8.2          # For data validation, settings management, and defining our data schemas.
+pydantic==2.12.0         # For data validation, settings management, and defining our data schemas.
 
 # --- Operating Memory Layer (Redis) ---
 redis==5.0.7             # The official Python client for Redis.
@@ -73,9 +73,11 @@ langgraph>=0.1.0         # LangGraph for multi-agent state graphs and orchestrat
                         # Used for: Supervisor + Sub-Graph topology, state management
                         # Documentation: https://langchain-ai.github.io/langgraph/
                         
-langchain-core>=0.2.0    # LangChain core components for agent tools and memory
+langchain-core>=0.3.25,<0.4.0    # LangChain core components for agent tools and memory
                         # Used for: Tool interfaces, message structures, callbacks
                         # Documentation: https://python.langchain.com/docs/get_started/introduction
+
+langsmith>=0.1.17,<0.3.0  # LangChain tracing/evals client required by langchain 0.3.x
 
 fastapi>=0.100.0         # Modern web framework for building agent wrapper API
                         # Used for: /run_turn endpoint, async request handling
@@ -84,6 +86,9 @@ fastapi>=0.100.0         # Modern web framework for building agent wrapper API
 uvicorn>=0.23.0          # ASGI server for FastAPI applications
                         # Used for: Running the agent API server
                         # Documentation: https://www.uvicorn.org/
+
+# --- HTTP Clients ---
+httpx>=0.28.1            # Required by fastmcp/expo-smooth-mcp (and general async HTTP)
 
 # --- Development & Testing Utilities ---
 fakeredis==2.23.1        # A mock Redis client, useful for running tests without a live Redis server.

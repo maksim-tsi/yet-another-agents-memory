@@ -11,11 +11,13 @@ Tests cover:
 """
 
 import json
+import warnings
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
 
+from src.memory.models import TurnData
 from src.memory.tiers.active_context_tier import ActiveContextTier
 from src.storage.base import StorageDataError
 
@@ -33,14 +35,14 @@ class TestActiveContextTierStore:
         )
         await tier.initialize()
 
-        turn_data = {
-            "session_id": "test_session",
-            "turn_id": "turn_001",
-            "role": "user",
-            "content": "Hello, world!",
-            "timestamp": datetime.now(UTC),
-            "metadata": {"source": "test"},
-        }
+        turn_data = TurnData(
+            session_id="test_session",
+            turn_id="turn_001",
+            role="user",
+            content="Hello, world!",
+            timestamp=datetime.now(UTC),
+            metadata={"source": "test"},
+        )
 
         turn_id = await tier.store(turn_data)
 
@@ -76,12 +78,12 @@ class TestActiveContextTierStore:
         tier = ActiveContextTier(redis_adapter=redis_adapter, postgres_adapter=postgres_adapter)
         await tier.initialize()
 
-        turn_data = {
-            "session_id": "test_session",
-            "turn_id": "turn_001",
-            "role": "user",
-            "content": "Test message",
-        }
+        turn_data = TurnData(
+            session_id="test_session",
+            turn_id="turn_001",
+            role="user",
+            content="Test message",
+        )
 
         before = datetime.now(UTC)
         turn_id = await tier.store(turn_data)
@@ -110,12 +112,12 @@ class TestActiveContextTierStore:
 
         # Store multiple turns
         for i in range(10):
-            turn_data = {
-                "session_id": "test_session",
-                "turn_id": f"turn_{i:03d}",
-                "role": "user" if i % 2 == 0 else "assistant",
-                "content": f"Message {i}",
-            }
+            turn_data = TurnData(
+                session_id="test_session",
+                turn_id=f"turn_{i:03d}",
+                role="user" if i % 2 == 0 else "assistant",
+                content=f"Message {i}",
+            )
             await tier.store(turn_data)
 
         # Verify LTRIM was called to enforce window size
@@ -134,12 +136,12 @@ class TestActiveContextTierStore:
         )
         await tier.initialize()
 
-        turn_data = {
-            "session_id": "test_session",
-            "turn_id": "turn_001",
-            "role": "user",
-            "content": "Test message",
-        }
+        turn_data = TurnData(
+            session_id="test_session",
+            turn_id="turn_001",
+            role="user",
+            content="Test message",
+        )
 
         await tier.store(turn_data)
 
@@ -160,12 +162,12 @@ class TestActiveContextTierStore:
         )
         await tier.initialize()
 
-        turn_data = {
-            "session_id": "test_session",
-            "turn_id": "turn_001",
-            "role": "user",
-            "content": "Test message",
-        }
+        turn_data = TurnData(
+            session_id="test_session",
+            turn_id="turn_001",
+            role="user",
+            content="Test message",
+        )
 
         await tier.store(turn_data)
 
@@ -181,17 +183,40 @@ class TestActiveContextTierStore:
         tier = ActiveContextTier(redis_adapter=redis_adapter, postgres_adapter=postgres_adapter)
         await tier.initialize()
 
-        turn_data = {
-            "session_id": "test_session",
-            "turn_id": "turn_001",
-            "role": "user",
-            "content": "Test message",
-        }
+        turn_data = TurnData(
+            session_id="test_session",
+            turn_id="turn_001",
+            role="user",
+            content="Test message",
+        )
 
         await tier.store(turn_data)
 
         metrics = await tier.get_metrics()
         assert metrics["tier"] == "ActiveContextTier"
+
+        await tier.cleanup()
+
+    @pytest.mark.asyncio
+    async def test_store_turn_deprecated_dict_input(self, redis_adapter, postgres_adapter):
+        """Test dict input emits deprecation warning."""
+        tier = ActiveContextTier(redis_adapter=redis_adapter, postgres_adapter=postgres_adapter)
+        await tier.initialize()
+
+        turn_data = {
+            "session_id": "test_session",
+            "turn_id": "turn_002",
+            "role": "user",
+            "content": "Deprecated dict input",
+        }
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            await tier.store(turn_data)
+
+        assert any(
+            issubclass(warning.category, DeprecationWarning) for warning in captured
+        ), "Expected DeprecationWarning for dict input"
 
         await tier.cleanup()
 
@@ -232,6 +257,8 @@ class TestActiveContextTierRetrieve:
 
         assert turns is not None
         assert len(turns) == 2
+        assert isinstance(turns[0], TurnData)
+        assert isinstance(turns[1], TurnData)
         assert turns[0].turn_id == "turn_002"
         assert turns[1].turn_id == "turn_001"
 
@@ -268,6 +295,7 @@ class TestActiveContextTierRetrieve:
 
         assert turns is not None
         assert len(turns) == 1
+        assert isinstance(turns[0], TurnData)
 
         # Verify both were called
         redis_adapter.lrange.assert_called_once()
@@ -305,6 +333,7 @@ class TestActiveContextTierRetrieve:
 
         assert turns is not None
         assert len(turns) == 1
+        assert isinstance(turns[0], TurnData)
 
         # Verify PostgreSQL fallback worked
         postgres_adapter.query.assert_called_once()
@@ -352,6 +381,7 @@ class TestActiveContextTierQuery:
         results = await tier.query(filters={"session_id": "test_session", "role": "user"}, limit=10)
 
         assert len(results) == 1
+        assert isinstance(results[0], TurnData)
         assert results[0].turn_id == "turn_001"
 
         # Verify PostgreSQL was called with correct filters
@@ -466,12 +496,12 @@ class TestActiveContextTierContextManager:
         ) as tier:
             assert tier.is_initialized()
 
-            turn_data = {
-                "session_id": "test_session",
-                "turn_id": "turn_001",
-                "role": "user",
-                "content": "Test",
-            }
+            turn_data = TurnData(
+                session_id="test_session",
+                turn_id="turn_001",
+                role="user",
+                content="Test",
+            )
 
             await tier.store(turn_data)
 

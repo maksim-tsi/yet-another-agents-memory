@@ -4,9 +4,10 @@ import webbrowser
 from pathlib import Path
 
 import click
-from reporting.generate import generate_summary_report
 from utils.files import gather_runstats_files
 from utils.ui import ask_yesno
+
+from reporting.generate import generate_summary_report
 
 
 @click.command("comparative-report")

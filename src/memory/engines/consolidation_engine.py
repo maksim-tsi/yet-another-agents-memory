@@ -23,7 +23,7 @@ from uuid import uuid4
 
 from src.memory.engines.base_engine import BaseEngine
 from src.memory.lifecycle_stream import LifecycleStreamConsumer
-from src.memory.models import Episode, Fact
+from src.memory.models import Episode, EpisodeStoreInput, Fact
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
 from src.utils.llm_client import LLMClient
@@ -284,14 +284,13 @@ class ConsolidationEngine(BaseEngine):
                 episode = await self._create_episode_from_facts(session_id, cluster)
                 embedding = await self._generate_embedding(episode)
 
-                await self.l3.store(
-                    {
-                        "episode": episode,
-                        "embedding": embedding,
-                        "entities": [],
-                        "relationships": [],
-                    }
+                payload = EpisodeStoreInput(
+                    episode=episode,
+                    embedding=embedding,
+                    entities=[],
+                    relationships=[],
                 )
+                await self.l3.store(payload)
 
                 stats["episodes_created"] = stats.get("episodes_created", 0) + 1
 
@@ -361,14 +360,13 @@ class ConsolidationEngine(BaseEngine):
                     embedding = await self._generate_embedding(episode)
 
                     # 6. Store in L3
-                    await self.l3.store(
-                        {
-                            "episode": episode,
-                            "embedding": embedding,
-                            "entities": [],  # Could extract from facts
-                            "relationships": [],  # Could extract from facts
-                        }
+                    payload = EpisodeStoreInput(
+                        episode=episode,
+                        embedding=embedding,
+                        entities=[],  # Could extract from facts
+                        relationships=[],  # Could extract from facts
                     )
+                    await self.l3.store(payload)
 
                     inc("episodes_created")
 
