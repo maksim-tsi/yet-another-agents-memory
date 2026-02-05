@@ -6,10 +6,13 @@ import asyncio
 import random
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .aggregator import MetricsAggregator
 from .storage import MetricsStorage
+
+if TYPE_CHECKING:
+    from .timer import OperationTimer
 
 
 class MetricsCollector:
@@ -227,7 +230,7 @@ class MetricsCollector:
             await self._storage.reset()
             self._start_time = time.time()
 
-    async def export_metrics(self, format: str = "dict") -> dict | str:
+    async def export_metrics(self, format: str = "dict") -> dict[str, Any] | str:
         """
         Export metrics in specified format.
 
@@ -242,7 +245,9 @@ class MetricsCollector:
         metrics = await self.get_metrics()
         return export_metrics(metrics, format)
 
-    def start_timer(self, operation: str, metadata: dict[str, Any] | None = None):
+    def start_timer(
+        self, operation: str, metadata: dict[str, Any] | None = None
+    ) -> "OperationTimer":
         """
         Start a timer for an operation.
 

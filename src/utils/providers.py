@@ -253,4 +253,11 @@ class MistralProvider(BaseProvider):
             return ProviderHealth(name=self.name, healthy=False, last_error=str(exc))
 
 
-__all__ = ["GeminiProvider", "GroqProvider", "MistralProvider"]
+__all__ = [
+    "BaseProvider",
+    "GeminiProvider",
+    "GroqProvider",
+    "LLMResponse",
+    "MistralProvider",
+    "ProviderHealth",
+]

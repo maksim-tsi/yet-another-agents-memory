@@ -18,7 +18,7 @@ import asyncio
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
 from src.memory.engines.base_engine import BaseEngine
@@ -30,6 +30,13 @@ from src.utils.llm_client import LLMClient
 from src.utils.providers import BaseProvider
 
 logger = logging.getLogger(__name__)
+
+
+class EmbeddingProvider(Protocol):
+    async def get_embedding(
+        self, text: str, model: str | None = None, output_dimensionality: int = 768
+    ) -> list[float]:
+        ...
 
 
 class ConsolidationEngine(BaseEngine):
@@ -84,7 +91,7 @@ class ConsolidationEngine(BaseEngine):
         self.batch_size = self.config.get("batch_size", self.DEFAULT_BATCH_SIZE)
         self._running = False
         self._buffer: list[Fact] = []
-        self._stream_task: asyncio.Task | None = None
+        self._stream_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """
@@ -581,11 +588,11 @@ Format as JSON:
             **provider_health,
         }
 
-    def _get_embedding_provider(self):
+    def _get_embedding_provider(self) -> EmbeddingProvider | None:
         """Select a provider that supports embeddings from the registered LLM client."""
         for provider in self.llm._providers.values():
             if hasattr(provider, "get_embedding"):
-                return provider
+                return cast(EmbeddingProvider, provider)
         return None
 
     def _fallback_embedding(self, text: str) -> list[float]:

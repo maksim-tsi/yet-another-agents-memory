@@ -15,10 +15,11 @@ Architecture:
 import logging
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
-import yaml  # type: ignore[import-untyped]  # mypy --no-site-packages
+import yaml  # type: ignore[import-untyped]
 
 from ...storage.metrics.collector import MetricsCollector
 from ...utils.llm_client import LLMClient
@@ -152,7 +153,7 @@ class DistillationEngine(BaseEngine):
             },
         }
 
-    async def process(self, **kwargs) -> dict[str, Any]:
+    async def process(self, **kwargs: Any) -> dict[str, Any]:
         """
         Main processing method: Check for episodes and create knowledge documents.
 
@@ -222,7 +223,10 @@ class DistillationEngine(BaseEngine):
                         # Continue with other knowledge types
                         continue
 
-                elapsed_ms = (time.perf_counter() - timer.start_time) * 1000
+                if timer.start_time is None:
+                    elapsed_ms = 0.0
+                else:
+                    elapsed_ms = (time.perf_counter() - timer.start_time) * 1000
 
                 return {
                     "status": "success",
@@ -237,9 +241,13 @@ class DistillationEngine(BaseEngine):
                 timer.success = False
                 logger.error(f"Distillation processing failed: {e}")
                 return {"status": "error", "error": str(e)}
+        raise AssertionError("Unreachable: process should return or raise.")
 
     async def distill(
-        self, session_id: str | None = None, track_provenance: bool = True, **kwargs
+        self,
+        session_id: str | None = None,
+        track_provenance: bool = True,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """Backwards-compatible alias for process()."""
         return await self.process(
@@ -247,7 +255,7 @@ class DistillationEngine(BaseEngine):
         )
 
     async def _count_episodes(
-        self, session_id: str | None = None, time_range: tuple | None = None
+        self, session_id: str | None = None, time_range: tuple[datetime, datetime] | None = None
     ) -> int:
         """
         Count episodes in L3 that match the criteria.
@@ -269,7 +277,10 @@ class DistillationEngine(BaseEngine):
             return 0
 
     async def _retrieve_episodes(
-        self, session_id: str | None = None, time_range: tuple | None = None, limit: int = 100
+        self,
+        session_id: str | None = None,
+        time_range: tuple[datetime, datetime] | None = None,
+        limit: int = 100,
     ) -> list[Episode]:
         """
         Retrieve episodes from L3 for knowledge synthesis.

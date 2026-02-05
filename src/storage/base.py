@@ -546,7 +546,7 @@ class StorageAdapter(ABC):
         """
         return None
 
-    async def export_metrics(self, format: str = "dict") -> dict | str:
+    async def export_metrics(self, format: str = "dict") -> dict[str, Any] | str:
         """Export metrics in specified format."""
         return await self.metrics.export_metrics(format)
 
@@ -554,7 +554,7 @@ class StorageAdapter(ABC):
         """Reset all collected metrics."""
         await self.metrics.reset_metrics()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "StorageAdapter":
         """
         Async context manager entry.
 
@@ -569,7 +569,12 @@ class StorageAdapter(ABC):
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
         """
         Async context manager exit.
 
