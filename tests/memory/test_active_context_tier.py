@@ -78,14 +78,13 @@ class TestActiveContextTierStore:
         tier = ActiveContextTier(redis_adapter=redis_adapter, postgres_adapter=postgres_adapter)
         await tier.initialize()
 
+        before = datetime.now(UTC)
         turn_data = TurnData(
             session_id="test_session",
             turn_id="turn_001",
             role="user",
             content="Test message",
         )
-
-        before = datetime.now(UTC)
         turn_id = await tier.store(turn_data)
         after = datetime.now(UTC)
 

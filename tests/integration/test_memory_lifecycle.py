@@ -27,6 +27,7 @@ from src.memory.engines.distillation_engine import DistillationEngine
 from src.memory.engines.fact_extractor import FactExtractor
 from src.memory.engines.promotion_engine import PromotionEngine
 from src.memory.engines.topic_segmenter import TopicSegmenter
+from src.memory.models import Fact, FactType, TurnData
 from src.memory.tiers.active_context_tier import ActiveContextTier
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.semantic_memory_tier import SemanticMemoryTier
@@ -70,7 +71,7 @@ class TestMemoryLifecycleFlow:
         turns = create_test_turns(test_session_id, count=12)
         start_store = time.perf_counter()
         for turn in turns:
-            turn["user_id"] = test_user_id
+            turn.metadata["user_id"] = test_user_id
             await l1_tier.store(turn)
         latencies["l1_store_ms"] = (time.perf_counter() - start_store) * 1000
 
@@ -177,7 +178,7 @@ class TestMemoryLifecycleFlow:
         facts = create_test_facts(test_session_id, count=50)
         start_store = time.perf_counter()
         for fact in facts:
-            fact["user_id"] = test_user_id
+            fact.metadata["user_id"] = test_user_id
             await l2_tier.store(fact)
         latencies["l2_store_ms"] = (time.perf_counter() - start_store) * 1000
 
@@ -489,7 +490,7 @@ class TestMemoryLifecycleFlow:
         turns = create_test_turns(test_session_id, count=50)
         start_l1 = time.perf_counter()
         for turn in turns:
-            turn["user_id"] = test_user_id
+            turn.metadata["user_id"] = test_user_id
             await l1_tier.store(turn)
         latencies["l1_store_ms"] = (time.perf_counter() - start_l1) * 1000
 
@@ -755,13 +756,13 @@ SUPPLY_CHAIN_CONVERSATION_TEMPLATES = [
 ]
 
 
-def create_test_turns(session_id: str, count: int = 10):
+def create_test_turns(session_id: str, count: int = 10) -> list[TurnData]:
     """Create test conversation turns for L1 with rich supply chain content.
 
     Uses realistic supply chain scenarios to trigger meaningful LLM fact extraction.
     Content includes shipment delays, inventory issues, supplier risks, and logistics events.
     """
-    turns = []
+    turns: list[TurnData] = []
     templates = SUPPLY_CHAIN_CONVERSATION_TEMPLATES
 
     for i in range(count):
@@ -772,38 +773,42 @@ def create_test_turns(session_id: str, count: int = 10):
         content = content_template.format(idx=i)
 
         turns.append(
-            {
-                "session_id": session_id,
-                "turn_id": i,
-                "role": role,
-                "content": content,
-                "metadata": {"test": True, "turn_index": i, "scenario_type": "supply_chain"},
-                "created_at": datetime.now(UTC) - timedelta(minutes=count - i),
-            }
+            TurnData(
+                session_id=session_id,
+                turn_id=str(i),
+                role=role,
+                content=content,
+                metadata={
+                    "test": True,
+                    "turn_index": i,
+                    "scenario_type": "supply_chain",
+                },
+                timestamp=datetime.now(UTC) - timedelta(minutes=count - i),
+            )
         )
     return turns
 
 
-def create_test_facts(session_id: str, count: int = 20):
+def create_test_facts(session_id: str, count: int = 20) -> list[Fact]:
     """Create test facts for L2 with varying CIAR scores."""
-    facts = []
+    facts: list[Fact] = []
     for i in range(count):
         # Integration happy-path requires CIAR above threshold
         certainty = 0.85
         impact = 0.75
 
         facts.append(
-            {
-                "session_id": session_id,
-                "fact_id": f"test-fact-{i}",
-                "content": f"Test fact {i}: Shipment {i} delayed at customs.",
-                "fact_type": "event",
-                "certainty": certainty,
-                "impact": impact,
-                "ciar_score": certainty * impact,  # Simplified CIAR
-                "created_at": datetime.now(UTC) - timedelta(hours=i),
-                "access_count": i % 5,
-            }
+            Fact(
+                session_id=session_id,
+                fact_id=f"test-fact-{i}",
+                content=f"Test fact {i}: Shipment {i} delayed at customs.",
+                fact_type=FactType.EVENT,
+                certainty=certainty,
+                impact=impact,
+                ciar_score=certainty * impact,  # Simplified CIAR
+                extracted_at=datetime.now(UTC) - timedelta(hours=i),
+                access_count=i % 5,
+            )
         )
     return facts
 
