@@ -64,7 +64,13 @@ Migrated both projects (MAS Memory Layer and GoodAI LTM Benchmark) from pip/requ
 
 **Two-Environment Architecture:**
 - **MAS Memory Layer** (root): `poetry install --with test,dev` creates `.venv/`
+  - Python: `>=3.12,<3.14`
 - **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install` creates its own `.venv/`
+  - Python: `>=3.10,<3.13` (constrained by `pymemgpt` which requires `<3.13`)
+
+**Dependency Constraints Discovered:**
+- `pymemgpt` requires Python `<3.13` — all versions (0.1.0 through 0.3.25) have this constraint
+- `langchain==0.1.1` (benchmark) conflicts with `langchain-core>=0.3.25` (MAS) — hence separate environments
 
 Environments are isolated due to incompatible langchain versions:
 - MAS uses `langchain-core>=0.3.25,<0.4.0`
@@ -91,11 +97,11 @@ poetry install
 
 **✅ What's Complete:**
 - Poetry pyproject.toml for both projects
-- poetry.lock generated for MAS Memory Layer
+- poetry.lock generated for both projects (MAS Memory Layer + GoodAI Benchmark)
 - All agent documentation updated
+- Both environments installed and verified (228 packages for benchmark)
 
 **❌ What's Pending:**
-- GoodAI Benchmark Poetry install (run `cd benchmarks/goodai-ltm-benchmark && poetry install`)
 - Full test suite validation after Poetry migration
 
 ### 2026-02-05 - GoodAI Benchmark Mypy Cleanup 📊
