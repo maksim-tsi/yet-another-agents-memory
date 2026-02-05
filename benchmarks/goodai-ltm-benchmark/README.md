@@ -18,6 +18,7 @@ This repository is maintained as an **improved, MAS-integrated version** of the 
 **Key improvements:**
 - **Gemini provider**: The default evaluation model is Google Gemini (e.g., `gemini-2.5-flash-lite`) rather than OpenAI GPT-4.
 - **Enhanced visibility**: Headless-friendly progress reporting and structured telemetry are being added to improve run transparency.
+- **Static typing hardening**: The benchmark package has been aligned with the repository's strict mypy configuration through typed interfaces and Optional guards.
 
 **Historical results disclaimer:**
 Historical benchmark results produced using OpenAI GPT-4 are **not directly comparable** to our current runs. The benchmark protocol and evaluation data are unchanged, but the model family and inference characteristics differ.

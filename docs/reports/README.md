@@ -34,6 +34,7 @@ This directory contains technical reports, status updates, and debugging documen
 |--------|-------------|
 | [benchmark-validation-21-oct-2025.md](benchmark-validation-21-oct-2025.md) | Storage benchmark validation results |
 | [integration-tests-2025-11-12.md](integration-tests-2025-11-12.md) | Integration test results |
+| [benchmark-mypy-cleanup-2026-02-05.md](benchmark-mypy-cleanup-2026-02-05.md) | GoodAI benchmark mypy cleanup progress report |
 
 ## Naming Conventions
 
