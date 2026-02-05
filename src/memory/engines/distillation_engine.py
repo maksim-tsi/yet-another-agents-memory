@@ -18,7 +18,7 @@ import uuid
 from pathlib import Path
 from typing import Any, cast
 
-import yaml  # type: ignore[import-untyped]
+import yaml  # type: ignore[import-untyped]  # mypy --no-site-packages
 
 from ...storage.metrics.collector import MetricsCollector
 from ...utils.llm_client import LLMClient
