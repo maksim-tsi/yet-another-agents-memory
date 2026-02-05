@@ -14,5 +14,8 @@ python-dotenv>=1.0.0
 # For HTTP testing (Typesense)
 requests>=2.31.0
 
+# Development tools
+mypy==1.19.1
+
 # All dependencies from main requirements.txt are needed for testing
 -r requirements.txt
