@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -334,9 +335,13 @@ def create_app(config: WrapperConfig) -> FastAPI:
         await state.rate_limiter.wait_if_needed(estimated_input_tokens)
 
         try:
+            t0 = time.perf_counter()
             await _store_turn(state, updated_request, role=updated_request.role)
+            t1 = time.perf_counter()
             response = await state.agent.run_turn(updated_request)
+            t2 = time.perf_counter()
             await _store_turn(state, response, role=response.role)
+            t3 = time.perf_counter()
             estimated_total_tokens = _estimate_tokens(
                 f"{updated_request.content}\n{response.content}"
             )
@@ -346,7 +351,16 @@ def create_app(config: WrapperConfig) -> FastAPI:
             logger.exception("Error handling /run_turn for session %s", session_id)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return response
+        metadata = dict(response.metadata or {})
+        metadata.update(
+            {
+                "storage_ms_pre": (t1 - t0) * 1000,
+                "llm_ms": (t2 - t1) * 1000,
+                "storage_ms_post": (t3 - t2) * 1000,
+                "storage_ms": (t1 - t0 + t3 - t2) * 1000,
+            }
+        )
+        return response.model_copy(update={"metadata": metadata})
 
     @app.get("/sessions")
     async def list_sessions() -> dict[str, Any]:

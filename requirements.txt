@@ -13,7 +13,7 @@
 #   Verify: psql --version
 
 # --- Core Frameworks & Data Validation ---
-pydantic==2.12.0         # For data validation, settings management, and defining our data schemas.
+pydantic==2.8.2          # For data validation, settings management, and defining our data schemas.
 
 # --- Operating Memory Layer (Redis) ---
 redis==5.0.7             # The official Python client for Redis.
@@ -88,7 +88,7 @@ uvicorn>=0.23.0          # ASGI server for FastAPI applications
                         # Documentation: https://www.uvicorn.org/
 
 # --- HTTP Clients ---
-httpx>=0.28.1            # Required by fastmcp/expo-smooth-mcp (and general async HTTP)
+httpx>=0.27.0,<0.28.0     # Compatible with mistralai 1.0.3
 
 # --- Development & Testing Utilities ---
 fakeredis==2.23.1        # A mock Redis client, useful for running tests without a live Redis server.

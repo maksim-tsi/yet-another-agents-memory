@@ -1,6 +1,10 @@
 # Phase 5 — Post-Subset Run: Visibility & Reliability Improvements
 Date: 2026-01-29
 
+## Implementation Status (as of 2026-02-05)
+- Status: Not implemented.
+- No runner or CLI changes landed; no JSONL metrics, watchdog, or progress UX present.
+
 ## Purpose
 Document the agreed plan and decisions to improve visibility, progress reporting, and stuck-run detection for Phase 5 of the GoodAI LTM benchmark work. This is a planning artifact only; no runner or functional changes will be applied in this ticket.
 

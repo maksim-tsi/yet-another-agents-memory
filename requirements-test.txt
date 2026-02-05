@@ -11,6 +11,9 @@ pytest-mock>=3.12.0
 # Environment variable management
 python-dotenv>=1.0.0
 
+# Keep pydantic aligned with base requirements
+pydantic==2.8.2
+
 # For HTTP testing (Typesense)
 requests>=2.31.0
 
