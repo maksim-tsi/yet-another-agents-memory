@@ -11,7 +11,9 @@ from src.utils.llm_client import LLMResponse
 def llm_client(mocker):
     """Provide a stub LLM client."""
     client = mocker.Mock()
-    client.generate = mocker.AsyncMock(return_value=LLMResponse(text="Here are the details.", provider="stub"))
+    client.generate = mocker.AsyncMock(
+        return_value=LLMResponse(text="Here are the details.", provider="stub")
+    )
     client.available_providers = mocker.Mock(return_value=["stub"])
     return client
 

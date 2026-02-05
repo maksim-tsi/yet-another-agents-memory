@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.agents.models import RunTurnRequest, RunTurnResponse
 
@@ -23,8 +23,8 @@ class BaseAgent(ABC):
     def __init__(
         self,
         agent_id: str,
-        memory_system: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
+        memory_system: Any | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         if not agent_id or not agent_id.strip():
             raise ValueError("agent_id must be a non-empty string.")
@@ -39,12 +39,12 @@ class BaseAgent(ABC):
         return self._agent_id
 
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> dict[str, Any]:
         """Return the agent configuration dictionary."""
         return self._config
 
     @property
-    def memory_system(self) -> Optional[Any]:
+    def memory_system(self) -> Any | None:
         """Return the memory system reference, if available."""
         return self._memory_system
 
@@ -70,7 +70,7 @@ class BaseAgent(ABC):
         """
 
     @abstractmethod
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Return health status information for the agent and dependencies."""
 
     @abstractmethod

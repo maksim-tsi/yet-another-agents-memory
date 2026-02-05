@@ -15,7 +15,9 @@ class _SuccessProvider(BaseProvider):
         self._text = text
         self._model = model
 
-    async def generate(self, *_: object, **__: object) -> LLMResponse:  # pragma: no cover - deterministic helper
+    async def generate(
+        self, *_: object, **__: object
+    ) -> LLMResponse:  # pragma: no cover - deterministic helper
         return LLMResponse(text=self._text, provider=self.name, model=self._model)
 
 
@@ -37,7 +39,9 @@ async def test_generate_uses_fallback_order_when_first_fails() -> None:
     """LLMClient should move to the next provider when the first raises."""
 
     client = LLMClient()
-    client.register_provider(_FailingProvider(name="first"), ProviderConfig(name="first", priority=0))
+    client.register_provider(
+        _FailingProvider(name="first"), ProviderConfig(name="first", priority=0)
+    )
     client.register_provider(
         _SuccessProvider(name="second", text="ok", model="m1"),
         ProviderConfig(name="second", priority=1),
@@ -55,8 +59,12 @@ async def test_health_check_reports_unhealthy_provider() -> None:
     """Health check should capture providers that raise during readiness."""
 
     client = LLMClient()
-    client.register_provider(_SuccessProvider(name="healthy", text="done"), ProviderConfig(name="healthy"))
-    client.register_provider(_FailingHealthProvider(name="unhealthy"), ProviderConfig(name="unhealthy"))
+    client.register_provider(
+        _SuccessProvider(name="healthy", text="done"), ProviderConfig(name="healthy")
+    )
+    client.register_provider(
+        _FailingHealthProvider(name="unhealthy"), ProviderConfig(name="unhealthy")
+    )
 
     report = await client.health_check()
 

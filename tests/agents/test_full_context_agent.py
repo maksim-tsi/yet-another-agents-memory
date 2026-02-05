@@ -12,7 +12,9 @@ from src.utils.llm_client import LLMResponse
 def llm_client(mocker):
     """Provide a stub LLM client."""
     client = mocker.Mock()
-    client.generate = mocker.AsyncMock(return_value=LLMResponse(text="Full context response.", provider="stub"))
+    client.generate = mocker.AsyncMock(
+        return_value=LLMResponse(text="Full context response.", provider="stub")
+    )
     client.available_providers = mocker.Mock(return_value=["stub"])
     return client
 
@@ -20,9 +22,7 @@ def llm_client(mocker):
 @pytest.fixture
 def context_block() -> ContextBlock:
     """Provide a context block with a longer history."""
-    turns = [
-        {"role": "user", "content": f"Turn {idx} content"} for idx in range(30)
-    ]
+    turns = [{"role": "user", "content": f"Turn {idx} content"} for idx in range(30)]
     return ContextBlock(
         session_id="session-789",
         recent_turns=turns,

@@ -8,16 +8,16 @@ to extract structured facts from raw text turns.
 import json
 import logging
 import re
-from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from pydantic import ValidationError
 
-from src.memory.models import Fact, FactType, FactCategory
+from src.memory.models import Fact, FactCategory, FactType
 from src.memory.schemas.fact_extraction import (
-    FACT_EXTRACTION_SYSTEM_INSTRUCTION,
     FACT_EXTRACTION_SCHEMA,
+    FACT_EXTRACTION_SYSTEM_INSTRUCTION,
 )
 from src.utils.llm_client import LLMClient
 
@@ -26,23 +26,24 @@ logger = logging.getLogger(__name__)
 
 class FactExtractionError(Exception):
     """Raised when fact extraction fails."""
+
     pass
 
 
 class FactExtractor:
     """
     Extracts structured facts from raw text using LLMs with rule-based fallback.
-    
+
     Attributes:
         llm_client: Client for LLM interactions.
         model_name: Name of the LLM model to use.
     """
 
-    def __init__(self, llm_client: LLMClient, model_name: Optional[str] = None):
-        self.llm_client = llm_client
+    def __init__(self, llm_client: LLMClient, model_name: str | None = None):
+        self.llm_client: LLMClient = llm_client
         self.model_name = model_name or "gemini-3-flash-preview"
 
-    async def extract_facts(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> List[Fact]:
+    async def extract_facts(self, text: str, metadata: dict[str, Any] | None = None) -> list[Fact]:
         """
         Extract facts from text using LLM with fallback to rules.
 
@@ -62,10 +63,12 @@ class FactExtractor:
             logger.warning(f"LLM extraction failed: {e}. Falling back to rules.")
             return self._extract_with_rules(text, metadata)
 
-    async def _extract_with_llm(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> List[Fact]:
+    async def _extract_with_llm(
+        self, text: str, metadata: dict[str, Any] | None = None
+    ) -> list[Fact]:
         """Extract facts using LLM with native structured output."""
         prompt = f"Extract significant facts from the following conversation:\n\n{text}"
-        
+
         response = await self.llm_client.generate(
             prompt=prompt,
             model=self.model_name,
@@ -79,7 +82,7 @@ class FactExtractor:
             # Parse JSON response (no markdown cleanup needed with structured output)
             data = json.loads(response.text)
             raw_facts = data.get("facts", [])
-            
+
             facts = []
             for rf in raw_facts:
                 try:
@@ -95,61 +98,65 @@ class FactExtractor:
                         impact=float(rf.get("impact", 0.5)),
                         source_uri=metadata.get("source_uri") if metadata else None,
                         source_type="llm_extraction",
-                        extracted_at=datetime.now(timezone.utc),
-                        ciar_score=0.0, # Will be calculated later
+                        extracted_at=datetime.now(UTC),
+                        ciar_score=0.0,  # Will be calculated later
                         age_decay=1.0,
-                        recency_boost=1.0
+                        recency_boost=1.0,
                     )
                     facts.append(fact)
                 except ValidationError as ve:
                     logger.warning(f"Skipping invalid fact from LLM: {ve}")
                     continue
-            
+
             return facts
 
         except json.JSONDecodeError as e:
-            raise FactExtractionError(f"Failed to parse LLM JSON response: {e}")
+            raise FactExtractionError(f"Failed to parse LLM JSON response: {e}") from e
 
-    def _extract_with_rules(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> List[Fact]:
+    def _extract_with_rules(self, text: str, metadata: dict[str, Any] | None = None) -> list[Fact]:
         """Fallback extraction using regex rules."""
         facts = []
-        
+
         # Simple rule: Extract email addresses as entities
-        emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
+        emails = re.findall(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", text)
         for email in emails:
-            facts.append(Fact(
-                fact_id=str(uuid4()),
-                session_id=metadata.get("session_id", "unknown") if metadata else "unknown",
-                content=f"Email address: {email}",
-                fact_type=FactType.ENTITY,
-                fact_category=FactCategory.PERSONAL,
-                certainty=1.0,
-                impact=0.5,
-                source_uri=metadata.get("source_uri") if metadata else None,
-                source_type="rule_fallback",
-                extracted_at=datetime.now(timezone.utc),
-                ciar_score=0.0,
-                age_decay=1.0,
-                recency_boost=1.0
-            ))
+            facts.append(
+                Fact(
+                    fact_id=str(uuid4()),
+                    session_id=metadata.get("session_id", "unknown") if metadata else "unknown",
+                    content=f"Email address: {email}",
+                    fact_type=FactType.ENTITY,
+                    fact_category=FactCategory.PERSONAL,
+                    certainty=1.0,
+                    impact=0.5,
+                    source_uri=metadata.get("source_uri") if metadata else None,
+                    source_type="rule_fallback",
+                    extracted_at=datetime.now(UTC),
+                    ciar_score=0.0,
+                    age_decay=1.0,
+                    recency_boost=1.0,
+                )
+            )
 
         # Simple rule: Extract "I like/love/prefer" as preferences
-        preferences = re.findall(r'\b(I (?:like|love|prefer) .+?)(?:[.!?;]|$)', text, re.IGNORECASE)
+        preferences = re.findall(r"\b(I (?:like|love|prefer) .+?)(?:[.!?;]|$)", text, re.IGNORECASE)
         for pref in preferences:
-            facts.append(Fact(
-                fact_id=str(uuid4()),
-                session_id=metadata.get("session_id", "unknown") if metadata else "unknown",
-                content=pref,
-                fact_type=FactType.PREFERENCE,
-                fact_category=FactCategory.PERSONAL,
-                certainty=0.8,
-                impact=0.7,
-                source_uri=metadata.get("source_uri") if metadata else None,
-                source_type="rule_fallback",
-                extracted_at=datetime.now(timezone.utc),
-                ciar_score=0.0,
-                age_decay=1.0,
-                recency_boost=1.0
-            ))
+            facts.append(
+                Fact(
+                    fact_id=str(uuid4()),
+                    session_id=metadata.get("session_id", "unknown") if metadata else "unknown",
+                    content=pref,
+                    fact_type=FactType.PREFERENCE,
+                    fact_category=FactCategory.PERSONAL,
+                    certainty=0.8,
+                    impact=0.7,
+                    source_uri=metadata.get("source_uri") if metadata else None,
+                    source_type="rule_fallback",
+                    extracted_at=datetime.now(UTC),
+                    ciar_score=0.0,
+                    age_decay=1.0,
+                    recency_boost=1.0,
+                )
+            )
 
         return facts

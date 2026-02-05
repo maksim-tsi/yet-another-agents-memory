@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional, List, cast
+from datetime import UTC, datetime
+from typing import Any, cast
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
 from src.agents.base_agent import BaseAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
@@ -25,9 +25,9 @@ class MemoryAgent(BaseAgent):
     def __init__(
         self,
         agent_id: str,
-        llm_client: Optional[LLMClient] = None,
-        memory_system: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
+        llm_client: LLMClient | None = None,
+        memory_system: Any | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(agent_id=agent_id, memory_system=memory_system, config=config)
         self._llm_client = llm_client
@@ -37,6 +37,7 @@ class MemoryAgent(BaseAgent):
         self._max_facts = int(self._config.get("max_facts", 10))
         self._tools = list(UNIFIED_TOOLS)
         self._graph = self._build_graph()
+        self._promotion_task: asyncio.Task | None = None
 
     async def initialize(self) -> None:
         """Initialize MemoryAgent resources."""
@@ -70,7 +71,7 @@ class MemoryAgent(BaseAgent):
             turn_id=request.turn_id,
         )
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Return health status for the agent."""
         providers = []
         if self._llm_client:
@@ -142,7 +143,9 @@ class MemoryAgent(BaseAgent):
             state["episodic_chunks"] = list(context_block.episode_summaries)
             state["semantic_knowledge"] = list(context_block.knowledge_snippets)
         elif context_block and hasattr(context_block, "recent_turns"):
-            state["active_context"] = self._format_recent_turns(getattr(context_block, "recent_turns", []))
+            state["active_context"] = self._format_recent_turns(
+                getattr(context_block, "recent_turns", [])
+            )
             state["working_facts"] = list(getattr(context_block, "significant_facts", []))
             state["episodic_chunks"] = list(getattr(context_block, "episode_summaries", []))
             state["semantic_knowledge"] = list(getattr(context_block, "knowledge_snippets", []))
@@ -188,7 +191,7 @@ class MemoryAgent(BaseAgent):
         user_message = self._extract_user_message(state)
         assistant_response = state.get("response", "")
 
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         user_turn_id = self._encode_turn_id(turn_id, role="user")
         assistant_turn_id = self._encode_turn_id(turn_id, role="assistant")
 
@@ -213,7 +216,9 @@ class MemoryAgent(BaseAgent):
 
         if hasattr(self._memory_system, "run_promotion_cycle"):
             try:
-                asyncio.create_task(self._memory_system.run_promotion_cycle(session_id))
+                self._promotion_task = asyncio.create_task(
+                    self._memory_system.run_promotion_cycle(session_id)
+                )
             except Exception as exc:  # pragma: no cover - defensive fallback
                 logger.warning("Failed to start promotion cycle: %s", exc)
 
@@ -226,7 +231,7 @@ class MemoryAgent(BaseAgent):
     async def _generate_response(
         self,
         prompt: str,
-        agent_metadata: Optional[Dict[str, Any]] = None,
+        agent_metadata: dict[str, Any] | None = None,
     ) -> str:
         if not self._llm_client:
             logger.warning("No LLM client configured for MemoryAgent '%s'", self.agent_id)
@@ -297,9 +302,9 @@ class MemoryAgent(BaseAgent):
             return message.get("content", "")
         return getattr(message, "content", "")
 
-    def _format_recent_turns(self, recent_turns: List[Dict[str, Any]]) -> List[str]:
+    def _format_recent_turns(self, recent_turns: list[dict[str, Any]]) -> list[str]:
         """Format recent turns for prompt context."""
-        formatted: List[str] = []
+        formatted: list[str] = []
         for turn in recent_turns:
             role = turn.get("role", "unknown").upper()
             content = turn.get("content", "")
@@ -308,7 +313,7 @@ class MemoryAgent(BaseAgent):
 
     def _format_context(self, state: AgentState) -> str:
         """Format retrieved context for prompt injection."""
-        sections: List[str] = []
+        sections: list[str] = []
 
         active_context = state.get("active_context", [])
         if active_context:
@@ -342,7 +347,7 @@ class MemoryAgent(BaseAgent):
 
         return "\n".join(sections)
 
-    def _merge_query_results(self, state: AgentState, results: List[Dict[str, Any]]) -> None:
+    def _merge_query_results(self, state: AgentState, results: list[dict[str, Any]]) -> None:
         """Merge query results into the agent state by tier."""
         for result in results:
             tier = result.get("tier")
@@ -352,15 +357,14 @@ class MemoryAgent(BaseAgent):
             elif tier == "L3":
                 if content:
                     state["episodic_chunks"].append(content)
-            elif tier == "L4":
-                if content:
-                    state["semantic_knowledge"].append(content)
+            elif tier == "L4" and content:
+                state["semantic_knowledge"].append(content)
 
     def _encode_turn_id(self, turn_id: int, role: str) -> int:
         """Encode turn IDs to avoid user/assistant collisions in L1 storage."""
         return turn_id * 2 if role == "user" else (turn_id * 2) + 1
 
-    def _build_agent_metadata(self, state: AgentState) -> Dict[str, Any]:
+    def _build_agent_metadata(self, state: AgentState) -> dict[str, Any]:
         """Build trace metadata for Phoenix span attributes."""
         return {
             "agent.type": "full",

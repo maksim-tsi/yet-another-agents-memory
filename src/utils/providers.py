@@ -7,8 +7,8 @@ interface to be used by the `LLMClient`.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import logging
-from typing import Optional, List
 
 from .llm_client import BaseProvider, LLMResponse, ProviderHealth
 
@@ -18,12 +18,13 @@ logger = logging.getLogger(__name__)
 class GeminiProvider(BaseProvider):
     def __init__(self, api_key: str):
         super().__init__(name="gemini")
-        from google import genai
+        genai = importlib.import_module("google.genai")
+
         self.client = genai.Client(api_key=api_key)
 
-    async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
+    async def generate(self, prompt: str, model: str | None = None, **kwargs) -> LLMResponse:
         # Use thread to call blocking SDK functions
-        from google.genai import types
+        types = importlib.import_module("google.genai.types")
 
         model = model or "gemini-3-flash-preview"
 
@@ -35,28 +36,28 @@ class GeminiProvider(BaseProvider):
                     parts=[types.Part.from_text(text=prompt)],
                 )
             ]
-            
+
             # Build config parameters
             config_params = {
                 "temperature": kwargs.get("temperature", 0.0),
                 "max_output_tokens": kwargs.get("max_output_tokens", 8192),
             }
-            
+
             # Add system instruction if provided
             system_instruction = kwargs.get("system_instruction")
             if system_instruction:
                 config_params["system_instruction"] = [
                     types.Part.from_text(text=system_instruction)
                 ]
-            
+
             # Add structured output if response_schema provided
             response_schema = kwargs.get("response_schema")
             if response_schema:
                 config_params["response_mime_type"] = "application/json"
                 config_params["response_schema"] = response_schema
-            
+
             config = types.GenerateContentConfig(**config_params)
-            
+
             response = self.client.models.generate_content(
                 model=model,
                 contents=contents,
@@ -75,36 +76,33 @@ class GeminiProvider(BaseProvider):
                 "total": getattr(usage, "total_token_count", None),
             }
 
-        return LLMResponse(text=getattr(response, "text", ""), provider=self.name, model=model, usage=usage_dict)
+        return LLMResponse(
+            text=getattr(response, "text", ""), provider=self.name, model=model, usage=usage_dict
+        )
 
     async def get_embedding(
-        self,
-        text: str,
-        model: Optional[str] = None,
-        output_dimensionality: int = 768
-    ) -> List[float]:
+        self, text: str, model: str | None = None, output_dimensionality: int = 768
+    ) -> list[float]:
         """Generate embedding using Gemini embedding model.
-        
+
         Args:
             text: Text to embed.
             model: Embedding model name (default: gemini-embedding-001).
             output_dimensionality: Output vector dimension (default: 768).
                 Gemini supports 128-3072; recommended: 768, 1536, 3072.
-            
+
         Returns:
             List of floats representing the embedding vector.
         """
-        from google.genai import types
-        
+        types = importlib.import_module("google.genai.types")
+
         model = model or "gemini-embedding-001"
 
         def sync_call():
             response = self.client.models.embed_content(
                 model=model,
                 contents=text,
-                config=types.EmbedContentConfig(
-                    output_dimensionality=output_dimensionality
-                ),
+                config=types.EmbedContentConfig(output_dimensionality=output_dimensionality),
             )
             return response
 
@@ -112,7 +110,7 @@ class GeminiProvider(BaseProvider):
         logger.debug(
             "Gemini embedding generated: model=%s, dim=%d",
             model,
-            len(response.embeddings[0].values)
+            len(response.embeddings[0].values),
         )
         # Response structure: response.embeddings[0].values
         return list(response.embeddings[0].values)
@@ -124,7 +122,7 @@ class GeminiProvider(BaseProvider):
         config and a simple prompt. Providers should return a ProviderHealth with
         `healthy=False` when an exception is raised.
         """
-        from google.genai import types
+        types = importlib.import_module("google.genai.types")
 
         def sync_call():
             # call a minimally expensive empty prompt (SDK may charge tokens; this is a pragmatic choice for health checks)
@@ -146,9 +144,10 @@ class GroqProvider(BaseProvider):
     def __init__(self, api_key: str):
         super().__init__(name="groq")
         from groq import Groq
+
         self.client = Groq(api_key=api_key)
 
-    async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
+    async def generate(self, prompt: str, model: str | None = None, **kwargs) -> LLMResponse:
         model = model or "llama-3.1-8b-instant"
 
         def sync_call():
@@ -181,6 +180,7 @@ class GroqProvider(BaseProvider):
 
     async def health_check(self) -> ProviderHealth:
         try:
+
             def sync_call():
                 # Minimal call to validate client
                 return self.client.chat.completions.create(
@@ -201,9 +201,10 @@ class MistralProvider(BaseProvider):
     def __init__(self, api_key: str):
         super().__init__(name="mistral")
         from mistralai import Mistral
+
         self.client = Mistral(api_key=api_key)
 
-    async def generate(self, prompt: str, model: Optional[str] = None, **kwargs) -> LLMResponse:
+    async def generate(self, prompt: str, model: str | None = None, **kwargs) -> LLMResponse:
         model = model or "mistral-small-latest"
 
         def sync_call():
@@ -236,6 +237,7 @@ class MistralProvider(BaseProvider):
 
     async def health_check(self) -> ProviderHealth:
         try:
+
             def sync_call():
                 return self.client.chat.complete(
                     model="mistral-small-latest",

@@ -1,6 +1,6 @@
 # file: knowledge_store_manager.py
 
-from typing import Dict, Any, List, Literal, Optional
+from typing import Any, Literal
 
 from qdrant_client import models as qdrant_models
 
@@ -21,13 +21,9 @@ class KnowledgeStoreManager:
         self.graph_store = graph_store
         self.search_store = search_store
 
-    def add(
-        self, 
-        store_type: Literal["vector", "search"],
-        documents: List[Dict[str, Any]]
-    ) -> Any:
+    def add(self, store_type: Literal["vector", "search"], documents: list[dict[str, Any]]) -> Any:
         """
-        Adds documents to the specified store. 
+        Adds documents to the specified store.
         Note: Graph store additions are typically done via query.
         """
         if store_type == "vector":
@@ -35,15 +31,17 @@ class KnowledgeStoreManager:
         elif store_type == "search":
             return self.search_store.add_documents(documents)
         else:
-            raise ValueError(f"Adding documents to '{store_type}' is not supported via this method.")
+            raise ValueError(
+                f"Adding documents to '{store_type}' is not supported via this method."
+            )
 
     def query(
-        self, 
+        self,
         store_type: Literal["vector", "graph", "search"],
         query_text: str,
         top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Routes a query to the appropriate knowledge store with a unified interface.
 
@@ -52,7 +50,7 @@ class KnowledgeStoreManager:
             query_text: The primary query content (e.g., text for semantic/full-text search, or a Cypher query for graph).
             top_k: The number of results to return.
             filters: A structured dictionary for filtering results, which will be translated.
-        
+
         Returns:
             A list of result dictionaries.
         """
@@ -61,20 +59,20 @@ class KnowledgeStoreManager:
             return self.vector_store.query_similar(
                 query_text=query_text, top_k=top_k, filters=qdrant_filter
             )
-            
+
         elif store_type == "graph":
             return self.graph_store.query(cypher_query=query_text, params=filters)
-            
+
         elif store_type == "search":
             meili_filter_string = self._build_meili_filter(filters) if filters else None
             return self.search_store.search(
                 query=query_text, top_k=top_k, filters=meili_filter_string
             )
-            
+
         else:
             raise ValueError(f"Unknown store_type: {store_type}")
-    
-    def _build_qdrant_filter(self, filters: Dict[str, Any]) -> qdrant_models.Filter:
+
+    def _build_qdrant_filter(self, filters: dict[str, Any]) -> qdrant_models.Filter:
         """Helper to convert a simple dict to a Qdrant filter."""
         return qdrant_models.Filter(
             must=[
@@ -83,6 +81,6 @@ class KnowledgeStoreManager:
             ]
         )
 
-    def _build_meili_filter(self, filters: Dict[str, Any]) -> str:
+    def _build_meili_filter(self, filters: dict[str, Any]) -> str:
         """Helper to convert a simple dict to a Meilisearch filter string."""
         return " AND ".join([f"{key} = '{value}'" for key, value in filters.items()])

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, List
+from typing import Any
 
 from src.agents.base_agent import BaseAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
@@ -22,9 +22,9 @@ class FullContextAgent(BaseAgent):
     def __init__(
         self,
         agent_id: str,
-        llm_client: Optional[LLMClient] = None,
-        memory_system: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
+        llm_client: LLMClient | None = None,
+        memory_system: Any | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(agent_id=agent_id, memory_system=memory_system, config=config)
         self._llm_client = llm_client
@@ -77,7 +77,7 @@ class FullContextAgent(BaseAgent):
             turn_id=request.turn_id,
         )
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Return health status for the agent."""
         providers = []
         if self._llm_client:
@@ -97,7 +97,7 @@ class FullContextAgent(BaseAgent):
     async def _generate_response(
         self,
         prompt: str,
-        agent_metadata: Optional[Dict[str, Any]] = None,
+        agent_metadata: dict[str, Any] | None = None,
     ) -> str:
         if not self._llm_client:
             logger.warning("No LLM client configured for FullContextAgent '%s'", self.agent_id)
@@ -130,7 +130,7 @@ class FullContextAgent(BaseAgent):
 
         turn_lines = self._truncate_turns_if_needed(turn_lines, fact_lines, user_input)
 
-        sections: List[str] = []
+        sections: list[str] = []
         if turn_lines:
             sections.append("## Recent Conversation")
             sections.extend(turn_lines)
@@ -139,9 +139,9 @@ class FullContextAgent(BaseAgent):
             sections.extend(fact_lines)
         return "\n".join(sections)
 
-    def _format_turns(self, recent_turns: List[Dict[str, Any]]) -> List[str]:
+    def _format_turns(self, recent_turns: list[dict[str, Any]]) -> list[str]:
         """Format recent turns for full-context prompts."""
-        formatted: List[str] = []
+        formatted: list[str] = []
         for turn in recent_turns:
             role = turn.get("role", "unknown").upper()
             content = turn.get("content", "")
@@ -152,9 +152,9 @@ class FullContextAgent(BaseAgent):
                 formatted.append(f"{role}: {content}")
         return formatted
 
-    def _format_facts(self, facts: List[Any]) -> List[str]:
+    def _format_facts(self, facts: list[Any]) -> list[str]:
         """Format fact entries for prompt context."""
-        formatted: List[str] = []
+        formatted: list[str] = []
         for fact in facts:
             content = getattr(fact, "content", None)
             if content is None and isinstance(fact, dict):
@@ -169,10 +169,10 @@ class FullContextAgent(BaseAgent):
 
     def _truncate_turns_if_needed(
         self,
-        turn_lines: List[str],
-        fact_lines: List[str],
+        turn_lines: list[str],
+        fact_lines: list[str],
         user_input: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """Truncate oldest turns if context exceeds max token budget."""
         if not turn_lines:
             return turn_lines
@@ -185,7 +185,8 @@ class FullContextAgent(BaseAgent):
         truncated = list(turn_lines)
         while (
             len(truncated) > self.MIN_RECENT_TURNS
-            and self._estimate_tokens("\n".join(truncated + fact_lines + [user_input])) > self.MAX_TOKENS
+            and self._estimate_tokens("\n".join(truncated + fact_lines + [user_input]))
+            > self.MAX_TOKENS
         ):
             truncated.pop(0)
 

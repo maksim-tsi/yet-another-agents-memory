@@ -1,10 +1,11 @@
 import sys
 import types
-import pytest
 from types import SimpleNamespace
 
-from src.utils.providers import GroqProvider
+import pytest
+
 from src.utils.llm_client import LLMResponse
+from src.utils.providers import GroqProvider
 
 
 class FakeUsage:

@@ -2,8 +2,9 @@
 Test fixtures for memory tier tests.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def redis_adapter():
     adapter.lrange = AsyncMock(return_value=[])
     adapter.llen = AsyncMock(return_value=0)
     adapter.delete = AsyncMock(return_value=False)
-    adapter.health_check = AsyncMock(return_value={'status': 'healthy'})
+    adapter.health_check = AsyncMock(return_value={"status": "healthy"})
     return adapter
 
 
@@ -28,8 +29,8 @@ def postgres_adapter():
     adapter = MagicMock()
     adapter.connect = AsyncMock()
     adapter.disconnect = AsyncMock()
-    adapter.insert = AsyncMock(return_value='inserted_id')
+    adapter.insert = AsyncMock(return_value="inserted_id")
     adapter.query = AsyncMock(return_value=[])
     adapter.delete = AsyncMock(return_value=False)
-    adapter.health_check = AsyncMock(return_value={'status': 'healthy'})
+    adapter.health_check = AsyncMock(return_value={"status": "healthy"})
     return adapter

@@ -1,10 +1,11 @@
 import sys
 import types
-import pytest
 from types import SimpleNamespace
 
-from src.utils.providers import MistralProvider
+import pytest
+
 from src.utils.llm_client import LLMResponse
+from src.utils.providers import MistralProvider
 
 
 class FakeUsage:
@@ -26,7 +27,6 @@ class FakeResponse:
         self.text = text
 
 
-
 class FakeChat:
     def __init__(self, response: FakeResponse, raise_exc: Exception | None = None):
         self._response = response
@@ -36,6 +36,7 @@ class FakeChat:
         if self._raise:
             raise self._raise
         return self._response
+
 
 class FakeMistral:
     def __init__(self, response: FakeResponse, raise_exc: Exception | None = None):

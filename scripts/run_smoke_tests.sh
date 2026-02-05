@@ -15,6 +15,8 @@
 #
 
 set -e
+set -u
+set -o pipefail
 
 # Colors
 GREEN='\033[0;32m'
@@ -22,6 +24,12 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Get script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$PROJECT_ROOT"
 
 # Default options
 VERBOSE=""
@@ -67,10 +75,10 @@ if [ ! -f .env ]; then
     echo ""
 fi
 
-# Check if pytest is installed
-if ! command -v pytest &> /dev/null; then
-    echo -e "${RED}Error: pytest is not installed${NC}"
-    echo "Install it with: pip install pytest pytest-asyncio"
+PYTEST="$PROJECT_ROOT/.venv/bin/pytest"
+if [ ! -f "$PYTEST" ]; then
+    echo -e "${RED}Error: Virtual environment not found at $PYTEST${NC}"
+    echo "Run: python3 -m venv .venv && .venv/bin/pip install -r requirements-test.txt"
     exit 1
 fi
 
@@ -92,7 +100,7 @@ echo ""
 echo -e "${BLUE}Running tests...${NC}"
 echo ""
 
-if pytest $TEST_ARGS $VERBOSE --tb=short; then
+if "$PYTEST" $TEST_ARGS $VERBOSE --tb=short --cov=src --cov-fail-under=80; then
     echo ""
     echo -e "${GREEN}======================================"
     echo "✓ All connectivity tests passed!"

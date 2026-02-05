@@ -4,17 +4,20 @@ Shared test fixtures for storage adapter tests.
 Provides common fixtures, test data generators, and utilities
 used across all storage adapter test suites.
 """
-import pytest
-import uuid
+
 import random
 import string
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
-from unittest.mock import Mock, AsyncMock
+import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 # ============================================================================
 # Sample Test Data
 # ============================================================================
+
 
 @pytest.fixture
 def sample_session_id():
@@ -31,8 +34,8 @@ def sample_turn_data():
         "metadata": {
             "role": "user",
             "tokens": 5,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
     }
 
 
@@ -43,7 +46,7 @@ def sample_working_memory_data():
         "fact_type": "preference",
         "content": "User prefers dark mode",
         "confidence": 0.95,
-        "source_turn_ids": [1, 3]
+        "source_turn_ids": [1, 3],
     }
 
 
@@ -61,10 +64,7 @@ def sample_vector_data(sample_vector_embedding):
         "vector": sample_vector_embedding,
         "content": "User discussed preference for dark mode in UI settings",
         "session_id": f"test-session-{uuid.uuid4()}",
-        "metadata": {
-            "fact_type": "preference",
-            "confidence": 0.95
-        }
+        "metadata": {"fact_type": "preference", "confidence": 0.95},
     }
 
 
@@ -74,11 +74,7 @@ def sample_graph_entity():
     return {
         "type": "entity",
         "label": "Person",
-        "properties": {
-            "name": "Alice",
-            "age": 30,
-            "session_id": f"test-session-{uuid.uuid4()}"
-        }
+        "properties": {"name": "Alice", "age": 30, "session_id": f"test-session-{uuid.uuid4()}"},
     }
 
 
@@ -90,10 +86,7 @@ def sample_graph_relationship():
         "from": "entity-1-uuid",
         "to": "entity-2-uuid",
         "relationship": "KNOWS",
-        "properties": {
-            "since": "2023-01-01",
-            "session_id": f"test-session-{uuid.uuid4()}"
-        }
+        "properties": {"since": "2023-01-01", "session_id": f"test-session-{uuid.uuid4()}"},
     }
 
 
@@ -105,7 +98,7 @@ def sample_search_document():
         "content": "This is a test document for full-text search",
         "title": "Test Document",
         "session_id": f"test-session-{uuid.uuid4()}",
-        "timestamp": int(datetime.now(timezone.utc).timestamp())
+        "timestamp": int(datetime.now(UTC).timestamp()),
     }
 
 
@@ -113,47 +106,53 @@ def sample_search_document():
 # Test Data Generators
 # ============================================================================
 
+
 def generate_random_text(min_words: int = 5, max_words: int = 20) -> str:
     """Generate random text with specified word count."""
     num_words = random.randint(min_words, max_words)
     words = []
     for _ in range(num_words):
         word_len = random.randint(3, 12)
-        words.append(''.join(random.choices(string.ascii_lowercase, k=word_len)))
-    return ' '.join(words)
+        words.append("".join(random.choices(string.ascii_lowercase, k=word_len)))
+    return " ".join(words)
 
 
-def generate_conversation_turns(session_id: str, count: int = 10) -> List[Dict[str, Any]]:
+def generate_conversation_turns(session_id: str, count: int = 10) -> list[dict[str, Any]]:
     """Generate multiple conversation turns for testing."""
     turns = []
     for i in range(count):
-        turns.append({
-            "session_id": session_id,
-            "turn_id": i,
-            "content": generate_random_text(10, 50),
-            "role": "user" if i % 2 == 0 else "assistant",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        turns.append(
+            {
+                "session_id": session_id,
+                "turn_id": i,
+                "content": generate_random_text(10, 50),
+                "role": "user" if i % 2 == 0 else "assistant",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
     return turns
 
 
-def generate_vector_batch(count: int = 10) -> List[Dict[str, Any]]:
+def generate_vector_batch(count: int = 10) -> list[dict[str, Any]]:
     """Generate batch of vectors for testing."""
     vectors = []
     for _ in range(count):
-        vectors.append({
-            "id": str(uuid.uuid4()),
-            "vector": [random.random() for _ in range(384)],
-            "content": generate_random_text(20, 100),
-            "session_id": f"test-session-{uuid.uuid4()}",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        vectors.append(
+            {
+                "id": str(uuid.uuid4()),
+                "vector": [random.random() for _ in range(384)],
+                "content": generate_random_text(20, 100),
+                "session_id": f"test-session-{uuid.uuid4()}",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
     return vectors
 
 
 # ============================================================================
 # Mock Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_postgres_pool():
@@ -182,7 +181,7 @@ def mock_redis_client():
 @pytest.fixture
 def mock_qdrant_client():
     """Mock Qdrant client."""
-    
+
     client = AsyncMock()
     client.get_collections.return_value.collections = []
     client.upsert.return_value = None
@@ -220,16 +219,17 @@ def mock_typesense_client():
 # Cleanup Utilities
 # ============================================================================
 
+
 @pytest.fixture
 def cleanup_postgres_session():
     """Cleanup PostgreSQL test data after test."""
     session_ids = []
-    
+
     def register_session(session_id: str):
         session_ids.append(session_id)
-    
+
     yield register_session
-    
+
     # Cleanup logic would go here
     # Note: Actual cleanup requires adapter access
 
@@ -238,12 +238,12 @@ def cleanup_postgres_session():
 def cleanup_redis_session():
     """Cleanup Redis test data after test."""
     session_ids = []
-    
+
     def register_session(session_id: str):
         session_ids.append(session_id)
-    
+
     yield register_session
-    
+
     # Cleanup logic would go here
 
 
@@ -251,42 +251,45 @@ def cleanup_redis_session():
 # TTL and Time-Related Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def future_timestamp():
     """Generate timestamp 1 hour in the future."""
-    return datetime.now(timezone.utc) + timedelta(hours=1)
+    return datetime.now(UTC) + timedelta(hours=1)
 
 
 @pytest.fixture
 def past_timestamp():
     """Generate timestamp 1 hour in the past."""
-    return datetime.now(timezone.utc) - timedelta(hours=1)
+    return datetime.now(UTC) - timedelta(hours=1)
 
 
 @pytest.fixture
 def ttl_24_hours():
     """TTL expiration 24 hours from now."""
-    return datetime.now(timezone.utc) + timedelta(hours=24)
+    return datetime.now(UTC) + timedelta(hours=24)
 
 
 @pytest.fixture
 def ttl_7_days():
     """TTL expiration 7 days from now."""
-    return datetime.now(timezone.utc) + timedelta(days=7)
+    return datetime.now(UTC) + timedelta(days=7)
 
 
 # ============================================================================
 # Configuration Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def postgres_config():
     """PostgreSQL adapter configuration for testing."""
     import os
+
     return {
-        'url': os.getenv('POSTGRES_URL', 'postgresql://localhost:5432/mas_memory'),
-        'table': 'active_context',
-        'metrics': {'enabled': True}
+        "url": os.getenv("POSTGRES_URL", "postgresql://localhost:5432/mas_memory"),
+        "table": "active_context",
+        "metrics": {"enabled": True},
     }
 
 
@@ -294,11 +297,12 @@ def postgres_config():
 def redis_config():
     """Redis adapter configuration for testing."""
     import os
+
     return {
-        'url': os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-        'window_size': 10,
-        'ttl_seconds': 86400,
-        'metrics': {'enabled': True}
+        "url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+        "window_size": 10,
+        "ttl_seconds": 86400,
+        "metrics": {"enabled": True},
     }
 
 
@@ -306,13 +310,14 @@ def redis_config():
 def qdrant_config():
     """Qdrant adapter configuration for testing."""
     import os
-    stg_ip = os.getenv('STG_IP', 'localhost')
-    qdrant_port = os.getenv('QDRANT_PORT', '6333')
+
+    stg_ip = os.getenv("STG_IP", "localhost")
+    qdrant_port = os.getenv("QDRANT_PORT", "6333")
     return {
-        'url': f'http://{stg_ip}:{qdrant_port}',
-        'collection_name': 'test_semantic_memory',
-        'vector_size': 768,
-        'metrics': {'enabled': True}
+        "url": f"http://{stg_ip}:{qdrant_port}",
+        "collection_name": "test_semantic_memory",
+        "vector_size": 768,
+        "metrics": {"enabled": True},
     }
 
 
@@ -320,16 +325,17 @@ def qdrant_config():
 def neo4j_config():
     """Neo4j adapter configuration for testing."""
     import os
-    stg_ip = os.getenv('STG_IP', 'localhost')
-    neo4j_port = os.getenv('NEO4J_BOLT_PORT', '7687')
-    neo4j_user = os.getenv('NEO4J_USER', 'neo4j')
-    neo4j_password = os.getenv('NEO4J_PASSWORD', 'password')
+
+    stg_ip = os.getenv("STG_IP", "localhost")
+    neo4j_port = os.getenv("NEO4J_BOLT_PORT", "7687")
+    neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+    neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
     return {
-        'uri': f'bolt://{stg_ip}:{neo4j_port}',
-        'user': neo4j_user,
-        'password': neo4j_password,
-        'database': 'neo4j',
-        'metrics': {'enabled': True}
+        "uri": f"bolt://{stg_ip}:{neo4j_port}",
+        "user": neo4j_user,
+        "password": neo4j_password,
+        "database": "neo4j",
+        "metrics": {"enabled": True},
     }
 
 
@@ -337,12 +343,13 @@ def neo4j_config():
 def typesense_config():
     """Typesense adapter configuration for testing."""
     import os
-    stg_ip = os.getenv('STG_IP', 'localhost')
-    typesense_port = os.getenv('TYPESENSE_PORT', '8108')
-    typesense_api_key = os.getenv('TYPESENSE_API_KEY', 'xyz')
+
+    stg_ip = os.getenv("STG_IP", "localhost")
+    typesense_port = os.getenv("TYPESENSE_PORT", "8108")
+    typesense_api_key = os.getenv("TYPESENSE_API_KEY", "xyz")
     return {
-        'url': f'http://{stg_ip}:{typesense_port}',
-        'api_key': typesense_api_key,
-        'collection_name': 'test_search_memory',
-        'metrics': {'enabled': True}
+        "url": f"http://{stg_ip}:{typesense_port}",
+        "api_key": typesense_api_key,
+        "collection_name": "test_search_memory",
+        "metrics": {"enabled": True},
     }

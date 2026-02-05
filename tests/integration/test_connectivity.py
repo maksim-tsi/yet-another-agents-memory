@@ -22,17 +22,13 @@ async def test_l2_schema_verification(verify_l2_schema):
 async def test_redis_connectivity(redis_adapter, test_session_id):
     """Verify Redis L1 connectivity on Node 1 (192.168.107.172:6379)."""
     # Test basic operations
-    data = {
-        'session_id': test_session_id,
-        'turn_id': 1,
-        'content': 'connectivity test'
-    }
+    data = {"session_id": test_session_id, "turn_id": 1, "content": "connectivity test"}
     record_id = await redis_adapter.store(data)
     assert record_id is not None
-    
+
     result = await redis_adapter.retrieve(record_id)
     assert result is not None
-    assert result['content'] == 'connectivity test'
+    assert result["content"] == "connectivity test"
 
 
 @pytest.mark.integration
@@ -41,17 +37,13 @@ async def test_postgres_connectivity(postgres_adapter, test_session_id):
     """Verify PostgreSQL L2 connectivity on Node 2 (192.168.107.187:5432)."""
     # Test basic store/retrieve operations
     # Note: PostgreSQL adapter defaults to 'active_context' table
-    data = {
-        'session_id': test_session_id,
-        'turn_id': 1,
-        'content': 'connectivity test'
-    }
+    data = {"session_id": test_session_id, "turn_id": 1, "content": "connectivity test"}
     record_id = await postgres_adapter.store(data)
     assert record_id is not None
-    
+
     result = await postgres_adapter.retrieve(record_id)
     assert result is not None
-    assert result['content'] == 'connectivity test'
+    assert result["content"] == "connectivity test"
 
 
 @pytest.mark.integration
@@ -60,17 +52,17 @@ async def test_neo4j_connectivity(neo4j_adapter, test_session_id):
     """Verify Neo4j L3 connectivity on Node 2 (192.168.107.187:7687)."""
     # Test basic store/retrieve operations
     data = {
-        'type': 'entity',  # Neo4j expects 'entity' or 'relationship'
-        'label': 'Episode',
-        'properties': {
-            'session_id': test_session_id,
-            'summary': 'connectivity test',
-            'created_at': '2024-01-01T00:00:00Z'
-        }
+        "type": "entity",  # Neo4j expects 'entity' or 'relationship'
+        "label": "Episode",
+        "properties": {
+            "session_id": test_session_id,
+            "summary": "connectivity test",
+            "created_at": "2024-01-01T00:00:00Z",
+        },
     }
     record_id = await neo4j_adapter.store(data)
     assert record_id is not None
-    
+
     result = await neo4j_adapter.retrieve(record_id)
     assert result is not None
 

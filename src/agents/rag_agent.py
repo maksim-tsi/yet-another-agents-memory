@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from src.agents.base_agent import BaseAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
@@ -19,9 +19,9 @@ class RAGAgent(BaseAgent):
     def __init__(
         self,
         agent_id: str,
-        llm_client: Optional[LLMClient] = None,
-        memory_system: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
+        llm_client: LLMClient | None = None,
+        memory_system: Any | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(agent_id=agent_id, memory_system=memory_system, config=config)
         self._llm_client = llm_client
@@ -36,7 +36,7 @@ class RAGAgent(BaseAgent):
         """Process a single turn with retrieval-augmented context."""
         await self.ensure_initialized()
 
-        retrievals: List[Dict[str, Any]] = []
+        retrievals: list[dict[str, Any]] = []
         vector_store = self._get_vector_store()
         if vector_store:
             await self._index_turn(vector_store, request)
@@ -67,7 +67,7 @@ class RAGAgent(BaseAgent):
             turn_id=request.turn_id,
         )
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Return health status for the agent."""
         providers = []
         if self._llm_client:
@@ -87,7 +87,7 @@ class RAGAgent(BaseAgent):
     async def _generate_response(
         self,
         prompt: str,
-        agent_metadata: Optional[Dict[str, Any]] = None,
+        agent_metadata: dict[str, Any] | None = None,
     ) -> str:
         if not self._llm_client:
             logger.warning("No LLM client configured for RAGAgent '%s'", self.agent_id)
@@ -99,7 +99,7 @@ class RAGAgent(BaseAgent):
         )
         return llm_response.text
 
-    def _build_prompt(self, retrievals: List[Dict[str, Any]], user_input: str) -> str:
+    def _build_prompt(self, retrievals: list[dict[str, Any]], user_input: str) -> str:
         sections = [
             "You are the MAS RAG Agent. Use retrieved memory snippets to answer the user.",
         ]
@@ -113,7 +113,7 @@ class RAGAgent(BaseAgent):
         sections.append("## Assistant")
         return "\n\n".join(sections)
 
-    def _get_vector_store(self) -> Optional[Any]:
+    def _get_vector_store(self) -> Any | None:
         """Return vector store client for RAG indexing if available."""
         if not self._memory_system:
             return None
@@ -130,14 +130,16 @@ class RAGAgent(BaseAgent):
             "session_id": request.session_id,
             "role": request.role,
             "turn_id": request.turn_id,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
         try:
             vector_store.add_documents([document])
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.warning("Failed to index turn in vector store: %s", exc)
 
-    async def _query_similar(self, vector_store: Any, request: RunTurnRequest) -> List[Dict[str, Any]]:
+    async def _query_similar(
+        self, vector_store: Any, request: RunTurnRequest
+    ) -> list[dict[str, Any]]:
         """Retrieve similar documents from the vector store."""
         try:
             return vector_store.query_similar(

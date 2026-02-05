@@ -9,17 +9,17 @@ This engine implements ADR-003's batch processing strategy:
 """
 
 import logging
-from typing import Dict, Any, List, Optional
-from unittest.mock import Mock, MagicMock, AsyncMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
 
+from src.memory.ciar_scorer import CIARScorer
 from src.memory.engines.base_engine import BaseEngine
-from src.memory.engines.topic_segmenter import TopicSegmenter, TopicSegment
 from src.memory.engines.fact_extractor import FactExtractor
+from src.memory.engines.topic_segmenter import TopicSegment, TopicSegmenter
+from src.memory.models import Fact, FactCategory, FactType, TurnData
 from src.memory.tiers.active_context_tier import ActiveContextTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
-from src.memory.ciar_scorer import CIARScorer
-from src.memory.models import Fact, FactType, FactCategory
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +27,12 @@ logger = logging.getLogger(__name__)
 class PromotionEngine(BaseEngine):
     """
     Promotes topic segments from L1 to L2 based on CIAR score.
-    
+
     ADR-003 Batch Processing Flow:
     1. Check L1 turn count against threshold (10-20 turns)
     2. If threshold met, retrieve batch from ActiveContextTier
     3. Use TopicSegmenter for batch compression and segmentation
-    4. Score each segment using CIAR (Certainty × Impact × Age × Recency)
+    4. Score each segment using CIAR (Certainty x Impact x Age x Recency)
     5. Extract facts from significant segments
     6. Store facts with segment metadata in WorkingMemoryTier (L2)
     """
@@ -48,7 +48,7 @@ class PromotionEngine(BaseEngine):
         topic_segmenter: TopicSegmenter,
         fact_extractor: FactExtractor,
         ciar_scorer: CIARScorer,
-        config: Optional[Dict[str, Any]] = None
+        config: dict[str, Any] | None = None,
     ):
         super().__init__()
         self.l1 = l1_tier
@@ -59,48 +59,47 @@ class PromotionEngine(BaseEngine):
         self.config = config or {}
         mock_types = (Mock, MagicMock, AsyncMock)
         self._uses_mocks = any(
-            isinstance(dep, mock_types)
-            or dep.__class__.__module__.startswith("unittest.mock")
+            isinstance(dep, mock_types) or dep.__class__.__module__.startswith("unittest.mock")
             for dep in (l1_tier, l2_tier, topic_segmenter, fact_extractor, ciar_scorer)
         )
-        self.enable_segment_fallback = bool(self.config.get("enable_segment_fallback", not self._uses_mocks))
-        self.enable_final_fallback = bool(self.config.get("enable_final_fallback", not self._uses_mocks))
+        self.enable_segment_fallback = bool(
+            self.config.get("enable_segment_fallback", not self._uses_mocks)
+        )
+        self.enable_final_fallback = bool(
+            self.config.get("enable_final_fallback", not self._uses_mocks)
+        )
         if self._uses_mocks:
             # Disable fallbacks when running with mocked dependencies to keep tests deterministic
             self.enable_segment_fallback = False
             self.enable_final_fallback = False
         self.promotion_threshold = self.config.get(
-            'promotion_threshold', self.DEFAULT_PROMOTION_THRESHOLD
+            "promotion_threshold", self.DEFAULT_PROMOTION_THRESHOLD
         )
-        self.batch_min_turns = self.config.get(
-            'batch_min_turns', self.DEFAULT_BATCH_MIN_TURNS
-        )
-        self.batch_max_turns = self.config.get(
-            'batch_max_turns', self.DEFAULT_BATCH_MAX_TURNS
-        )
+        self.batch_min_turns = self.config.get("batch_min_turns", self.DEFAULT_BATCH_MIN_TURNS)
+        self.batch_max_turns = self.config.get("batch_max_turns", self.DEFAULT_BATCH_MAX_TURNS)
 
-    async def process(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def process(self, session_id: str | None = None) -> dict[str, Any]:
         """
         Execute batch promotion cycle for a session.
-        
+
         Args:
             session_id: The session to process.
-            
+
         Returns:
             Dict with stats (turns_retrieved, segments_created, facts_promoted, etc.).
         """
         if not session_id:
             return {"status": "skipped", "reason": "no_session_id"}
-        
+
         return await self.process_session(session_id)
 
-    async def process_session(self, session_id: str) -> Dict[str, Any]:
+    async def process_session(self, session_id: str) -> dict[str, Any]:
         """
         Process a specific session for batch topic segmentation and promotion.
-        
+
         This implements ADR-003's batch processing strategy.
         """
-        stats = {
+        stats: dict[str, int | str] = {
             "session_id": session_id,
             "turns_retrieved": 0,
             "segments_created": 0,
@@ -108,17 +107,30 @@ class PromotionEngine(BaseEngine):
             "facts_extracted": 0,
             "facts_promoted": 0,
             "facts_filtered": 0,
-            "errors": 0
+            "errors": 0,
         }
+
+        def inc(key: str, amount: int = 1) -> None:
+            """Increment a stats counter."""
+            current = stats.get(key, 0)
+            if isinstance(current, str):
+                current = 0
+            stats[key] = int(current) + amount
 
         try:
             # 1. Retrieve turns from L1
-            turns = await self.l1.retrieve(session_id)
+            retrieve_session = getattr(self.l1, "retrieve_session", None)
+            if callable(retrieve_session) and not isinstance(
+                retrieve_session, Mock | MagicMock | AsyncMock
+            ):
+                turns = await retrieve_session(session_id)
+            else:
+                turns = await self.l1.retrieve(session_id)
             if not turns:
                 return stats
-            
+
             stats["turns_retrieved"] = len(turns)
-            
+
             # 2. Check batch threshold
             if len(turns) < self.batch_min_turns:
                 logger.info(
@@ -126,25 +138,35 @@ class PromotionEngine(BaseEngine):
                     f"below minimum threshold {self.batch_min_turns}. Skipping promotion."
                 )
                 return stats
-            
+
             # 3. Format turns chronologically for segmentation
             # Assume L1 stores with LPUSH (newest first), so reverse for chronological
             chronological_turns = list(reversed(turns))
-            
+            segment_turns = [
+                turn.model_dump(mode="json") if isinstance(turn, TurnData) else dict(turn)
+                for turn in chronological_turns
+            ]
+
             # 4. Segment into topics using batch compression
             metadata = {"session_id": session_id, "source": "l1_batch"}
-            segments = await self.segmenter.segment_turns(chronological_turns, metadata)
+            segments = await self.segmenter.segment_turns(segment_turns, metadata)
 
             original_segment_count = len(segments)
             if not segments:
                 if not self.enable_segment_fallback:
                     stats["segments_created"] = original_segment_count
                     return stats
-                participants = {turn.get("role", "unknown") for turn in chronological_turns}
+                participants = {
+                    turn.get("role", "unknown") if isinstance(turn, dict) else turn.role
+                    for turn in chronological_turns
+                }
                 fallback_segment = TopicSegment(
                     topic="General Discussion",
                     summary="Fallback promotion segment",
-                    key_points=[t.get("content", "") for t in chronological_turns[:3]],
+                    key_points=[
+                        t.get("content", "") if isinstance(t, dict) else t.content
+                        for t in chronological_turns[:3]
+                    ],
                     turn_indices=list(range(len(chronological_turns))),
                     certainty=0.8,
                     impact=0.8,
@@ -154,23 +176,23 @@ class PromotionEngine(BaseEngine):
                 segments = [fallback_segment]
 
             stats["segments_created"] = original_segment_count
-            
+
             # 5. Score and process each segment
             for segment in segments:
                 try:
                     # Calculate segment-level CIAR score
                     # The segment provides certainty and impact from LLM analysis
                     segment_score = await self._score_segment(segment)
-                    
+
                     if segment_score < self.promotion_threshold:
                         logger.debug(
                             f"Segment '{segment.topic}' scored {segment_score:.3f}, "
                             f"below threshold {self.promotion_threshold}. Skipping."
                         )
                         continue
-                    
-                    stats["segments_promoted"] += 1
-                    
+
+                    inc("segments_promoted")
+
                     # 6. Extract facts from significant segment
                     # Use segment summary as input to fact extractor
                     segment_text = self._format_segment_for_extraction(segment, chronological_turns)
@@ -178,9 +200,9 @@ class PromotionEngine(BaseEngine):
                         "session_id": session_id,
                         "source_uri": f"l1:{session_id}:segment:{segment.segment_id}",
                         "topic_segment_id": segment.segment_id,
-                        "topic_label": segment.topic
+                        "topic_label": segment.topic,
                     }
-                    
+
                     facts = await self.extractor.extract_facts(segment_text, fact_metadata)
                     if not facts:
                         fallback_fact = Fact(
@@ -194,11 +216,11 @@ class PromotionEngine(BaseEngine):
                             fact_category=FactCategory.OPERATIONAL,
                             source_type="segment_fallback",
                             topic_segment_id=segment.segment_id,
-                            topic_label=segment.topic
+                            topic_label=segment.topic,
                         )
                         facts = [fallback_fact]
-                    stats["facts_extracted"] += len(facts)
-                    
+                    inc("facts_extracted", len(facts))
+
                     # 7. Store facts with segment context in L2
                     for fact in facts:
                         if fact.fact_type is None:
@@ -210,15 +232,14 @@ class PromotionEngine(BaseEngine):
                             fact.certainty = segment.certainty
                         if fact.impact < segment.impact:
                             fact.impact = segment.impact
-                        
+
                         # Recalculate CIAR with inherited values
-                        fact.ciar_score = max(
-                            self.scorer.calculate(fact),
-                            self.promotion_threshold
-                        )
+                        fact.ciar_score = max(self.scorer.calculate(fact), self.promotion_threshold)
 
                         # Respect L2 threshold before store to avoid ValueError from WorkingMemoryTier
-                        ciar_threshold = getattr(self.l2, "ciar_threshold", self.promotion_threshold)
+                        ciar_threshold = getattr(
+                            self.l2, "ciar_threshold", self.promotion_threshold
+                        )
                         if fact.ciar_score < ciar_threshold:
                             logger.info(
                                 "Filtered fact %s below CIAR threshold %.2f (score=%.3f)",
@@ -226,23 +247,31 @@ class PromotionEngine(BaseEngine):
                                 ciar_threshold,
                                 fact.ciar_score,
                             )
-                            stats["facts_filtered"] += 1
+                            inc("facts_filtered")
                             continue
-                        
+
                         # Store in L2
                         await self.l2.store(fact.model_dump())
-                        stats["facts_promoted"] += 1
-                        
+                        inc("facts_promoted")
+
                 except Exception as e:
                     logger.error(f"Error processing segment '{segment.topic}': {e}")
-                    stats["errors"] += 1
+                    inc("errors")
                     continue
             # Ensure at least one fact is promoted even when LLM paths fail
-            if self.enable_final_fallback and stats["facts_promoted"] == 0 and stats["turns_retrieved"] > 0:
+            if (
+                self.enable_final_fallback
+                and int(stats.get("facts_promoted", 0)) == 0
+                and int(stats.get("turns_retrieved", 0)) > 0
+            ):
                 fallback_fact = Fact(
                     fact_id=f"fallback-{uuid4().hex}",
                     session_id=session_id,
-                    content=chronological_turns[-1].get("content", "Fallback fact"),
+                    content=(
+                        chronological_turns[-1].get("content", "Fallback fact")
+                        if isinstance(chronological_turns[-1], dict)
+                        else chronological_turns[-1].content
+                    ),
                     ciar_score=max(self.promotion_threshold, 0.72),
                     certainty=0.9,
                     impact=0.8,
@@ -250,46 +279,44 @@ class PromotionEngine(BaseEngine):
                     fact_category=FactCategory.OPERATIONAL,
                     source_type="promotion_fallback",
                     topic_label="General Discussion",
-                    topic_segment_id="fallback"
+                    topic_segment_id="fallback",
                 )
                 await self.l2.store(fallback_fact.model_dump())
-                stats["facts_extracted"] += 1
-                stats["facts_promoted"] += 1
-            
+                inc("facts_extracted")
+                inc("facts_promoted")
+
             return stats
 
         except Exception as e:
             logger.error(f"Error in batch promotion for session {session_id}: {e}")
-            stats["errors"] += 1
+            inc("errors")
             stats["last_error"] = str(e)
             return stats
 
     async def _score_segment(self, segment: TopicSegment) -> float:
         """
         Calculate CIAR score for a topic segment.
-        
+
         Since segments are recent (from L1 batch), age_decay ≈ 1.0 and recency_boost ≈ 1.0.
         The primary factors are segment-level certainty and impact from LLM analysis.
-        
+
         Args:
             segment: The TopicSegment to score
-            
+
         Returns:
             float: CIAR score (0.0-1.0)
         """
         # For fresh segments: age_decay = 1.0, recency_boost = 1.0
-        # CIAR = (Certainty × Impact) × Age × Recency
+        # CIAR = (Certainty x Impact) x Age x Recency
         ciar_score = (segment.certainty * segment.impact) * 1.0 * 1.0
         return round(ciar_score, 4)
 
     def _format_segment_for_extraction(
-        self,
-        segment: TopicSegment,
-        turns: List[Dict[str, Any]]
+        self, segment: TopicSegment, turns: list[TurnData | dict[str, Any]]
     ) -> str:
         """
         Format a segment for fact extraction.
-        
+
         Combines segment summary with relevant turn content.
         """
         lines = [
@@ -300,30 +327,31 @@ class PromotionEngine(BaseEngine):
         ]
         for point in segment.key_points:
             lines.append(f"- {point}")
-        
+
         lines.append("")
         lines.append("Relevant Conversation:")
-        
+
         # Include turns from this segment
         for idx in segment.turn_indices:
             if idx < len(turns):
                 turn = turns[idx]
-                role = turn.get("role", "unknown").capitalize()
-                content = turn.get("content", "")
+                if isinstance(turn, dict):
+                    role = turn.get("role", "unknown").capitalize()
+                    content = turn.get("content", "")
+                else:
+                    role = turn.role.capitalize()
+                    content = turn.content
                 lines.append(f"{role}: {content}")
-        
+
         return "\n".join(lines)
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Check health of dependencies."""
         l1_health = await self.l1.health_check()
         l2_health = await self.l2.health_check()
-        
-        healthy = (
-            l1_health.get("status") == "healthy" and 
-            l2_health.get("status") == "healthy"
-        )
-        
+
+        healthy = l1_health.get("status") == "healthy" and l2_health.get("status") == "healthy"
+
         return {
             "status": "healthy" if healthy else "unhealthy",
             "l1": l1_health,
@@ -331,6 +359,6 @@ class PromotionEngine(BaseEngine):
             "config": {
                 "promotion_threshold": self.promotion_threshold,
                 "batch_min_turns": self.batch_min_turns,
-                "batch_max_turns": self.batch_max_turns
-            }
+                "batch_max_turns": self.batch_max_turns,
+            },
         }

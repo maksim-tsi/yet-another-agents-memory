@@ -26,12 +26,13 @@ Template Categories:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
 from enum import Enum
+from typing import Any
 
 
 class TemplateCategory(str, Enum):
     """Template categories for organizing queries."""
+
     TRACKING = "tracking"
     RELATIONSHIPS = "relationships"
     CAUSALITY = "causality"
@@ -43,10 +44,10 @@ class TemplateCategory(str, Enum):
 class GraphQueryTemplate:
     """
     Template for safe, parameterized Neo4j Cypher queries.
-    
+
     All templates enforce temporal validity (factValidTo IS NULL) to
     prevent querying outdated relationships.
-    
+
     Attributes:
         name: Unique template identifier (e.g., 'get_container_journey')
         cypher_template: Cypher query with $parameters
@@ -57,22 +58,23 @@ class GraphQueryTemplate:
         returns: Description of return structure
         examples: Example parameter sets for documentation
     """
+
     name: str
     cypher_template: str
-    required_params: List[str]
-    optional_params: Dict[str, Any] = field(default_factory=dict)
+    required_params: list[str]
+    optional_params: dict[str, Any] = field(default_factory=dict)
     description: str = ""
     category: TemplateCategory = TemplateCategory.TRACKING
     returns: str = ""
-    examples: List[Dict[str, Any]] = field(default_factory=list)
-    
-    def validate_params(self, params: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+    examples: list[dict[str, Any]] = field(default_factory=list)
+
+    def validate_params(self, params: dict[str, Any]) -> tuple[bool, str | None]:
         """
         Validate that all required parameters are provided.
-        
+
         Args:
             params: Parameter dict to validate
-        
+
         Returns:
             (is_valid, error_message)
         """
@@ -80,14 +82,14 @@ class GraphQueryTemplate:
         if missing:
             return False, f"Missing required parameters: {', '.join(missing)}"
         return True, None
-    
-    def merge_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
+
+    def merge_params(self, params: dict[str, Any]) -> dict[str, Any]:
         """
         Merge provided params with optional defaults.
-        
+
         Args:
             params: User-provided parameters
-        
+
         Returns:
             Complete parameter dict with defaults filled in
         """
@@ -130,10 +132,7 @@ GET_CONTAINER_JOURNEY = GraphQueryTemplate(
     description="Track a container's journey through ports, vessels, and facilities",
     category=TemplateCategory.TRACKING,
     returns="Path with nodes (ports, vessels, facilities) and edges (movements)",
-    examples=[
-        {"container_id": "MAEU1234567", "max_hops": 15},
-        {"container_id": "CMAU5678901"}
-    ]
+    examples=[{"container_id": "MAEU1234567", "max_hops": 15}, {"container_id": "CMAU5678901"}],
 )
 
 GET_SHIPMENT_PARTIES = GraphQueryTemplate(
@@ -162,9 +161,7 @@ GET_SHIPMENT_PARTIES = GraphQueryTemplate(
     description="Get all parties (shipper, consignee, carrier, agent) for a shipment",
     category=TemplateCategory.RELATIONSHIPS,
     returns="Shipment node and dict of all related parties",
-    examples=[
-        {"shipment_id": "SHP-2024-001234"}
-    ]
+    examples=[{"shipment_id": "SHP-2024-001234"}],
 )
 
 FIND_DELAY_CAUSES = GraphQueryTemplate(
@@ -195,8 +192,8 @@ FIND_DELAY_CAUSES = GraphQueryTemplate(
     returns="Shipment, root cause, and causal chain of delay relationships",
     examples=[
         {"shipment_id": "SHP-2024-001234", "max_depth": 3},
-        {"shipment_id": "SHP-2024-005678", "max_results": 5}
-    ]
+        {"shipment_id": "SHP-2024-005678", "max_results": 5},
+    ],
 )
 
 GET_DOCUMENT_FLOW = GraphQueryTemplate(
@@ -224,9 +221,7 @@ GET_DOCUMENT_FLOW = GraphQueryTemplate(
     description="Get all documents (Bill of Lading, customs forms, delivery proof) for a shipment",
     category=TemplateCategory.DOCUMENTS,
     returns="Shipment and ordered list of associated documents",
-    examples=[
-        {"shipment_id": "SHP-2024-001234"}
-    ]
+    examples=[{"shipment_id": "SHP-2024-001234"}],
 )
 
 GET_RELATED_EPISODES = GraphQueryTemplate(
@@ -261,9 +256,9 @@ GET_RELATED_EPISODES = GraphQueryTemplate(
             "entity_id": "MAEU1234567",
             "start_time": "2024-01-01T00:00:00Z",
             "end_time": "2024-12-31T23:59:59Z",
-            "max_results": 20
+            "max_results": 20,
         }
-    ]
+    ],
 )
 
 GET_ENTITY_TIMELINE = GraphQueryTemplate(
@@ -298,10 +293,7 @@ GET_ENTITY_TIMELINE = GraphQueryTemplate(
     description="Get chronological timeline of all events for an entity (container, shipment, etc.)",
     category=TemplateCategory.TEMPORAL,
     returns="Ordered list of timeline events with timestamps and related entities",
-    examples=[
-        {"entity_id": "MAEU1234567", "max_events": 50},
-        {"entity_id": "SHP-2024-001234"}
-    ]
+    examples=[{"entity_id": "MAEU1234567", "max_events": 50}, {"entity_id": "SHP-2024-001234"}],
 )
 
 
@@ -309,7 +301,7 @@ GET_ENTITY_TIMELINE = GraphQueryTemplate(
 # TEMPLATE REGISTRY
 # ============================================================================
 
-TEMPLATE_REGISTRY: Dict[str, GraphQueryTemplate] = {
+TEMPLATE_REGISTRY: dict[str, GraphQueryTemplate] = {
     "get_container_journey": GET_CONTAINER_JOURNEY,
     "get_shipment_parties": GET_SHIPMENT_PARTIES,
     "find_delay_causes": FIND_DELAY_CAUSES,
@@ -319,26 +311,26 @@ TEMPLATE_REGISTRY: Dict[str, GraphQueryTemplate] = {
 }
 
 
-def get_template(name: str) -> Optional[GraphQueryTemplate]:
+def get_template(name: str) -> GraphQueryTemplate | None:
     """
     Retrieve a query template by name.
-    
+
     Args:
         name: Template name (e.g., 'get_container_journey')
-    
+
     Returns:
         GraphQueryTemplate or None if not found
     """
     return TEMPLATE_REGISTRY.get(name)
 
 
-def list_templates(category: Optional[TemplateCategory] = None) -> List[GraphQueryTemplate]:
+def list_templates(category: TemplateCategory | None = None) -> list[GraphQueryTemplate]:
     """
     List all available templates, optionally filtered by category.
-    
+
     Args:
         category: Optional category filter
-    
+
     Returns:
         List of matching templates
     """
@@ -349,16 +341,15 @@ def list_templates(category: Optional[TemplateCategory] = None) -> List[GraphQue
 
 
 def validate_and_execute_template(
-    name: str,
-    params: Dict[str, Any]
-) -> tuple[bool, Optional[str], Optional[str]]:
+    name: str, params: dict[str, Any]
+) -> tuple[bool, str | None, str | None]:
     """
     Validate template exists and parameters are complete.
-    
+
     Args:
         name: Template name
         params: Parameters to validate
-    
+
     Returns:
         (is_valid, error_message, cypher_query)
         If valid, returns (True, None, cypher_query)
@@ -368,9 +359,9 @@ def validate_and_execute_template(
     if not template:
         available = ", ".join(TEMPLATE_REGISTRY.keys())
         return False, f"Unknown template '{name}'. Available: {available}", None
-    
+
     is_valid, error_msg = template.validate_params(params)
     if not is_valid:
         return False, error_msg, None
-    
+
     return True, None, template.cypher_template

@@ -1,6 +1,8 @@
 """Topic segmentation schema and system instruction for Gemini structured output."""
 
-from google.genai import types
+import importlib
+
+types = importlib.import_module("google.genai.types")
 
 TOPIC_SEGMENTATION_SYSTEM_INSTRUCTION = """You are an expert at analyzing supply chain and logistics conversations.
 
@@ -34,7 +36,17 @@ TOPIC_SEGMENTATION_SCHEMA = types.Schema(
             description="List of topic segments identified in the conversation.",
             items=types.Schema(
                 type=types.Type.OBJECT,
-                required=["topic", "summary", "key_points", "turn_indices", "certainty", "impact", "participant_count", "message_count", "temporal_context"],
+                required=[
+                    "topic",
+                    "summary",
+                    "key_points",
+                    "turn_indices",
+                    "certainty",
+                    "impact",
+                    "participant_count",
+                    "message_count",
+                    "temporal_context",
+                ],
                 properties={
                     "topic": types.Schema(
                         type=types.Type.STRING,

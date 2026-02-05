@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from contextlib import ExitStack
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import os
 import sys
 import types
 import uuid
+from contextlib import ExitStack
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -72,7 +72,7 @@ def _patch_agent_for_tests(state, mocker: pytest.MockFixture) -> None:
             content="Integration response.",
             turn_id=request.turn_id,
             metadata={"source": "integration"},
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     state.agent.run_turn = mocker.AsyncMock(side_effect=_run_turn)
@@ -129,7 +129,7 @@ def test_parallel_wrapper_startup_health(mocker):
             _patch_agent_for_tests(client.app.state.wrapper, mocker)
             clients[entry.agent_type] = client
 
-        for agent_type, client in clients.items():
+        for _agent_type, client in clients.items():
             response = client.get("/health")
             assert response.status_code == 200
             assert response.json()["status"] in {"ok", "degraded"}

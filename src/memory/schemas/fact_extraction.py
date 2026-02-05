@@ -1,6 +1,8 @@
 """Fact extraction schema and system instruction for Gemini structured output."""
 
-from google.genai import types
+import importlib
+
+types = importlib.import_module("google.genai.types")
 
 FACT_EXTRACTION_SYSTEM_INSTRUCTION = """You are an expert fact extractor for a supply chain memory system.
 
@@ -44,7 +46,14 @@ FACT_EXTRACTION_SCHEMA = types.Schema(
                     "type": types.Schema(
                         type=types.Type.STRING,
                         description="Type of fact: preference (user likes/dislikes), constraint (limitation/requirement), entity (person/place/thing), mention (reference to something), relationship (connection between entities), event (something that happened).",
-                        enum=["preference", "constraint", "entity", "mention", "relationship", "event"],
+                        enum=[
+                            "preference",
+                            "constraint",
+                            "entity",
+                            "mention",
+                            "relationship",
+                            "event",
+                        ],
                     ),
                     "category": types.Schema(
                         type=types.Type.STRING,

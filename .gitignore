@@ -6,7 +6,6 @@
 .env.*.local
 
 # External Benchmarks
-benchmarks/goodai-ltm-benchmark/
 benchmarks/.venv-benchmark/
 
 # Byte-compiled / optimized / DLL files
@@ -204,6 +203,11 @@ cython_debug/
 
 # Ruff stuff:
 .ruff_cache/
+
+# Logs
+logs/*
+!logs/README.md
+!logs/.gitkeep
 
 # PyPI configuration file
 .pypirc

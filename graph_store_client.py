@@ -1,7 +1,9 @@
 # file: graph_store_client.py
 
+from typing import Any
+
 from neo4j import GraphDatabase
-from typing import List, Dict, Any
+
 
 class Neo4jGraphStore:
     def __init__(self, uri, user, password):
@@ -12,14 +14,16 @@ class Neo4jGraphStore:
         """Closes the database connection driver."""
         self.driver.close()
 
-    def query(self, cypher_query: str, params: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def query(
+        self, cypher_query: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Executes a Cypher query and returns the results.
-        
+
         Args:
             cypher_query: The Cypher query string to execute.
             params: A dictionary of parameters to bind to the query.
-            
+
         Returns:
             A list of result dictionaries.
         """

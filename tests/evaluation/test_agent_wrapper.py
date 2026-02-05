@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import sys
 import types
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -57,6 +57,7 @@ def wrapper_config() -> agent_wrapper.WrapperConfig:
 @pytest.fixture
 def wrapper_state(mocker: pytest.MockFixture) -> agent_wrapper.AgentWrapperState:
     """Build a wrapper state with mocked dependencies."""
+
     async def _run_turn(request: RunTurnRequest) -> RunTurnResponse:
         return RunTurnResponse(
             session_id=request.session_id,
@@ -64,7 +65,7 @@ def wrapper_state(mocker: pytest.MockFixture) -> agent_wrapper.AgentWrapperState
             content="Acknowledged.",
             turn_id=request.turn_id,
             metadata={"source": "unit"},
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     agent = mocker.Mock(spec=agent_wrapper.BaseAgent)
@@ -109,7 +110,10 @@ def wrapper_state(mocker: pytest.MockFixture) -> agent_wrapper.AgentWrapperState
 @pytest.fixture
 def test_client(mocker: pytest.MockFixture, wrapper_config, wrapper_state):
     """Provide a FastAPI test client with patched lifespan state."""
-    mocker.patch("src.evaluation.agent_wrapper.initialize_state", new=mocker.AsyncMock(return_value=wrapper_state))
+    mocker.patch(
+        "src.evaluation.agent_wrapper.initialize_state",
+        new=mocker.AsyncMock(return_value=wrapper_state),
+    )
     mocker.patch("src.evaluation.agent_wrapper.shutdown_state", new=mocker.AsyncMock())
     app = agent_wrapper.create_app(wrapper_config)
     with TestClient(app) as client:
@@ -184,7 +188,11 @@ def test_sessions_endpoint_tracks_prefixed_sessions(test_client):
 def test_memory_state_counts(test_client, wrapper_state):
     """Ensure memory_state returns counts for L1 and L2 data."""
     wrapper_state.l1_tier.retrieve.return_value = ["a", "b"]
-    wrapper_state.l2_tier.query_by_session.return_value = [_FactStub("1"), _FactStub("2"), _FactStub("3")]
+    wrapper_state.l2_tier.query_by_session.return_value = [
+        _FactStub("1"),
+        _FactStub("2"),
+        _FactStub("3"),
+    ]
 
     response = test_client.get("/memory_state", params={"session_id": "test-session"})
 
@@ -242,7 +250,9 @@ def test_build_config_from_env(monkeypatch):
     monkeypatch.setenv("MAS_L1_TTL_HOURS", "12")
     monkeypatch.setenv("MAS_MIN_CIAR", "0.7")
 
-    args = agent_wrapper.parse_args(["--agent-type", "full", "--port", "8080", "--model", "unit-model"])
+    args = agent_wrapper.parse_args(
+        ["--agent-type", "full", "--port", "8080", "--model", "unit-model"]
+    )
     config = agent_wrapper.build_config(args)
 
     assert config.session_prefix == "full"

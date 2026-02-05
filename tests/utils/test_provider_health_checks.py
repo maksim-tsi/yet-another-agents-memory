@@ -1,10 +1,11 @@
 import sys
 import types
-import pytest
 from types import SimpleNamespace
 
-from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
+import pytest
+
 from src.utils.llm_client import ProviderHealth
+from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
 
 
 class FakeResponse:
@@ -13,7 +14,11 @@ class FakeResponse:
 
 class FakeGeminiClient:
     def __init__(self, raise_exc=None):
-        self.models = SimpleNamespace(generate_content=lambda *args, **kwargs: (_ for _ in ()).throw(raise_exc) if raise_exc else FakeResponse())
+        self.models = SimpleNamespace(
+            generate_content=lambda *args, **kwargs: (_ for _ in ()).throw(raise_exc)
+            if raise_exc
+            else FakeResponse()
+        )
 
 
 def register_fake_genai(fake_client, monkeypatch):
@@ -37,7 +42,11 @@ class FakeGroqClient:
     def __init__(self, raise_exc=None):
         class Chat:
             def __init__(self, raise_exc):
-                self.completions = SimpleNamespace(create=lambda *a, **k: (_ for _ in ()).throw(raise_exc) if raise_exc else FakeResponse())
+                self.completions = SimpleNamespace(
+                    create=lambda *a, **k: (_ for _ in ()).throw(raise_exc)
+                    if raise_exc
+                    else FakeResponse()
+                )
 
         self.chat = Chat(raise_exc)
 

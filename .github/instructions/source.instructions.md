@@ -197,3 +197,92 @@ metrics.export_prometheus()  # Gauge format
 - **Imports**: Group imports (stdlib, third-party, local) with blank lines between
 - **Async Context Managers**: Use `async with` for resource management
 - **Error Messages**: Include context (operation, parameters, state) in error messages
+
+## Mypy Type Safety Guidelines
+
+Follow these patterns to ensure mypy compliance:
+
+### Redis Async Return Types
+Redis asyncio methods return `Awaitable[T] | T` union types. Always use explicit casts:
+
+```python
+# Bad - mypy error: Returning Any from function declared to return "bool"
+return await self.client.exists(key)
+
+# Good - explicit type cast
+result = await self.client.exists(key)
+return int(result) > 0
+
+# For proxy methods wrapping Redis calls
+async def llen(self, key: str) -> int:
+    result = await self.client.llen(key)
+    return int(result)  # Explicit cast
+```
+
+### Null Safety Checks
+Always guard against `None` before accessing optional attributes:
+
+```python
+# Bad - mypy error: Item "None" of "T | None" has no attribute "method"
+await self.client.lrange(key, 0, -1)
+
+# Good - null guard first
+if not self.client:
+    raise StorageConnectionError("Not connected")
+result = await self.client.lrange(key, 0, -1)
+```
+
+### Dict Covariance for Adapter Collections
+Use `Mapping` instead of `dict` when accepting adapter collections:
+
+```python
+from collections.abc import Mapping
+
+# Bad - mypy error: dict is invariant in value type
+def __init__(self, adapters: dict[str, StorageAdapter]): ...
+
+# Good - Mapping is covariant
+def __init__(self, adapters: Mapping[str, StorageAdapter]): ...
+```
+
+### Stats/Counter Dict Typing
+Always annotate stats dicts to enable arithmetic operations:
+
+```python
+# Bad - stats values become object type, += 1 fails
+stats = {"count": 0, "errors": 0}
+stats["count"] += 1  # mypy error: unsupported operand types
+
+# Good - explicit type annotation
+stats: dict[str, int] = {"count": 0, "errors": 0}
+stats["count"] += 1  # type-safe
+
+# For mixed int/str stats, use helper function
+stats: dict[str, int | str] = {"session_id": sid, "count": 0}
+def inc(key: str, amount: int = 1) -> None:
+    stats[key] = int(stats.get(key, 0)) + amount  # type: ignore[arg-type]
+inc("count")
+```
+
+### Adapter Method Signatures
+Storage adapters use `dict[str, Any]` query pattern. Call adapters correctly:
+
+```python
+# Bad - mypy error: unexpected keyword argument
+await self.adapter.search(collection_name="x", limit=10)
+
+# Good - pass query dict
+query = {"collection_name": "x", "limit": 10}
+await self.adapter.search(query)
+```
+
+### Type Ignore Comments
+Use sparingly and with specific error codes:
+
+```python
+# Bad - suppresses all errors
+result = something()  # type: ignore
+
+# Good - specific error code
+from yaml import safe_load  # type: ignore[import-untyped]
+```

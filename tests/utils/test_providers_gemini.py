@@ -1,10 +1,10 @@
 import sys
 import types
+
 import pytest
 
-
-from src.utils.providers import GeminiProvider
 from src.utils.llm_client import LLMResponse
+from src.utils.providers import GeminiProvider
 
 
 class FakeUsage:
@@ -38,6 +38,7 @@ class FakeClient:
 
 def register_fake_genai(fake_client, monkeypatch):
     """Helper to inject a fake google.genai module with Client returning fake_client."""
+
     # Create minimal classes to satisfy provider expectations
     class FakePart:
         def __init__(self, text: str):
@@ -53,7 +54,14 @@ def register_fake_genai(fake_client, monkeypatch):
             self.parts = parts
 
     class FakeGenerateContentConfig:
-        def __init__(self, temperature=0.0, max_output_tokens=256, system_instruction=None, response_mime_type=None, response_schema=None):
+        def __init__(
+            self,
+            temperature=0.0,
+            max_output_tokens=256,
+            system_instruction=None,
+            response_mime_type=None,
+            response_schema=None,
+        ):
             self.temperature = temperature
             self.max_output_tokens = max_output_tokens
             self.system_instruction = system_instruction

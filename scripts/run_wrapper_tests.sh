@@ -51,13 +51,17 @@ echo -e "${YELLOW}Running wrapper unit tests...${NC}"
 "$PYTEST" tests/evaluation/ -m unit -v \
     --junit-xml="$UNIT_XML" \
     --html="$UNIT_HTML" \
-    --self-contained-html
+    --self-contained-html \
+    --cov=src \
+    --cov-fail-under=80
 
 echo -e "${YELLOW}Running wrapper integration tests...${NC}"
 "$PYTEST" tests/integration/test_wrapper_agents_integration.py -m integration -v \
     --junit-xml="$INTEGRATION_XML" \
     --html="$INTEGRATION_HTML" \
-    --self-contained-html
+    --self-contained-html \
+    --cov=src \
+    --cov-fail-under=80
 
 echo -e "${GREEN}✅ Wrapper tests complete.${NC}"
 echo "Unit reports: $UNIT_XML, $UNIT_HTML"
