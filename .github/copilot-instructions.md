@@ -69,6 +69,12 @@ This project is guided by five core principles. All new code and refactoring sho
   - To install packages: `/home/max/code/mas-memory-layer/.venv/bin/pip ...`
 - **RECOMMENDED (Local environments)**: Use the equivalent relative commands (`./.venv/bin/python`, etc.) to keep paths portable. The relative commands map 1:1 to the absolute versions and prevent accidental use of a different interpreter.
 
+**Two-Environment Architecture**: This repository contains two separate Poetry projects:
+1. **MAS Memory Layer** (root): `poetry install --with test,dev` creates `.venv/`
+2. **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install` creates `.venv/` in that subdirectory
+
+These environments are intentionally isolated due to incompatible langchain versions (MAS uses `langchain-core>=0.3.25,<0.4.0` while benchmark uses `langchain==0.1.1`).
+
 ## MANDATORY: Terminal Resiliency Protocol (Remote SSH)
 
   * **Pattern**: `<command> > /tmp/copilot.out 2>&1; cat /tmp/copilot.out`
@@ -215,6 +221,11 @@ Benchmark: **GoodAI LTM Benchmark** for long-term memory evaluation (32k-120k to
 ## Python Environment
 
 - **Version**: Python 3.11+ (3.13 tested)
-- **Dependencies**: `requirements.txt` (production), `requirements-test.txt` (testing)
-- **Virtual Env**: `.venv/` (activate before running scripts)
+- **Package Manager**: Poetry (with `virtualenvs.in-project = true`)
+- **Dependencies**: `pyproject.toml` (production + test + dev groups)
+- **Virtual Env**: `.venv/` (Poetry-managed, in-project)
 - **Key Packages**: `pydantic==2.8.2`, `redis==5.0.7`, `psycopg[binary]>=3.2.0`, `qdrant-client==1.9.2`, `neo4j==5.22.0`
+
+**Two Environments**:
+- **MAS Memory Layer** (root): `poetry install --with test,dev`
+- **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install`

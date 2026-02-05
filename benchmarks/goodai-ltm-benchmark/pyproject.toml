@@ -1,0 +1,69 @@
+[tool.poetry]
+name = "goodai-ltm-benchmark"
+version = "0.1.0"
+description = "GoodAI Long-Term Memory Benchmark runner for MAS Memory Layer evaluation"
+license = "MIT"
+authors = ["MAS Memory Layer Team"]
+packages = [
+    {include = "runner"},
+    {include = "model_interfaces"},
+    {include = "dataset_interfaces"},
+    {include = "utils"},
+    {include = "reporting"},
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.14"
+
+# CLI & Utilities
+click = "*"
+colorama = "~0.4.6"
+humanize = "4.9.0"
+pyyaml = "~6.0.1"
+tqdm = "*"
+
+# Templating
+pystache = "~0.6.5"
+jinja2 = "~3.1.2"
+
+# LLM Providers
+anthropic = "*"
+openai = "*"
+google-genai = ">=1.0.0"
+
+# Agent Frameworks
+pymemgpt = "*"
+langchain = "0.1.1"
+langchain-openai = "0.0.2"
+
+# Memory
+goodai-ltm = "0.4.4"
+
+# Data & Testing
+faker = "~20.1.0"
+pytest = "*"
+time-machine = "2.13.0"
+tiktoken = "~0.5.2"
+
+# Web
+flask = "2.2.3"
+Werkzeug = "2.2.2"
+
+# Data Processing
+rouge-score = "0.1.2"
+zstd = "1.5.5.1"
+transformers = "4.40.2"
+
+# Visualization
+matplotlib = "3.8.4"
+
+# Download & Misc
+gdown = "4.7.1"
+browser-cookie3 = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
