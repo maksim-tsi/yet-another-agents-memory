@@ -4,7 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from utils.constants import EVENT_SENDER, EventType
 
@@ -14,9 +14,9 @@ class LogEvent:
     type: EventType
     timestamp: datetime
     test_id: str | None = None
-    data: dict[str, Any] | None = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
-    def to_json(self):
+    def to_json(self) -> dict[str, Any]:
         return {
             "type": self.type.value,
             "timestamp": self.timestamp.timestamp(),
@@ -24,7 +24,7 @@ class LogEvent:
             "data": self.json_data(),
         }
 
-    def json_data(self) -> dict:
+    def json_data(self) -> dict[str, Any]:
         ret = {}
         for k, v in self.data.items():
             if isinstance(v, timedelta):
@@ -137,12 +137,12 @@ class MasterLog:
                 sender = EVENT_SENDER[event.type]
                 messages.append(f"{sender} ({event.timestamp}): {event.data['message']}")
             elif event.type == EventType.WAIT:
-                wait_cond = []
+                wait_cond_parts = []
                 if event.data["tokens"] > 0:
-                    wait_cond.append(f"{event.data['tokens']} TOKENS")
+                    wait_cond_parts.append(f"{event.data['tokens']} TOKENS")
                 if event.data["time"].seconds > 0:
-                    wait_cond.append(f"{event.data['time']} TIME")
-                wait_cond = ", ".join(wait_cond)
+                    wait_cond_parts.append(f"{event.data['time']} TIME")
+                wait_cond = ", ".join(wait_cond_parts)
 
                 messages.append(
                     f"SYSTEM ({event.timestamp}): Test '{event.test_id}' WAITING for {wait_cond}."
@@ -237,7 +237,7 @@ class MasterLog:
     def test_events(
         self,
         test_id: str,
-        event_type: EventType | set[EventType] = None,
+        event_type: EventType | set[EventType] | None = None,
         filter_fn: Callable[[LogEvent], bool] | None = None,
     ) -> Iterator[LogEvent]:
         for event in self.log:
@@ -277,16 +277,16 @@ class MasterLog:
 
         return context
 
-    def get_start_token(self, test_id: str):
+    def get_start_token(self, test_id: str) -> int:
         for event in self.log:
             if event.test_id == test_id and event.type == EventType.BEGIN:
-                return event.data["tokens"]
+                return int(event.data["tokens"])
 
         raise ValueError(f"Test with id {test_id} has not started.")
 
-    def get_questions_and_responses(self, test_id: str):
-        questions = []
-        responses = []
+    def get_questions_and_responses(self, test_id: str) -> tuple[list[str], list[str]]:
+        questions: list[str] = []
+        responses: list[str] = []
 
         for event in self.test_events(
             test_id,
@@ -305,4 +305,5 @@ class MasterLog:
             if idx < llm_call_idx:
                 idx += 1
                 continue
-            return event.data["response"]
+            return cast(str, event.data["response"])
+        return None

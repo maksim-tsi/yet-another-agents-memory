@@ -2,7 +2,6 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from model_interfaces.interface import ChatSession
 from utils.json_utils import CustomEncoder
 from utils.llm import (
     LLMContext,
@@ -14,13 +13,15 @@ from utils.llm import (
     make_user_message,
 )
 
+from model_interfaces.interface import ChatSession
+
 _system_prompt = "You are a helpful assistant."
 
 
 @dataclass
 class LLMChatSession(ChatSession):
-    max_prompt_size: int = None
-    model: str = None
+    max_prompt_size: int | None = None
+    model: str | None = None
     verbose: bool = False
     context: LLMContext = field(default_factory=lambda: [make_system_message(_system_prompt)])
     max_response_tokens: int = 4096
@@ -32,6 +33,7 @@ class LLMChatSession(ChatSession):
 
     def __post_init__(self):
         super().__post_init__()
+        assert self.model is not None
         if self.max_prompt_size is None:
             self.max_prompt_size = get_max_prompt_size(self.model)
         else:
@@ -48,6 +50,7 @@ class LLMChatSession(ChatSession):
 
         self.context.append(make_user_message(user_message))
         if agent_response is None:
+            assert self.model is not None
             c_callback = None if self.is_local else cost_callback
             response = ask_llm(
                 self.context,
@@ -79,6 +82,7 @@ class LLMChatSession(ChatSession):
             self.context = json.load(fd)
 
     def token_len(self, text: str) -> int:
+        assert self.model is not None
         return count_tokens_for_model(model=self.model, text=text)
 
 

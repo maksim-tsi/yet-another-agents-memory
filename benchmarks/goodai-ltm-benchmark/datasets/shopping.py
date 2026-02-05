@@ -55,12 +55,12 @@ class ShoppingDataset(DatasetInterface):
     item_changes: int = 3
     reset_message: str = "I have bought all of the items on the list. Please remove all of the items on the current shopping list."
 
-    def generate_examples(self, num_examples):
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         renderer = pystache.Renderer()
         examples = []
         for _ in range(num_examples):
-            counts = []
-            cart = []
+            counts: list[int] = []
+            cart: list[str] = []
             script = []
             is_question = []
 
@@ -121,7 +121,7 @@ class ShoppingDataset(DatasetInterface):
         questions: list[str],
         responses: list[str],
         expected_answers: list[tuple[str, int]],
-    ) -> tuple[float, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         """
         The evaluation will give up to `item_changes` points in total.
         That punctuation can be broken down in thirds:
@@ -129,15 +129,15 @@ class ShoppingDataset(DatasetInterface):
         2. Another third depends on those items' quantities matching the expected values.
         3. The last third is given if there are no hallucinated items.
         """
-        score = 0
-        max_score = self.item_changes
+        score = 0.0
+        max_score: float = float(self.item_changes)
         num_correct = 0
         real_items = []
         hallucinated_items = []
         reasoning = []
 
         expected_names = []
-        expected_items = {}
+        expected_items: dict[str, int] = {}
         for a in expected_answers:
             expected_names.append(a[0])
             expected_items[a[0]] = a[1]

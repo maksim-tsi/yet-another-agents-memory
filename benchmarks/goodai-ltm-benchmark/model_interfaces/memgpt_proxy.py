@@ -1,7 +1,7 @@
 import json
 from time import sleep
 
-import requests
+import requests  # type: ignore[import-untyped]
 from flask import Flask, request
 
 app = Flask("MemGPTproxy")

@@ -28,8 +28,8 @@ def _get_eval_model() -> str:
 
 @dataclass
 class RestaurantExample(DynamicExample):
-    dataset_generator: "RestaurantDataset" = None
-    max_score: int = 5  # 1 point max. per sub-challenge
+    dataset_generator: "RestaurantDataset"
+    max_score: float = 5.0  # 1 point max. per sub-challenge
     messages: list[str] = field(default_factory=list)
 
     def action_iter(self) -> Iterator[TestAction]:
@@ -38,13 +38,14 @@ class RestaurantExample(DynamicExample):
         except RestaurantOrderFailed:
             return
 
-    def say(self, message: str, question: bool = True) -> Iterator[SendMessageAction]:
+    def say_iter(self, message: str, question: bool = True) -> Iterator[SendMessageAction]:
         action = super().say(f"Waiter: {message}", question=question)
         yield action
         self.messages.append(action.message)
         self.messages.append(f"Diner: {action.reply}")
 
     def restaurant_script_iter(self) -> Iterator[TestAction]:
+        assert self.dataset_generator is not None
         # Setup
         yield super().say(
             "When I talk to you as the waiter (e.g. 'Waiter: what will it be sir?'), then you will reply as if you were the "
@@ -53,7 +54,7 @@ class RestaurantExample(DynamicExample):
         yield self.wait(percentage_finished=20)
 
         # Give the menu and ask for the drink
-        yield from self.say(
+        yield from self.say_iter(
             "Good day. Welcome to our restaurant. Here is the menu for you to look over:\n\n"
             f"{self.dataset_generator.menu}\n\nIn the meantime, what would you like to drink?",
         )
@@ -69,19 +70,19 @@ class RestaurantExample(DynamicExample):
         yield self.wait(percentage_finished=40)
 
         # Ordering food
-        yield from self.say(f"Here is your {drinks_str}. What would you like to eat?")
+        yield from self.say_iter(f"Here is your {drinks_str}. What would you like to eat?")
         self.expected_responses.append("The agent orders at least one dish from the menu.")
         order = self.extract_order_items(drinks=False)
 
         order_str = enumerate_str(order)
         self.reasoning.append(f"The agent ordered {order_str}.")
         self.score += 1
-        yield from self.say(f"Excellent choice! {order_str} coming right up.", question=False)
+        yield from self.say_iter(f"Excellent choice! {order_str} coming right up.", question=False)
         yield self.wait(percentage_finished=60)
 
         # Some dish is unexpectedly unavailable -> order another thing
         old_item = self.random.choice(order)
-        yield from self.say(
+        yield from self.say_iter(
             f"I am very sorry, but I have been informed in the kitchen that the {old_item} is currently "
             "unavailable. Can I serve you something else instead?"
         )
@@ -98,7 +99,7 @@ class RestaurantExample(DynamicExample):
         # Say sorry and change the order
         order.remove(old_item)
         order.extend(new_items)
-        yield from self.say(
+        yield from self.say_iter(
             f"{new_items_str} it is. Sorry again for the inconvenience.", question=False
         )
         yield self.wait(percentage_finished=80)
@@ -106,19 +107,20 @@ class RestaurantExample(DynamicExample):
         # Alter the order -> does the agent notice?
         true_item, _unsolicited_item, altered_order = self.alter_order(order, old_item)
         altered_str = enumerate_str(altered_order)
-        yield from self.say(f"Here you are: {altered_str}. Enjoy the meal.")
+        yield from self.say_iter(f"Here you are: {altered_str}. Enjoy the meal.")
         self.check_notices_mishap()
-        yield from self.say("I apologize. I will fix it immediately.", question=False)
+        yield from self.say_iter("I apologize. I will fix it immediately.", question=False)
         yield self.wait(percentage_finished=90)
 
         # Amend the order and offer an extra drink
-        yield from self.say(
+        yield from self.say_iter(
             f"Here it is: {true_item}, just as you ordered.\n"
             "We would like to compensate you with an additional drink on the house. What were you having?"
         )
         self.check_recalls_drink(drinks)
 
     def extract_order_items(self, drinks: bool) -> list[str]:
+        assert self.dataset_generator is not None
         conversation = "\n".join(self.messages)
         context = [
             make_user_message(
@@ -171,11 +173,13 @@ class RestaurantExample(DynamicExample):
         return items
 
     def find_alternative_dish(self, item: str, old_item: str) -> tuple[str, str] | None:
+        assert self.dataset_generator is not None
         for section_content in self.dataset_generator.menu_dict.values():
             for section_item in section_content:
                 if item in section_item:
                     choices = [c for c in section_content if c not in [section_item, old_item]]
                     return section_item, self.random.choice(choices)
+        return None
 
     def alter_order(self, order: list[str], old_item: str) -> tuple[str, str, list[str]]:
         sh_order = order.copy()
@@ -192,6 +196,7 @@ class RestaurantExample(DynamicExample):
 
     def check_notices_mishap(self):
         self.expected_responses.append("The agent notices the mix-up.")
+        assert self.action is not None
         context = [
             make_system_message(notice_mishap_prompt),
             make_user_message(f"Customer: {self.action.reply}"),
@@ -204,6 +209,7 @@ class RestaurantExample(DynamicExample):
         self.score += 1
 
     def check_role_following(self):
+        assert self.action is not None
         context = [
             make_system_message(role_eval_prompt),
             make_user_message(f"Participant: {self.action.reply}"),
@@ -218,6 +224,7 @@ class RestaurantExample(DynamicExample):
     def check_recalls_drink(self, drinks: list[str]):
         drinks_str = enumerate_str(drinks)
         self.expected_responses.append(f"The agent recalls that it was drinking {drinks_str}.")
+        assert self.action is not None
         context = [
             make_system_message(drink_recall_system_prompt),
             make_user_message(
@@ -237,7 +244,7 @@ class RestaurantExample(DynamicExample):
         eval_json = self.ask_llm(context, model_name, **llm_kwargs)
         try:
             eval_json = sanitize_and_parse_json(eval_json)
-            return eval_json[key]
+            return bool(eval_json[key])
         except (ValueError, JSONDecodeError, KeyError) as exc:
             self.reasoning.append(f"Could not evaluate due to a JSON parsing error: {exc!r}")
             raise RestaurantOrderFailed from exc

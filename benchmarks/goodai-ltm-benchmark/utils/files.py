@@ -60,7 +60,7 @@ def get_run_names() -> list[str]:
     return [Path(path).name for path in glob(str(TESTS_DIR.joinpath("*"))) if Path(path).is_dir()]
 
 
-def parse_result_path(path: Path | str) -> dict[str, str]:
+def parse_result_path(path: Path | str) -> dict[str, str | int]:
     run_name, _, agent_name, dataset_name, result_name = Path(path).as_posix().split("/")[-5:]
     name_parts = result_name.removesuffix(".json").split("_")
     return dict(
@@ -72,7 +72,7 @@ def parse_result_path(path: Path | str) -> dict[str, str]:
     )
 
 
-def parse_definition_path(path: Path | str) -> dict[str, str]:
+def parse_definition_path(path: Path | str) -> dict[str, str | int]:
     benchmark_name, _, dataset_name, definition_fname = Path(path).as_posix().split("/")[-4:]
     return dict(
         benchmark_name=benchmark_name,

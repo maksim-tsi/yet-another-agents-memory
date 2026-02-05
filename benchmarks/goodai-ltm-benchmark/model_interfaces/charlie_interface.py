@@ -1,8 +1,10 @@
 import json
 from dataclasses import dataclass
+from typing import Any, cast
 
 import browser_cookie3
-import requests
+import requests  # type: ignore[import-untyped]
+
 from model_interfaces.interface import ChatSession
 
 
@@ -63,7 +65,7 @@ class CharlieMnemonic(ChatSession):
             )
 
         # Get display name and current costs of user
-        settings_dict = self.get_settings()
+        settings_dict = cast(dict[str, Any], self.get_settings())
         self.display_name = settings_dict["display_name"][0]
         self.initial_costs_usd = settings_dict["usage"]["total_cost"]
 
@@ -103,12 +105,12 @@ class CharlieMnemonic(ChatSession):
         self.costs_usd = settings["usage"]["total_cost"] - self.initial_costs_usd
 
         try:
-            return response_json["content"]
+            return str(response_json["content"])
         except KeyError as exc:
             exc.add_note(f"Received JSON:\n{response_json}")
             raise
 
-    def get_settings(self):
+    def get_settings(self) -> dict[str, Any]:
         headers = {
             "Content-Type": "application/json",
             "Cookie": f"session_token={self.token}",
@@ -116,7 +118,7 @@ class CharlieMnemonic(ChatSession):
         body = {"username": self.user_name}
 
         settings = requests.post(self.endpoint + "/load_settings/", headers=headers, json=body)
-        return json.loads(settings.text)
+        return cast(dict[str, Any], json.loads(settings.text))
 
     def reset(self):
         # Delete the user data

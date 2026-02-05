@@ -24,6 +24,7 @@ def word_in_patterns(text: str, pattern_list: list[str]) -> str | None:
         m = re.match(pattern, text)
         if m is not None:
             return m.group(1)
+    return None
 
 
 def is_plural(word: str) -> bool:
@@ -110,9 +111,9 @@ class SallyAnneDataset(DatasetInterface):
 
     def evaluate_correct(
         self, questions: list[str], responses: list[str], expected_answers: list[str]
-    ) -> tuple[int, int, list[str]]:
-        score = 0
-        max_score = 1
+    ) -> tuple[float, float, list[str]]:
+        score = 0.0
+        max_score = 1.0
 
         try:
             answer_dict = sanitize_and_parse_json(responses[0])
@@ -124,7 +125,7 @@ class SallyAnneDataset(DatasetInterface):
             isinstance(answer_dict, dict)
             and answer_dict.get("answer", "").lower() == expected_answers[0]
         ):
-            score = 1
+            score = 1.0
             reasoning = (
                 f"The agent answered with {answer_dict['answer']!r}, which is the right answer."
             )

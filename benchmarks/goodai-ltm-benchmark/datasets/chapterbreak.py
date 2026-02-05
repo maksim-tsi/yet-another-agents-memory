@@ -1,6 +1,7 @@
 import json
 import re
 from dataclasses import dataclass, field
+from typing import Any, cast
 
 import zstd
 from dataset_interfaces.interface import DatasetInterface, TestExample, WaitCreator
@@ -69,7 +70,7 @@ class ChapterBreakDataset(DatasetInterface):
     def __post_init__(self):
         assert self.split in {"goodai", "pg19", "ao3", "all"}
 
-    def load_data(self) -> dict:
+    def load_data(self) -> dict[str, Any]:
         path = get_file(
             self.name,
             CHAPTERBREAK_8K_URL,
@@ -77,7 +78,8 @@ class ChapterBreakDataset(DatasetInterface):
             checksum=CHAPTERBREAK_8K_SUM,
         )
         with open(path, "br") as fd:
-            return json.loads(zstd.decompress(fd.read()))
+            data = json.loads(zstd.decompress(fd.read()))
+        return cast(dict[str, Any], data)
 
     def apply_sample_selection(self, samples: dict) -> dict:
         with open(get_data_path(self.name, "chapterbreak-goodai-selection.json")) as fd:
@@ -89,10 +91,18 @@ class ChapterBreakDataset(DatasetInterface):
             sample = samples[sel["id"]]
             reg_expr = sel.get("chapter_cleanup", None)
             if reg_expr:
-                right_value = re.match(reg_expr, sample["pos"]).group(1)
+                right_match = re.match(reg_expr, sample["pos"])
+                if right_match is None:
+                    raise ValueError(f"Chapter cleanup regex did not match: {sample['pos']!r}")
+                right_value = right_match.group(1)
                 false_beginnings = sample["negs"]
                 for i in range(len(false_beginnings)):
-                    wrong_value = re.match(reg_expr, false_beginnings[i]).group(1)
+                    wrong_match = re.match(reg_expr, false_beginnings[i])
+                    if wrong_match is None:
+                        raise ValueError(
+                            f"Chapter cleanup regex did not match: {false_beginnings[i]!r}"
+                        )
+                    wrong_value = wrong_match.group(1)
                     if wrong_value is not None:
                         false_beginnings[i] = false_beginnings[i].replace(wrong_value, right_value)
             sample_selection[sel["id"]] = sample
@@ -169,12 +179,12 @@ class ChapterBreakDataset(DatasetInterface):
 
     def evaluate_correct(
         self, questions: list[str], responses: list[str], expected_answers: list[str]
-    ) -> tuple[int, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         right_answer = expected_answers[0].strip()
         numbers_in_answer = set(re.findall(r"\d+", responses[0]))
         correct = {right_answer} == numbers_in_answer
-        score = int(correct)
-        max_score = 1
+        score = float(int(correct))
+        max_score = 1.0
         not_str = "" if correct else "not "
         reasoning = f"The correct answer ({right_answer}) was {not_str}found in the response."
         return score, max_score, [reasoning]

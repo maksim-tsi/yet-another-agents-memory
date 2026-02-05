@@ -53,8 +53,8 @@ class ProspectiveMemoryDataset(DatasetInterface):
                 "be some repetitions.",
             )
 
-    def generate_examples(self, num_examples) -> list[TestExample]:
-        examples = []
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
+        examples: list[TestExample] = []
 
         for _, request_num in zip(range(num_examples), self.request_num_generator(), strict=False):
             script = []
@@ -87,7 +87,7 @@ class ProspectiveMemoryDataset(DatasetInterface):
 
     def evaluate_correct(
         self, questions: list[str], responses: list[str], expected_answers: list[Any]
-    ) -> tuple[int, int, list[str], list[str]]:
+    ) -> tuple[float, float, list[str]]:
         raise NotImplementedError(
             "Prospective memory checking is not handled by this method, use the callback instead"
         )
@@ -97,17 +97,20 @@ class ProspectiveMemoryDataset(DatasetInterface):
     ) -> tuple[int, int, list[str], bool]:
         # Find where we asked in the master log and how many steps we need to look into the future
         question = example.script[-1]
+        max_score = 1
         statement_idx = None
         for idx, stmt in enumerate(task_log):
             if question in stmt:
                 statement_idx = idx
                 break
+        if statement_idx is None:
+            score = 0
+            reason = "Prompt not found in task log."
+            return score, max_score, [reason], True
 
         quote, _author, nth = example.expected_responses[0]
         agent_responses = task_log[statement_idx + 1 :][::2]
         response_w_quote_idx = nth - 1
-
-        max_score = 1
 
         # If the quote hasn't come up yet
         if response_w_quote_idx >= len(agent_responses):

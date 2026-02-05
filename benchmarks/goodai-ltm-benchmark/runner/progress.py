@@ -1,3 +1,13 @@
+from collections import defaultdict
+from typing import Any, Protocol
+
+from dataset_interfaces.interface import TestExample
+from reporting.results import TestResult
+from utils.math import mean_std
+
+tk: Any
+ttk: Any
+
 try:
     import tkinter as tk
     from tkinter import ttk
@@ -7,11 +17,6 @@ except ModuleNotFoundError:  # pragma: no cover - headless environments
     tk = None
     ttk = None
     _TK_AVAILABLE = False
-from collections import defaultdict
-
-from dataset_interfaces.interface import TestExample
-from reporting.results import TestResult
-from utils.math import mean_std
 
 
 def blinker_gen():
@@ -19,17 +24,29 @@ def blinker_gen():
         yield from r"/-\|"
 
 
+class ProgressDialogProtocol(Protocol):
+    def notify_running(self, example: TestExample) -> None: ...
+
+    def notify_message(self, token_count: int) -> None: ...
+
+    def notify_result(self, result: TestResult) -> None: ...
+
+    def update_stats(self) -> None: ...
+
+    def close(self) -> None: ...
+
+
 if _TK_AVAILABLE:
 
-    class ProgressDialog(tk.Tk):
+    class TkProgressDialog(tk.Tk):
         def __init__(self, num_tests: int, isolated: bool):
             super().__init__()
             self._num_tests = num_tests
             self._isolated = isolated
-            self._memory_span = None
+            self._memory_span: int | None = None
             self._at = 0
-            self._test_info = dict()
-            self._scores = defaultdict(lambda: list())
+            self._test_info: dict[str, dict[str, int]] = {}
+            self._scores: defaultdict[str, list[float]] = defaultdict(list)
             self._blinker = blinker_gen()
 
             self.title("GoodAI LTM Benchmark")
@@ -77,6 +94,7 @@ if _TK_AVAILABLE:
             if self._isolated:
                 progress = len(self._test_info) / self._num_tests
             else:
+                assert self._memory_span is not None
                 total = [info["span"] for info in self._test_info.values()]
                 total += [self._memory_span] * (self._num_tests - len(total))
                 progress = sum(
@@ -87,18 +105,18 @@ if _TK_AVAILABLE:
             self._progressbar["value"] = int(100 * progress)
             self.update_idletasks()
 
-        def close(self):
+        def close(self) -> None:
             self.destroy()
 else:
 
-    class ProgressDialog:  # pragma: no cover - headless fallback
+    class HeadlessProgressDialog:  # pragma: no cover - headless fallback
         def __init__(self, num_tests: int, isolated: bool):
             self._num_tests = num_tests
             self._isolated = isolated
-            self._memory_span = None
+            self._memory_span: int | None = None
             self._at = 0
-            self._test_info = dict()
-            self._scores = defaultdict(lambda: list())
+            self._test_info: dict[str, dict[str, int]] = {}
+            self._scores: defaultdict[str, list[float]] = defaultdict(list)
 
         def notify_running(self, example: TestExample):
             self._at = max(self._at, example.start_token)
@@ -115,8 +133,13 @@ else:
             info["span"] = self._at - info["start"]
             self._scores[result.dataset_name].append(result.score / result.max_score)
 
-        def update_stats(self):
+        def update_stats(self) -> None:
             return None
 
-        def close(self):
+        def close(self) -> None:
             return None
+
+
+ProgressDialog: type[ProgressDialogProtocol] = (
+    TkProgressDialog if _TK_AVAILABLE else HeadlessProgressDialog
+)

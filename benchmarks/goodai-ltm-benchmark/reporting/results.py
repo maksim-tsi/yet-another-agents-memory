@@ -17,10 +17,10 @@ class TestResult:
     expected_responses: list[str] = field(default_factory=list)
     actual_responses: list[str] = field(default_factory=list)
     reasoning: list[str] = field(default_factory=list)
-    score: int = 0
-    max_score: int = 0
-    tokens: int = None
-    characters: int = None
+    score: float = 0.0
+    max_score: float = 0.0
+    tokens: int | None = None
+    characters: int | None = None
     repetition: int = 0
     full_log: list[str] = field(default_factory=list)
     needles: int = 0
@@ -80,7 +80,14 @@ class TestResult:
 
     @classmethod
     def from_file(cls, path: Path | str) -> "TestResult":
-        result = TestResult(**parse_result_path(path))
+        parts = parse_result_path(path)
+        result = TestResult(
+            run_name=str(parts["run_name"]),
+            agent_name=str(parts["agent_name"]),
+            dataset_name=str(parts["dataset_name"]),
+            example_id=str(parts["example_id"]),
+            repetition=int(parts["repetition"]),
+        )
         result.description = DATASETS_BY_NAME[result.dataset_name].description
         result.load()
         return result

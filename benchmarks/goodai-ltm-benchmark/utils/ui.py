@@ -22,7 +22,7 @@ def colour_print(colour: str, *args, end="\n", sep=" ", **kwargs):
 
 
 def multiline_input(message: str) -> str:
-    lines = list()
+    lines: list[str] = []
     print(message, end="")
     prefix = ""
     while True:

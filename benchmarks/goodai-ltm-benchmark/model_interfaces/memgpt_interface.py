@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from memgpt import create_client
 from memgpt.client.client import LocalClient
 from memgpt.data_types import AgentState
-from model_interfaces.interface import ChatSession
 from utils.llm import token_cost
+
+from model_interfaces.interface import ChatSession
 
 MEMGPT_LOGS_FILE = "model_interfaces/memgpt-logs.jsonl"
 
@@ -24,7 +25,8 @@ def proxy(proxy_file_path: str):
             stderr=subprocess.DEVNULL,
         )
         # Read a line to make sure it is active
-        proc.stdout.readline()
+        if proc.stdout is not None:
+            proc.stdout.readline()
         yield
     finally:
         if proc is not None:
@@ -57,10 +59,10 @@ def read_cost_info() -> float:
 class MemGPTChatSession(ChatSession):
     _proxy_path: str = "model_interfaces/memgpt_proxy.py"
     client: LocalClient = field(default_factory=create_client)
-    agent_info: AgentState = None
+    agent_info: AgentState | None = None
     agent_name: str = "LTMBenchmarkAgent"
     agent_initialised: bool = False
-    max_prompt_size: int = None
+    max_prompt_size: int | None = None
 
     def __post_init__(self):
         self.client = create_client()
@@ -74,6 +76,7 @@ class MemGPTChatSession(ChatSession):
     def reply(self, user_message: str, agent_response: str | None = None) -> str:
         if not self.agent_initialised:
             self.reset()
+        assert self.agent_info is not None
 
         with proxy(self._proxy_path):
             response = self.client.user_message(agent_id=self.agent_info.id, message=user_message)
@@ -86,27 +89,31 @@ class MemGPTChatSession(ChatSession):
         self.costs_usd += read_cost_info()
         return "\n".join(messages)
 
-    def agent_id_from_name(self, name: str):
+    def agent_id_from_name(self, name: str) -> str | None:
         if not self.client.agent_exists(agent_name=name):
             return None
 
         agent_dict = self.client.server.list_agents(self.client.user_id)
         for a in agent_dict["agents"]:
             if a["name"] == name:
-                return a["id"]
+                return str(a["id"])
+        return None
 
     def init_agent(self):
         self.agent_initialised = True
         if not self.client.agent_exists(agent_name=self.agent_name):
             self.agent_info = self.client.create_agent(name=self.agent_name)
         else:
-            self.agent_info = self.client.get_agent_config(self.agent_id_from_name(self.agent_name))
+            agent_id = self.agent_id_from_name(self.agent_name)
+            if agent_id is None:
+                raise ValueError(f"Agent {self.agent_name} not found")
+            self.agent_info = self.client.get_agent_config(agent_id)
 
     def reset(self):
         self.agent_initialised = True
-        self.client.server.delete_agent(
-            self.client.user_id, self.agent_id_from_name(self.agent_name)
-        )
+        agent_id = self.agent_id_from_name(self.agent_name)
+        if agent_id is not None:
+            self.client.server.delete_agent(self.client.user_id, agent_id)
         self.agent_info = self.client.create_agent(name=self.agent_name)
         self.save()
 

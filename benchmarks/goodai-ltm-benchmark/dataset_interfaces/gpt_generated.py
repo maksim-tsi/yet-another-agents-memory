@@ -24,7 +24,7 @@ Structure your response as such:
 
 @dataclass
 class GPTGenerated(DatasetInterface, ABC):
-    generation_file: str | Path = None
+    generation_file: str | Path | None = None
     temperature: float = 1.0
     generation_model: str = GPT_CHEAPEST
     max_attempts: int = 10
@@ -33,9 +33,12 @@ class GPTGenerated(DatasetInterface, ABC):
         if self.generation_file is None:
             raise ValueError("GPTGenerated datasets require a file path to read from.")
 
-    def generate_examples(self, num_examples) -> list[TestExample]:
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         examples = []
-        prompt_data = self.load_json(self.generation_file)
+        generation_file = self.generation_file
+        if generation_file is None:
+            raise ValueError("GPTGenerated datasets require a file path to read from.")
+        prompt_data = self.load_json(generation_file)
 
         for _ in range(num_examples):
             script = []
@@ -89,5 +92,5 @@ class GPTGenerated(DatasetInterface, ABC):
 
     def evaluate_correct(
         self, questions: list[str], responses: list[str], expected_answers: list[Any]
-    ) -> tuple[int, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         return self.evaluate_correct_gpt(questions, responses, expected_answers)

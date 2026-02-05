@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 from json import JSONDecodeError
+from typing import TypedDict
 
 from goodai.helpers.json_helper import sanitize_and_parse_json
 from utils.json_utils import LLMJSONError
@@ -13,7 +14,12 @@ from datasets.locations import (
     LocationsDataset,
 )
 
-DirectionDict = dict[str, str | int]
+
+class DirectionDict(TypedDict):
+    origin: str
+    destination: str
+    direction: str
+    distance: int
 
 
 @dataclass
@@ -48,9 +54,20 @@ class LocationsDirectionsDataset(LocationsDataset):
         expected_lines = expected_answer.splitlines()
         if expected_lines[0].startswith("(Just an example,"):  # Benchmark v2 doesn't have this line
             expected_lines = expected_lines[1:]
-        directions = [re.match(pattern, line).groupdict() for line in expected_lines]
-        for d in directions:
-            d["distance"] = int(d["distance"])
+        directions: list[DirectionDict] = []
+        for line in expected_lines:
+            match = re.match(pattern, line)
+            if match is None:
+                raise ValueError(f"Direction line did not match expected pattern: {line!r}")
+            data = match.groupdict()
+            directions.append(
+                {
+                    "origin": data["origin"],
+                    "destination": data["destination"],
+                    "direction": data["direction"],
+                    "distance": int(data["distance"]),
+                }
+            )
         return directions
 
     def structure_directions(self, agent_response: str) -> list[DirectionDict]:
@@ -68,28 +85,43 @@ class LocationsDirectionsDataset(LocationsDataset):
         try:
             directions = sanitize_and_parse_json(response)
             assert isinstance(directions, list)
+            structured: list[DirectionDict] = []
             for d in directions:
                 for k in ["origin", "destination"]:
+                    value = d.get(k)
+                    if not isinstance(value, str):
+                        raise ValueError(f"Expected {k} to be a string, got {value!r}")
                     for loc in allowed_directions:
-                        if d[k].lower() in loc.lower() or loc.lower() in d[k].lower():
+                        if value.lower() in loc.lower() or loc.lower() in value.lower():
                             d[k] = loc
                             break
                     assert d[k].lower() in allowed_locations, f"Location {d[k]!r} is unknown."
                     d[k] = LOCATIONS[allowed_locations.index(d[k].lower())]
+                direction = d.get("direction")
+                if not isinstance(direction, str):
+                    raise ValueError(f"Expected direction to be a string, got {direction!r}")
                 assert (
-                    d["direction"].lower() in allowed_directions
-                ), f"Direction {d[k]!r} is unknown."
-                d["direction"] = DIRECTIONS[allowed_directions.index(d["direction"].lower())]
+                    direction.lower() in allowed_directions
+                ), f"Direction {direction!r} is unknown."
+                d["direction"] = DIRECTIONS[allowed_directions.index(direction.lower())]
                 assert (
                     isinstance(d["kilometers"], int) and d["kilometers"] > 0
                 ), f"{d['kilometers']} is not a positive int."
                 d["distance"] = d.pop("kilometers")
+                structured.append(
+                    {
+                        "origin": d["origin"],
+                        "destination": d["destination"],
+                        "direction": d["direction"],
+                        "distance": d["distance"],
+                    }
+                )
         except (JSONDecodeError, ValueError, KeyError, AssertionError, AttributeError) as exc:
             raise LLMJSONError(
                 f"Couldn't make sense of the agent's directions ({exc!r}).\n"
                 f"Original response:\n{agent_response}\n\nStructured version:\n{response}"
             ) from exc
-        return directions
+        return structured
 
     def follow_directions(
         self, directions: list[DirectionDict], x0: int = 0, y0: int = 0

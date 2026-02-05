@@ -44,7 +44,7 @@ class SpyMeetingDataset(DatasetInterface):
     description: str = "The agent is given three clandestine messages. Then is asked to recall all of them and decide where and when the meeting is taking place long with what they should bring."
     question: str = "Given the clandestine messages you have received, tell me as specifically as you can, when and where a meeting is going to happen and what you should bring."
 
-    def generate_examples(self, num_examples):
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         examples = []
         faker = Faker(["en_US", "en_IE"])
         Faker.seed(self.seed)
@@ -96,8 +96,8 @@ class SpyMeetingDataset(DatasetInterface):
         return examples
 
     def evaluate_correct(
-        self, questions: list[str], responses: list[str], expected_answers: list[str]
-    ) -> tuple[float, int, list[str]]:
+        self, questions: list[str], responses: list[str], expected_answers: list[list[str]]
+    ) -> tuple[float, float, list[str]]:
         reasoning = []
         response = responses[0]
         correct_score = 0
@@ -132,7 +132,7 @@ class SpyMeetingDataset(DatasetInterface):
 
         score = max((correct_score - confusion_score) / 3, 0.0)
 
-        return score, 1, reasoning
+        return score, 1.0, reasoning
 
     def get_answers_for_others(self, expected_answers):
         other_answers = set()

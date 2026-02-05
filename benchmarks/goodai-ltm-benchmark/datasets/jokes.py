@@ -1,6 +1,7 @@
 import logging
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
 
 from dataset_interfaces.interface import DatasetInterface, TestExample, WaitCreator
 from utils.timejump import create_time_jump
@@ -30,7 +31,7 @@ class JokesDataset(DatasetInterface):
     def create_script_line(self, joke: str):
         return f"Joke: {joke}" if self.joke_prefix else joke
 
-    def generate_examples(self, num_examples):
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         examples = []
         for _ in range(num_examples):
             script = []
@@ -81,7 +82,9 @@ class JokesDataset(DatasetInterface):
 
         return examples
 
-    def create_question(self, example: TestExample, statement_times, time_now):
+    def create_question(
+        self, example: TestExample, statement_times: list[datetime], time_now: datetime
+    ) -> str:
         expected_response = example.expected_responses[0]
         expected_script_line = self.create_script_line(expected_response)
         answer_index = example.script.index(expected_script_line)
@@ -104,10 +107,10 @@ class JokesDataset(DatasetInterface):
 
     def evaluate_correct(
         self, questions: list[str], responses: list[str], expected_answers: list[str]
-    ) -> tuple[int, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         if expected_answers[0] in responses[0]:
-            max_score = 1
-            score = 1
+            max_score = 1.0
+            score = 1.0
             reasons = ["The correct joke is recounted."]
             return score, max_score, reasons
         else:

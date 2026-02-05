@@ -4,11 +4,11 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from random import Random
+from typing import Any, cast
 
 import humanize
-import yaml
+import yaml  # type: ignore[import-untyped]
 from jinja2 import Environment, FileSystemLoader
-from reporting.results import TestResult
 from utils.constants import (
     GOODAI_GREEN,
     GOODAI_RED,
@@ -24,8 +24,10 @@ from utils.files import gather_result_files, gather_runstats_files, make_config_
 from utils.math import mean_std
 from utils.ui import display_float_or_int
 
+from reporting.results import TestResult
 
-def gather_results(run_name: str, agent_name: str):
+
+def gather_results(run_name: str, agent_name: str) -> tuple[dict[str, Any], list[TestResult]]:
     result_files = gather_result_files(run_name, agent_name)
     results = [TestResult.from_file(path) for path in result_files]
     benchmark_data_file = gather_runstats_files(run_name, agent_name)[0]
@@ -53,11 +55,11 @@ def formatted_log(result: TestResult) -> list[str]:
     return task_log
 
 
-def arrange_data(results: list[TestResult]):
+def arrange_data(results: list[TestResult]) -> dict[str, Any]:
     run_name = results[0].run_name
     agent_name = results[0].agent_name
-    memory_spans = list()
-    data = dict()
+    memory_spans: list[int] = []
+    data: dict[str, Any] = {}
 
     for res in results:
         assert res.run_name == run_name, "Can't create a detailed report of multiple runs."
@@ -71,24 +73,24 @@ def arrange_data(results: list[TestResult]):
                 "scores": [],
             }
 
-        memory_spans.append(res.tokens)
+        memory_spans.append(res.tokens or 0)
 
         expected = [str(r) for r in res.expected_responses]
         actual = [str(r) for r in res.actual_responses]
         reasoning = [str(r) for r in res.reasoning]
 
         response_lens = {len(expected), len(actual), len(reasoning)}
+        responses: list[tuple[str, str, str]]
         if len(response_lens) > 1:
-            responses = (expected, actual, reasoning)
-            responses = [tuple("\n".join(lines) for lines in responses)]
+            responses = [("\n".join(expected), "\n".join(actual), "\n".join(reasoning))]
         else:
             responses = list(zip(expected, actual, reasoning, strict=False))
 
         accuracy = res.score / res.max_score
-        color = tuple(
+        color_rgb = tuple(
             int(accuracy * GOODAI_GREEN[i] + (1 - accuracy) * GOODAI_RED[i]) for i in range(3)
         )
-        color = f"rgb{color}"
+        color = f"rgb{color_rgb}"
 
         test_dict = {
             "task_log": formatted_log(res),
@@ -120,7 +122,7 @@ def arrange_data(results: list[TestResult]):
         min_gap=min(memory_spans),
         max_gap=max(memory_spans),
         avg_gap=int(sum(memory_spans) / len(memory_spans)),
-        overrun=any(r.tokens > args["memory_span"] for r in results),
+        overrun=any((r.tokens or 0) > args["memory_span"] for r in results),
     )
 
 
@@ -128,7 +130,7 @@ def render_template(template_name: str, output_name: str | None = None, **kwargs
     file_loader = FileSystemLoader(REPORT_TEMPLATES_DIR)
     env = Environment(loader=file_loader)
     template = env.get_template(f"{template_name}.html")
-    output = template.render(**kwargs)
+    output = cast(str, template.render(**kwargs))
     if output_name is None:
         return output
     path = REPORT_OUTPUT_DIR.joinpath(f"{output_name}.html")
@@ -163,7 +165,7 @@ def generate_report(results: list[TestResult], output_name: str | None = None) -
     if output_name is None:
         date = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
         output_name = f"{date} - Detailed Report - {results[0].run_name} - {results[0].agent_name}"
-    return render_template(
+    rendered = render_template(
         template_name="detailed_report",
         output_name=output_name,
         logo_b64=load_b64(REPORT_TEMPLATES_DIR.joinpath("GoodAI_logo.png")),
@@ -176,12 +178,14 @@ def generate_report(results: list[TestResult], output_name: str | None = None) -
         duration_str=humanize.precisedelta(timedelta(seconds=metrics["duration"])),
         **report_data,
     )
+    assert isinstance(rendered, Path)
+    return rendered
 
 
 def normalize_and_aggregate_results(
     results: list[TestResult],
-) -> dict[str, dict[str, list[TestResult] | float]]:
-    result_dict = dict()
+) -> dict[str, dict[str, Any]]:
+    result_dict: dict[str, dict[str, Any]] = {}
 
     for result in results:
         k = result.dataset_name
@@ -190,23 +194,24 @@ def normalize_and_aggregate_results(
         result_dict[k]["results"].append(result)
 
     for d in result_dict.values():
-        norm_scores = [r.score / r.max_score for r in d["results"]]
+        results_list = cast(list[TestResult], d["results"])
+        norm_scores = [r.score / r.max_score for r in results_list]
         d["score"], d["std"] = mean_std(norm_scores)
 
     return result_dict
 
 
-def get_summary_data(run_name: str, agent_name: str):
+def get_summary_data(run_name: str, agent_name: str) -> dict[str, float]:
     benchmark_data, results = gather_results(run_name, agent_name)
     assert len(results) > 0, f"No results were found for run {run_name} and agent {agent_name}."
     aggr_results = normalize_and_aggregate_results(results)
 
-    score = score_std = 0
+    score = score_std = 0.0
     for _dataset_name, dataset_results in aggr_results.items():
         score += dataset_results["score"]
         score_std += dataset_results["std"]
 
-    ltm_scores = [r.tokens for r in results if r.score == r.max_score]
+    ltm_scores = [(r.tokens or 0) for r in results if r.score == r.max_score]
     ltm_score = sum(ltm_scores) / max(1, len(ltm_scores))
 
     return dict(
@@ -230,8 +235,8 @@ def generate_summary_report(
 ):
     metric_keys = sorted(METRIC_NAMES.keys())
     metric_names = [METRIC_NAMES[k] for k in metric_keys]
-    data_by_agent = [dict() for _ in agent_names]
-    data_by_metric = [dict() for _ in metric_names]
+    data_by_agent: list[dict[str, Any]] = [dict() for _ in agent_names]
+    data_by_metric: list[dict[str, Any]] = [dict() for _ in metric_names]
     summary_data_by_agent = {name: get_summary_data(run_name, name) for name in agent_names}
 
     # Organise data by agent
@@ -315,7 +320,7 @@ def generate_summary_report(
     )
 
 
-def load_results_file(filename):
+def load_results_file(filename: str) -> list[TestResult]:
     full_file = "data" + os.sep + "results" + os.sep + filename
     results_list = []
     with open(full_file, encoding="utf-8") as f:

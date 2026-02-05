@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 from utils.constants import PERSISTENCE_DIR
 from utils.llm import count_tokens_for_model
@@ -31,15 +32,15 @@ class ChatSession(ABC):
         assert self.run_name != "", "Run name is not set!"
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__class__.__name__
 
     @property
-    def save_path(self):
+    def save_path(self) -> Path:
         return PERSISTENCE_DIR.joinpath(self.save_name)
 
     @property
-    def save_name(self):
+    def save_name(self) -> str:
         return f"{self.run_name} - {self.name}"
 
     @abstractmethod

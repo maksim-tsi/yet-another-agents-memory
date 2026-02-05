@@ -5,6 +5,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from random import Random
+from typing import TypedDict
 
 import time_machine
 from dataset_interfaces.interface import (
@@ -24,7 +25,12 @@ from utils.ui import colour_print
 
 from runner.config import RunConfig
 from runner.master_log import MasterLog
-from runner.progress import ProgressDialog
+from runner.progress import ProgressDialog, ProgressDialogProtocol
+
+
+class WaitState(TypedDict):
+    tokens: int
+    time: datetime
 
 
 def are_compatible(a: TestExample, b: TestExample, incompatibilities: list[set[type]]) -> bool:
@@ -54,15 +60,15 @@ class TestRunner:
     finished_results: list[TestResult] = field(default_factory=list)
     in_progress_results: dict[str, TestResult] = field(default_factory=dict)
     traveller: time_machine.travel | None = None
-    wait_list: dict[str, dict[str, int | datetime]] = field(default_factory=dict)
+    wait_list: dict[str, WaitState] = field(default_factory=dict)
     agent_token_count: int = 0
     total_token_count: int = 0
     test_managing_costs_usd: float = 0
     agent_benchmark_duration: float = 0
     skip_evaluations: bool = False
     result_callbacks: list[tuple[Callable, TestExample]] = field(default_factory=list)
-    master_log: MasterLog = None
-    progress_dialog: ProgressDialog = None
+    master_log: MasterLog | None = None
+    progress_dialog: ProgressDialogProtocol | None = None
     random: Random = field(default_factory=lambda: Random(0))
 
     @property
@@ -76,6 +82,14 @@ class TestRunner:
     @property
     def avg_tokens_per_second(self) -> float:
         return self.agent_token_count / (self.agent_benchmark_duration + 1e-8)
+
+    def _require_master_log(self) -> MasterLog:
+        assert self.master_log is not None, "master_log must be initialized"
+        return self.master_log
+
+    def _require_progress_dialog(self) -> ProgressDialogProtocol:
+        assert self.progress_dialog is not None, "progress_dialog must be initialized"
+        return self.progress_dialog
 
     def save_runstats(self):
         stats = dict(
@@ -95,6 +109,7 @@ class TestRunner:
         assert (
             self.agent_benchmark_duration == 0
         ), "Attempted to load test scheduler in a non-initial state."
+        master_log = self._require_master_log()
         with open(self.runstats_path) as fd:
             d = json.load(fd)
         self.agent_token_count = d["agent_tokens"]
@@ -102,7 +117,7 @@ class TestRunner:
         self.agent.costs_usd = d["agent_costs_usd"]
         self.test_managing_costs_usd = d["managing_costs_usd"]
         self.agent_benchmark_duration = d["duration"]
-        self.master_log.load()
+        master_log.load()
         rnd_state = d["rnd_state"]
         rnd_state[1] = tuple(rnd_state[1])
         self.random.setstate(tuple(rnd_state))
@@ -128,6 +143,7 @@ class TestRunner:
             self.traveller = None
 
     def set_to_wait(self, example: TestExample, action: WaitAction, log_this: bool = True):
+        master_log = self._require_master_log()
         unique_id = example.unique_id
 
         # We convert the percentage to tokens
@@ -146,7 +162,7 @@ class TestRunner:
         if token_wait > 1:
             # When waiting, we want to take the reply to the previous statement into account.
             test_message_responses = list(
-                self.master_log.test_events(unique_id, EventType.RESPONSE_MESSAGE)
+                master_log.test_events(unique_id, EventType.RESPONSE_MESSAGE)
             )
             # Last response is what we want
             previous_reply = test_message_responses[-1].data["message"]
@@ -155,7 +171,7 @@ class TestRunner:
             token_wait = max(0, token_wait - self.agent.token_len(previous_reply))
 
         if log_this:
-            self.master_log.add_wait_event(
+            master_log.add_wait_event(
                 unique_id,
                 datetime.now(),
                 tokens=token_wait,
@@ -167,18 +183,20 @@ class TestRunner:
         )
 
     def send_message(self, test_id: str, action: SendMessageAction) -> int:
+        master_log = self._require_master_log()
+        progress_dialog = self._require_progress_dialog()
         agent_reply = None if not action.is_filling else action.filler_response
         action.reply, action.sent_ts, action.reply_ts = self.agent.message_to_agent(
             action.message, agent_reply
         )
         self.debug_message(action.message, action.reply, action.sent_ts, action.reply_ts)
-        self.master_log.add_send_message(
+        master_log.add_send_message(
             test_id=test_id,
             message=action.message,
             timestamp=action.sent_ts,
             is_question=action.is_question,
         )
-        self.master_log.add_response_message(
+        master_log.add_response_message(
             test_id=test_id,
             message=action.reply,
             timestamp=action.reply_ts,
@@ -189,19 +207,27 @@ class TestRunner:
         reply_tokens = self.agent.token_len(action.reply)
         self.agent_token_count += reply_tokens
         self.total_token_count += message_tokens + reply_tokens
-        self.progress_dialog.notify_message(self.total_token_count)
+        progress_dialog.notify_message(self.total_token_count)
         return message_tokens + reply_tokens
 
     def get_blocked_test(self, waiting_on: str) -> str | None:
         assert waiting_on in ["tokens", "time"]
-        target = dict(
-            tokens=self.total_token_count,
-            time=datetime.now(),
-        )[waiting_on]
-        waiting_tests = {uid: wd for uid, wd in self.wait_list.items() if wd[waiting_on] > target}
-        if len(waiting_tests) == 0:
-            return
-        return sorted(waiting_tests.keys(), key=lambda uid: waiting_tests[uid][waiting_on])[0]
+        if waiting_on == "tokens":
+            target_tokens = self.total_token_count
+            waiting_tests = {
+                uid: wd for uid, wd in self.wait_list.items() if wd["tokens"] > target_tokens
+            }
+            if len(waiting_tests) == 0:
+                return None
+            return sorted(waiting_tests.keys(), key=lambda uid: waiting_tests[uid]["tokens"])[0]
+        else:
+            target_time = datetime.now()
+            waiting_tests = {
+                uid: wd for uid, wd in self.wait_list.items() if wd["time"] > target_time
+            }
+            if len(waiting_tests) == 0:
+                return None
+            return sorted(waiting_tests.keys(), key=lambda uid: waiting_tests[uid]["time"])[0]
 
     def is_waiting(self, unique_id: str, remove: bool = False) -> bool:
         if unique_id not in self.wait_list:
@@ -274,10 +300,17 @@ class TestRunner:
             num_filler_tokens -= tokens_spent
 
     def fast_forward_tests(self, tests: dict[str, TestExample]):
+        master_log = self._require_master_log()
         # Go event by event in the master log and sync up with trace
-        finished_tests = {evt.test_id for evt in self.master_log.log if evt.type == EventType.END}
+        finished_tests = {
+            evt.test_id
+            for evt in master_log.log
+            if evt.type == EventType.END and evt.test_id is not None
+        }
         action = None
-        for evt in self.master_log.log:
+        for evt in master_log.log:
+            if evt.test_id is None:
+                continue
             if evt.type not in {
                 EventType.BEGIN,
                 EventType.SEND_MESSAGE,
@@ -294,7 +327,7 @@ class TestRunner:
             match evt.type:
                 case EventType.BEGIN:
                     result, _skip = self.initialise_result(test)
-                    test.start_token = self.master_log.get_start_token(evt.test_id)
+                    test.start_token = master_log.get_start_token(evt.test_id)
                     self.in_progress_results[evt.test_id] = result
                 case EventType.SEND_MESSAGE:
                     action = test.step()
@@ -325,23 +358,24 @@ class TestRunner:
 
     def setup_iterator(self, test_group) -> dict[str, TestExample]:
         """Sets up the test dict and fast forwards any tests that are currently in progress"""
+        master_log = self._require_master_log()
         tests = {t.unique_id: t for t in test_group}
 
         # Give dynamic tests access to the master log for LLM caching
         for t in tests.values():
             if isinstance(t, DynamicExample):
-                t.master_log = self.master_log
+                t.master_log = master_log
 
         # Fast forward tests to where they were
         self.fast_forward_tests(tests)
 
         # Check if the last event in the log is after the current time, then travel to that time if it is.
-        if len(self.master_log.log) > 0 and datetime.now() < self.master_log.log[-1].timestamp:
-            self.travel_to_dt(self.master_log.log[-1].timestamp)
+        if len(master_log.log) > 0 and datetime.now() < master_log.log[-1].timestamp:
+            self.travel_to_dt(master_log.log[-1].timestamp)
 
         # Add a reset event to the log if it has indeed been reset
-        if len(self.master_log.log) > 0:
-            self.master_log.add_reset_event(datetime.now())
+        if len(master_log.log) > 0:
+            master_log.add_reset_event(datetime.now())
 
         return tests
 
@@ -378,12 +412,14 @@ class TestRunner:
         return result, skip
 
     def run_tests(self):
+        master_log = self._require_master_log()
+        progress_dialog = self._require_progress_dialog()
         self.result_callbacks = []
         self.in_progress_results = dict()
         finished = 0
 
         # Introduce the benchmark, if running from the start.
-        if len(self.master_log.log) == 0 and not self.config.isolated:
+        if len(master_log.log) == 0 and not self.config.isolated:
             self.send_message(
                 "",
                 SendMessageAction(
@@ -402,13 +438,11 @@ class TestRunner:
                 self.in_progress_results[example.unique_id] = result
                 example.finished = skip
                 if not skip:
-                    self.master_log.begin_test(
-                        example.unique_id, datetime.now(), self.total_token_count
-                    )
+                    master_log.begin_test(example.unique_id, datetime.now(), self.total_token_count)
                     if example.start_token == 0:
                         example.start_token = self.total_token_count
 
-            self.progress_dialog.notify_running(example)
+            progress_dialog.notify_running(example)
 
             test_is_waiting = False
             while not (example.finished or test_is_waiting):
@@ -425,7 +459,7 @@ class TestRunner:
                 elif isinstance(action, SendMessageAction | SendAndRegisterAction):
                     # TODO: the test should autonomously create the question
                     if example.is_temporal and action.is_question:
-                        action.message = create_question(example, self.master_log)
+                        action.message = create_question(example, master_log)
                     self.send_message(example.unique_id, action)
                     if isinstance(action, SendAndRegisterAction):
                         self.register_callback(example)
@@ -444,7 +478,7 @@ class TestRunner:
             if example.finished:
                 finished += 1
                 result = self.in_progress_results[example.unique_id]
-                self.progress_dialog.notify_result(result)
+                progress_dialog.notify_result(result)
 
                 if not skip:
                     if example.reset_message != "":
@@ -454,9 +488,9 @@ class TestRunner:
                     self.update_result(
                         example=example,
                         result=result,
-                        master_log=self.master_log,
+                        master_log=master_log,
                     )
-                    self.master_log.end_test(example.unique_id, datetime.now())
+                    master_log.end_test(example.unique_id, datetime.now())
                     self.agent.save()
 
                 self.finished_results.append(result)
@@ -468,21 +502,21 @@ class TestRunner:
 
     def register_callback(self, example: TestExample):
         cb = example.dataset_generator.continual_evaluation_callback
-        self.master_log.register_callback(example.unique_id, datetime.now())
+        master_log = self._require_master_log()
+        master_log.register_callback(example.unique_id, datetime.now())
         self.result_callbacks.append((cb, example))
 
     def check_result_callbacks(self):
+        master_log = self._require_master_log()
         deregistered_cb = []
         for callback, example in self.result_callbacks:
-            score, max_score, reasons, deregister = callback(
-                self, example, self.master_log.messages()
-            )
+            score, max_score, reasons, deregister = callback(self, example, master_log.messages())
             result = self.in_progress_results[example.unique_id]
             result.score = score
             result.max_score = max_score
             result.reasoning = reasons
 
-            self.update_result(example, result, self.master_log)
+            self.update_result(example, result, master_log)
 
             if deregister:
                 assert (
@@ -491,7 +525,7 @@ class TestRunner:
                 deregistered_cb.append((callback, example))
 
         for tup in deregistered_cb:
-            self.master_log.deregister_callback(tup[1].unique_id, datetime.now())
+            master_log.deregister_callback(tup[1].unique_id, datetime.now())
             self.result_callbacks.remove(tup)
 
     def set_cost_callback(self):
@@ -511,7 +545,7 @@ class TestRunner:
         self.tests.sort(key=lambda t: t.unique_id)
         self.progress_dialog = ProgressDialog(len(self.tests), self.config.isolated)
         self.run_tests()
-        self.progress_dialog.close()
+        self._require_progress_dialog().close()
         self.save_runstats()
         self.reset_time()
         report_path = generate_report(self.finished_results)
@@ -556,9 +590,7 @@ class TestRunner:
         result.task_log = task_log
         result.actual_responses = question_responses
         result.tokens = tokens
-        result.full_log = self.master_log.human_readable_full_log(
-            example.unique_id, example.script[0]
-        )
+        result.full_log = master_log.human_readable_full_log(example.unique_id, example.script[0])
         result.characters = characters
         result.save()
         self.save_runstats()

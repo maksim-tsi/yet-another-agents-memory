@@ -3,22 +3,23 @@ import os
 import time
 from dataclasses import dataclass, field
 
-from model_interfaces.interface import ChatSession
 from openai import ChatCompletion, OpenAI
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 from utils.llm import LLMContext, make_assistant_message, make_user_message
+
+from model_interfaces.interface import ChatSession
 
 
 @dataclass
 class HFChatSession(ChatSession):
     is_local: bool = True  # Costs are billed hourly. Hard to track.
-    max_prompt_size: int = None
-    model: str = None
-    base_url: str = None
+    max_prompt_size: int | None = None
+    model: str | None = None
+    base_url: str | None = None
     context: LLMContext = field(default_factory=lambda: [])
     max_response_tokens: int = 2048
-    client: OpenAI = None
-    tokenizer: PreTrainedTokenizerFast = None
+    client: OpenAI | None = None
+    tokenizer: PreTrainedTokenizerFast | None = None
     tokens_used_last: int = 0
 
     @property
@@ -31,6 +32,7 @@ class HFChatSession(ChatSession):
         if self.base_url is None:
             self.base_url = os.getenv("HUGGINGFACE_API_BASE")
         assert self.base_url is not None
+        assert self.model is not None
         self.client = OpenAI(
             base_url=f"{self.base_url}/v1/",
             api_key=os.getenv("HUGGINGFACE_API_KEY"),
@@ -38,6 +40,7 @@ class HFChatSession(ChatSession):
         self.tokenizer = AutoTokenizer.from_pretrained(self.model.removeprefix("huggingface/"))
 
     def try_twice(self) -> ChatCompletion:
+        assert self.client is not None
         for i in range(2):
             try:
                 return self.client.chat.completions.create(
@@ -53,15 +56,17 @@ class HFChatSession(ChatSession):
 
     def reply(self, user_message: str, agent_response: str | None = None) -> str:
         self.context.append(make_user_message(user_message))
+        assert self.max_prompt_size is not None
         self.tokens_used_last += self.token_len(user_message) + self.max_response_tokens
         while self.tokens_used_last > self.max_prompt_size:
             self.tokens_used_last -= self.token_len(self.context[0]["content"])
             self.tokens_used_last -= self.token_len(self.context[1]["content"])
             self.context = self.context[2:]
         if agent_response is None:
-            response = self.try_twice()
-            self.tokens_used_last = response.usage.total_tokens
-            response = response.choices[0].message.content.removesuffix("</s>")
+            completion = self.try_twice()
+            self.tokens_used_last = completion.usage.total_tokens
+            message_content = completion.choices[0].message.content or ""
+            response = message_content.removesuffix("</s>")
         else:
             self.tokens_used_last -= self.max_response_tokens - self.token_len(agent_response)
             response = agent_response
@@ -82,4 +87,5 @@ class HFChatSession(ChatSession):
             self.context = json.load(fd)
 
     def token_len(self, text: str) -> int:
+        assert self.tokenizer is not None
         return len(self.tokenizer.tokenize(text=text))

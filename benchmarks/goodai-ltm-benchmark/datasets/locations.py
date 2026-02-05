@@ -45,14 +45,14 @@ class LocationsDataset(DatasetInterface):
     known_locations: int = 5
     reset_message: str = "Forget, or otherwise disregard, all of the locations that I have told you about before this message."
 
-    def generate_examples(self, num_examples):
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         examples = []
         renderer = pystache.Renderer()
         for _ in range(num_examples):
             script = []
             is_question = []
-            known_locations = []
-            location_information = []
+            known_locations: list[str] = []
+            location_information: list[tuple[str, str, str, int]] = []
             locations = deepcopy(LOCATIONS)
 
             for _change in range(self.known_locations - 1):
@@ -119,7 +119,7 @@ class LocationsDataset(DatasetInterface):
         questions: list[str],
         responses: list[str],
         expected_answers: list[str],
-    ) -> tuple[int, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         return self.evaluate_correct_gpt(questions, responses, expected_answers)
 
     def apply_move(self, current_position: list[int], direction: str, distance: int) -> list[int]:

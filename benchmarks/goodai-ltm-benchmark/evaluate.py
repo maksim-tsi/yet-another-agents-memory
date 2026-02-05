@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 
 import click
-import yaml
+import yaml  # type: ignore[import-untyped]
 from dataset_interfaces.factory import DatasetFactory
 from dataset_interfaces.interface import TestExample
 from reporting.results import TestResult
@@ -15,6 +15,8 @@ def reconstruct_history(result: TestResult) -> list[dict[str, str | datetime]]:
     history = list()
     for line in result.task_log:
         m = re.match(start_pattern, line)
+        if m is None or m.group(3) is None:
+            continue
         history.append(
             dict(
                 role="user" if m.group(2) == "Test" else "assistant",
@@ -29,7 +31,14 @@ def reconstruct_messages_timestamps(
     history: list[dict[str, str | datetime]], script: list[str]
 ) -> list[datetime]:
     script_lines = set(script)
-    return [msg["timestamp"] for msg in history if msg["content"] in script_lines]
+    timestamps: list[datetime] = []
+    for msg in history:
+        if msg["content"] not in script_lines:
+            continue
+        timestamp = msg["timestamp"]
+        if isinstance(timestamp, datetime):
+            timestamps.append(timestamp)
+    return timestamps
 
 
 def extract_questions(example: TestExample) -> list[str]:
@@ -80,7 +89,7 @@ def _main(run_name: str, agent_name: str, dataset_name: str, y: bool):
         else:
             callback = example.dataset_generator.continual_evaluation_callback
             scheduler = None
-            result.score, result.max_score, result.reasons, deregister = callback(
+            result.score, result.max_score, result.reasoning, deregister = callback(
                 scheduler, example, result.full_log
             )
             if not deregister:

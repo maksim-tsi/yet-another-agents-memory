@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import google.generativeai as genai
-import requests
+import requests  # type: ignore[import-untyped]
 from google.ai import generativelanguage as glm
+
 from model_interfaces.interface import ChatSession
 
 
@@ -22,7 +23,7 @@ def count_tokens_by_curl(text: str | None = None, history: list[glm.Content] | N
     headers = {"Content-Type": "application/json"}
     contents = [{"parts": [{"text": text}]}] if history is None else history_to_contents(history)
     r = requests.post(url, headers=headers, data=json.dumps({"contents": contents}))
-    return r.json()["totalTokens"]
+    return int(r.json()["totalTokens"])
 
 
 def reply_by_curl(history: list[glm.Content]) -> str:
@@ -57,7 +58,7 @@ def reply_by_curl(history: list[glm.Content]) -> str:
         time.sleep(10)
         return reply_by_curl(history)
     try:
-        return r["candidates"][0]["content"]["parts"][0]["text"]
+        return str(r["candidates"][0]["content"]["parts"][0]["text"])
     except:
         print(r)
         raise

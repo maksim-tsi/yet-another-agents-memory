@@ -4,8 +4,9 @@ import os
 import threading
 
 from goodai.ltm.agent import LTMAgent, LTMAgentVariant
-from model_interfaces.interface import ChatSession
 from utils.llm import count_tokens_for_model
+
+from model_interfaces.interface import ChatSession
 
 _log_prompts = os.environ.get("LTM_BENCH_PROMPT_LOGGING", "False").lower() in ["true", "yes", "1"]
 
@@ -60,7 +61,7 @@ class LTMAgentWrapper(ChatSession):
         def _cost_fn(amount: float):
             self.costs_usd += amount
 
-        return self.agent.reply(user_message, cost_callback=_cost_fn)
+        return str(self.agent.reply(user_message, cost_callback=_cost_fn))
 
     def reset(self):
         self.agent.reset()

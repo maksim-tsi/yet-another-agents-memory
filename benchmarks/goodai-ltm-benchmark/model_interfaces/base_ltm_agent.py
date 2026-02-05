@@ -9,8 +9,9 @@ from dataclasses import dataclass
 
 import tiktoken
 from goodai.ltm.mem.base import RetrievedMemory
-from model_interfaces.interface import ChatSession
 from utils.llm import ask_llm
+
+from model_interfaces.interface import ChatSession
 
 _logger = logging.getLogger("exp_agent")
 _log_prompts = os.environ.get("LTM_BENCH_PROMPT_LOGGING", "False").lower() in ["true", "yes", "1"]
@@ -83,6 +84,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         def cost_callback(cost_usd: float):
             self.costs_usd += cost_usd
 
+        assert self.model is not None
         response = ask_llm(
             context,
             self.model,

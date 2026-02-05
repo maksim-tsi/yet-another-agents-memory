@@ -175,7 +175,7 @@ def ask_gemini(
     context_length: int | None = None,
     cost_callback: Callable[[float], None] | None = None,
     timeout: float = 300,
-    max_response_tokens: int = 1024,
+    max_response_tokens: int | None = 1024,
 ) -> str:
     model = model or GEMINI_DEFAULT_MODEL
     max_response_tokens = (
@@ -200,7 +200,7 @@ def ask_gemini(
             model, max_context, prompt_tokens + max_response_tokens
         )
 
-    config_params = {
+    config_params: dict[str, object] = {
         "temperature": temperature,
         "max_output_tokens": max_response_tokens,
     }
@@ -249,7 +249,7 @@ def ask_llm(
     context_length: int | None = None,
     cost_callback: Callable[[float], None] | None = None,
     timeout: float = 300,
-    max_response_tokens: int = 1024,
+    max_response_tokens: int | None = 1024,
 ) -> str:
     return ask_gemini(
         context=context,
@@ -281,7 +281,7 @@ def make_assistant_message(content: str) -> LLMMessage:
 
 def count_tokens_for_model(
     model: str = LEAST_EFFICIENT_TOKENISER,
-    context: LLMContext = None,
+    context: LLMContext | None = None,
     script: list[str] | None = None,
     text: str | None = None,
 ) -> int:
@@ -296,7 +296,8 @@ def count_tokens_for_model(
             token_count += len(tokeniser.apply_chat_template(c))
 
         if script:
-            token_count += len(tokeniser.encode(script))
+            for line in script:
+                token_count += len(tokeniser.encode(line))
 
         if text:
             token_count += len(tokeniser.encode(text))

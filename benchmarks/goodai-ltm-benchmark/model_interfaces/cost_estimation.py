@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 
-from model_interfaces.interface import ChatSession
 from utils.llm import (
     LLMContext,
     count_tokens_for_model,
@@ -8,6 +7,8 @@ from utils.llm import (
     make_system_message,
     make_user_message,
 )
+
+from model_interfaces.interface import ChatSession
 
 
 @dataclass
@@ -19,6 +20,7 @@ class CostEstimationChatSession(ChatSession):
     context: LLMContext = field(default_factory=LLMContext)
     context_tokens: int = 0
     expected_response_tokens: int = 512
+    dummy_response: str = ""
 
     @property
     def name(self) -> str:

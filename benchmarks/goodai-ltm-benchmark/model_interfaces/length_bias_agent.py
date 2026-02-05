@@ -5,9 +5,10 @@ import os
 import time
 from collections.abc import Callable
 
-from model_interfaces.base_ltm_agent import BaseLTMAgent, Message
 from utils.json_utils import CustomEncoder
 from utils.llm import make_system_message, make_user_message
+
+from model_interfaces.base_ltm_agent import BaseLTMAgent, Message
 
 _logger = logging.getLogger("exp_agent")
 _log_prompts = os.environ.get("LTM_BENCH_PROMPT_LOGGING", "False").lower() in ["true", "yes", "1"]
@@ -78,7 +79,7 @@ class LengthBiasAgent(BaseLTMAgent):
             context.insert(1, message_dict)
             token_count = new_token_count
         remain_tokens = self.max_prompt_size - token_count
-        mem_message: dict = self.get_mem_message(removed_messages, remain_tokens)
+        mem_message: dict[str, str] | None = self.get_mem_message(removed_messages, remain_tokens)
         if mem_message:
             context.insert(1, mem_message)
         return context

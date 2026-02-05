@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+
 import click
 from dataset_interfaces.factory import DATASETS
 from reporting.results import TestResult

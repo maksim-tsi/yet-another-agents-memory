@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Any, cast
 
 from datasets.chapterbreak import ChapterBreakDataset
 from datasets.colours import ColourDataset
@@ -22,7 +23,7 @@ from utils.files import parse_definition_path
 
 from dataset_interfaces.interface import DatasetInterface, TestExample
 
-DATASETS = {
+DATASETS: dict[str, type[DatasetInterface]] = {
     "names": NamesDataset,
     "colours": ColourDataset,
     "shopping": ShoppingDataset,
@@ -42,13 +43,15 @@ DATASETS = {
     "restaurant": RestaurantDataset,
     "spy_meeting": SpyMeetingDataset,
 }
-DATASETS_BY_NAME = {ds.name: ds for ds in DATASETS.values()}
+DATASETS_BY_NAME: dict[str, type[DatasetInterface]] = {
+    cast(str, ds.name): ds for ds in DATASETS.values()
+}
 
 
 class DatasetFactory:
     @staticmethod
     def create_examples(
-        dataset_config: dict, universal_args: dict, max_message_size: int
+        dataset_config: dict[str, Any], universal_args: dict[str, Any], max_message_size: int
     ) -> list[TestExample]:
         name = dataset_config["name"]
         args = deepcopy(universal_args)
@@ -68,12 +71,12 @@ class DatasetFactory:
 
     @staticmethod
     def create_dataset_for_example(
-        run_configuration: dict, test_example_path: str
+        run_configuration: dict[str, Any], test_example_path: str
     ) -> DatasetInterface:
         args = deepcopy(run_configuration["datasets"]["args"])
 
         # Get the name of the dataset
-        path_dataset_name = parse_definition_path(test_example_path)["dataset_name"]
+        path_dataset_name = str(parse_definition_path(test_example_path)["dataset_name"])
         dataset = DATASETS_BY_NAME.get(path_dataset_name)
 
         if dataset is None:

@@ -1,6 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
+from typing import Any
 
 from dataset_interfaces.interface import DatasetInterface, TestExample
 from utils.data import get_file
@@ -69,24 +70,27 @@ def fix_ids(dialog: list[dict[str, str]]):
         msg["id"] = switch_ids[dialog[j]["id"]]
 
 
-def read_tar_file(dataset_name: str) -> dict:
+def read_tar_file(dataset_name: str) -> dict[str, Any]:
     import json
     import tarfile
 
     tar_path = get_file(dataset_name, MSC_URL, MSC_FILENAME, checksum=MSC_CHECKSUM)
-    tar_dict = dict()
+    tar_dict: dict[str, Any] = {}
     with tarfile.open(tar_path) as tar:
         for m in tar.getmembers():
             if not (m.isfile() and m.name.endswith(".txt")):
                 continue
-            content = [json.loads(line) for line in tar.extractfile(m).readlines()]
+            extracted = tar.extractfile(m)
+            if extracted is None:
+                continue
+            content = [json.loads(line) for line in extracted.readlines()]
             tree_path, name = os.path.split(m.name)
             name = name.removesuffix(".txt")
             make_path_tree(tar_dict, tree_path)[name] = content
     return tar_dict
 
 
-def reconstruct_test_chats(tar_dict: dict) -> dict:
+def reconstruct_test_chats(tar_dict: dict[str, Any]) -> dict[str, Any]:
     """
     :param tar_dict: Raw data loaded from tar file.
     :return: Chats by chat_id. A chat is a list of sessions.
@@ -97,7 +101,7 @@ def reconstruct_test_chats(tar_dict: dict) -> dict:
     - "time_unit"
     - "time_back" Time elapsed wrt. most recent session.
     """
-    chats_dict = dict()
+    chats_dict: dict[str, Any] = {}
 
     # Initial conversations are in msc_personasummary
     to_speaker = {"bot_0": "Speaker 1", "bot_1": "Speaker 2"}
@@ -177,7 +181,7 @@ class MultiSessionChatDataset(DatasetInterface):
 
     def evaluate_correct(
         self, questions: list[str], responses: list[str], expected_answers: list[str]
-    ) -> tuple[int, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         # TODO: Consider computing the ROUGE-L score
         # pip install rouge-score
         answer_data = json.loads(expected_answers[0])
@@ -197,7 +201,7 @@ class MultiSessionChatDataset(DatasetInterface):
         response = ask_llm(context, "gemini-2.5-flash-lite", temperature=0)
         try:
             json_dict = json.loads(response)
-            score = 1 if json_dict["conclusion"].lower().strip() == "yes" else 0
+            score = 1.0 if json_dict["conclusion"].lower().strip() == "yes" else 0.0
             return score, 1, [json_dict["reasoning"]]
         except (json.JSONDecodeError, KeyError) as exc:
             return 0, 1, [str(exc)]

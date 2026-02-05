@@ -3,10 +3,12 @@ import os
 import time
 import uuid
 from dataclasses import dataclass, field
+from typing import Any, cast
 
-import requests
-from model_interfaces.interface import ChatSession
+import requests  # type: ignore[import-untyped]
 from utils.llm import count_tokens_for_model
+
+from model_interfaces.interface import ChatSession
 
 
 @dataclass
@@ -57,11 +59,11 @@ class MASWrapperSession(ChatSession):
         response_json = self._post_with_retry(payload)
         self.turn_id += 1
 
-        response_text = response_json.get("content", "")
+        response_text = cast(str, response_json.get("content", ""))
         self._update_costs(user_message, response_text)
         return response_text
 
-    def _post_with_retry(self, payload: dict) -> dict:
+    def _post_with_retry(self, payload: dict[str, Any]) -> dict[str, Any]:
         last_error: Exception | None = None
         backoff = self.backoff_seconds
         url = f"{self.endpoint}/run_turn"
@@ -73,7 +75,7 @@ class MASWrapperSession(ChatSession):
                     raise RuntimeError(f"Server error {response.status_code}: {response.text}")
                 if response.status_code >= 400:
                     raise RuntimeError(f"Request failed {response.status_code}: {response.text}")
-                return response.json()
+                return cast(dict[str, Any], response.json())
             except Exception as exc:
                 last_error = exc
                 if attempt >= self.max_retries - 1:

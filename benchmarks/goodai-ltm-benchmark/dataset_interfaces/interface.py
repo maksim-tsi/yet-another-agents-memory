@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from random import Random
-from typing import Any
+from typing import Any, cast
 
 import tiktoken
 from goodai.helpers.json_helper import sanitize_and_parse_json
@@ -40,14 +40,16 @@ Respond in JSON with the following format:
 
 
 def normalize_scores(
-    evaluate_correct_fn: Callable[[list[str], list[str], list[Any]], tuple[int, int, list[str]]],
+    evaluate_correct_fn: Callable[
+        [list[str], list[str], list[Any]], tuple[float, float, list[str]]
+    ],
     questions: list[str],
     responses: list[str],
     expected_answers: list[Any],
-) -> tuple[float, int, list[str]]:
+) -> tuple[float, float, list[str]]:
     correct, total, feedback = evaluate_correct_fn(questions, responses, expected_answers)
     normalized_score = float(correct) / total if total > 0 else 0.0
-    return normalized_score, 1, feedback
+    return normalized_score, 1.0, feedback
 
 
 class TestAction:
@@ -66,7 +68,7 @@ class SendMessageAction(TestAction):
     sent_ts: datetime | None = None
     is_question: bool = False
     is_filling: bool = False
-    filler_response: str = None
+    filler_response: str | None = None
 
 
 @dataclass
@@ -109,7 +111,7 @@ class WaitCreator:
 
 @dataclass
 class TestExample:
-    dataset_generator: "DatasetInterface" = None
+    dataset_generator: "DatasetInterface"
     script: list[str] = field(default_factory=list)
     expected_responses: Any = None
     can_be_interleaved: bool = True
@@ -119,35 +121,39 @@ class TestExample:
     is_question: list[bool] = field(default_factory=list)
     number_of_questions: int = 0
     finished: bool = False
-    _iter: Iterator[TestAction] = None
+    _iter: Iterator[TestAction] | None = None
     waits: list[dict] = field(default_factory=list)
-    random: Random = None  # Seeded random generator
+    random: Random = field(default_factory=Random)  # Seeded random generator
     start_token: int = 0
 
     @property
     def dataset_name(self) -> str:
+        assert self.dataset_generator is not None
         return self.dataset_generator.name
 
     @property
     def description(self) -> str:
+        assert self.dataset_generator is not None
         return self.dataset_generator.description
 
     @property
     def reset_message(self) -> str:
+        assert self.dataset_generator is not None
         return self.dataset_generator.reset_message
 
     @property
     def evaluation_fn(
         self,
-    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, int, list[str]]]:
+    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, float, list[str]]]:
         """
         Returns a callable that evaluates and normalizes the scores between 0 and 1.
         The returned tuple consists of the normalized score, the max score (always 1 for normalized scores), and feedback.
         """
+        assert self.dataset_generator is not None
 
         def evaluator(
             questions: list[str], responses: list[str], expected_answers: list[Any]
-        ) -> tuple[float, int, list[str]]:
+        ) -> tuple[float, float, list[str]]:
             return normalize_scores(
                 self.dataset_generator.evaluate_correct, questions, responses, expected_answers
             )
@@ -183,8 +189,11 @@ class TestExample:
 
     def step(self) -> TestAction | None:
         assert not self.finished
+        iter_ = self._iter
+        if iter_ is None:
+            raise RuntimeError("TestExample iterator not initialized")
         try:
-            return next(self._iter)
+            return next(cast(Iterator[TestAction], iter_))
         except StopIteration:
             self.finished = True
             return None
@@ -257,8 +266,11 @@ class TestExample:
 class CallBackTestExample(TestExample):
     def step(self) -> TestAction | None:
         assert not self.finished
+        iter_ = self._iter
+        if iter_ is None:
+            raise RuntimeError("TestExample iterator not initialized")
         try:
-            return next(self._iter)
+            return next(iter_)
         except StopIteration:
             self.finished = False
             return WaitAction(tokens=1)
@@ -266,31 +278,32 @@ class CallBackTestExample(TestExample):
 
 @dataclass
 class DynamicExample(TestExample):
-    score: int = 0
-    max_score: int = 0
+    score: float = 0.0
+    max_score: float = 0.0
     expected_responses: list[str] = field(default_factory=list)
     reasoning: list[str] = field(default_factory=list)
     script: list[str] = field(default_factory=lambda: [])  # Updated dynamically by `say` method
-    action: SendMessageAction = None  # Keeps the last SendMessageAction
+    action: SendMessageAction | None = None  # Keeps the last SendMessageAction
     wait = WaitAction
     llm_call_idx: int = -1
-    master_log: MasterLog = None  # Set by runner to cache llm calls
+    master_log: MasterLog | None = None  # Set by runner to cache llm calls
 
     @property
     def evaluation_fn(
         self,
-    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, int, list[str]]]:
+    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, float, list[str]]]:
         return self.evaluate
 
     def __post_init__(self):
         super().__post_init__()
         assert self.max_score > 0
 
-    def evaluate(self, *args, **kwargs) -> tuple[float, int, list[str]]:
-        return self.score / self.max_score, 1, self.reasoning
+    def evaluate(self, *args, **kwargs) -> tuple[float, float, list[str]]:
+        return self.score / self.max_score, 1.0, self.reasoning
 
     def ask_llm(self, context: LLMContext, model: str, **kwargs) -> str:
         self.llm_call_idx += 1
+        assert self.master_log is not None
         response = self.master_log.get_cached_response(self.unique_id, self.llm_call_idx)
         if response is not None:
             return response
@@ -316,11 +329,11 @@ class DatasetInterface(ABC):
     question: str = ""
     memory_span: int = 0
     seed: int = 0
-    cost_callback: Callable[[float], None] = None
+    cost_callback: Callable[[float], None] | None = None
     uses_callback: bool = False
     reset_message: str = ""
     max_message_size: int = 1024
-    random: Random = None  # Seeded random generator
+    random: Random = field(default_factory=lambda: Random(0))  # Seeded random generator
 
     def __getattribute__(self, item):
         # Force seeding right before generating samples
@@ -352,15 +365,15 @@ class DatasetInterface(ABC):
     @abstractmethod
     def evaluate_correct(
         self, questions: list[str], responses: list[str], expected_answers: list[Any]
-    ) -> tuple[int, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         pass
 
     def evaluation_fn(
         self,
-    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, int, list[str]]]:
+    ) -> Callable[[list[str], list[str], list[Any]], tuple[float, float, list[str]]]:
         def evaluator(
             questions: list[str], responses: list[str], expected_answers: list[Any]
-        ) -> tuple[float, int, list[str]]:
+        ) -> tuple[float, float, list[str]]:
             return normalize_scores(self.evaluate_correct, questions, responses, expected_answers)
 
         return evaluator
@@ -387,7 +400,7 @@ class DatasetInterface(ABC):
         questions: list[str],
         provided_answer: list[str],
         expected_answer: Any,
-    ) -> tuple[int, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         return self.evaluate_correct_gpt_impl(
             questions, provided_answer, expected_answer, self.cost_callback
         )
@@ -398,8 +411,8 @@ class DatasetInterface(ABC):
         provided_answer: list[str],
         expected_answer: Any,
         cost_callback: Callable[[float], Any] | None = None,
-    ) -> tuple[int, int, list[str]]:
-        max_score = len(expected_answer)
+    ) -> tuple[float, float, list[str]]:
+        max_score = float(len(expected_answer))
 
         q_list = []
         for idx, (q, e, p) in enumerate(
@@ -445,7 +458,9 @@ class DatasetInterface(ABC):
 
         return score, max_score, reasoning
 
-    def create_question(self, example: TestExample, statement_times, time_now):
+    def create_question(
+        self, example: TestExample, statement_times: list[datetime], time_now: datetime
+    ) -> str:
         # Generate the question for temporal questions
         raise NotImplementedError("This dataset is not meant to have temporal questions.")
 
@@ -458,9 +473,9 @@ class DatasetInterface(ABC):
     def tokens_to_answer(
         self,
         test_context: list[dict[str, Any]],
-        full_context: list[dict[str, str]],
+        full_context: list[dict[str, Any]],
         example: TestExample,
-    ):
+    ) -> tuple[int, int]:
         encoding = tiktoken.get_encoding("cl100k_base")
         num_tokens = num_characters = 0
 
@@ -491,7 +506,7 @@ class DatasetInterface(ABC):
 
 @dataclass
 class DynamicDataset(DatasetInterface, ABC):
-    example_cls: type[DynamicExample] = None
+    example_cls: type[DynamicExample] | None = None
 
     def __post_init__(self):
         assert self.example_cls is not None and issubclass(self.example_cls, DynamicExample)
@@ -499,6 +514,8 @@ class DynamicDataset(DatasetInterface, ABC):
     def _proxy_cost_callback(self, cost_usd: float) -> None:
         # `self.cost_callback` is not added until all examples are created and the run starts.
         # This proxy method ensures future access to the updated callback function.
+        if self.cost_callback is None:
+            return None
         return self.cost_callback(cost_usd)
 
     def evaluate_correct(self, *args):
@@ -507,6 +524,7 @@ class DynamicDataset(DatasetInterface, ABC):
         )
 
     def create_example(self, **kwargs) -> DynamicExample:
+        assert self.example_cls is not None
         return self.example_cls(dataset_generator=self, **kwargs)
 
     def generate_examples(self, num_examples: int) -> list[TestExample]:

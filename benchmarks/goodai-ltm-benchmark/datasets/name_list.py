@@ -27,7 +27,7 @@ class NameListDataset(DatasetInterface):
     name_changes: int = 3
     reset_message: str = "Forget, or otherwise disregard, all of the names I have given you before this message. You do not currrently know my name."
 
-    def generate_examples(self, num_examples):
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         renderer = pystache.Renderer()
         faker = Faker(["en_US", "en_IE"])
         examples = []
@@ -57,10 +57,10 @@ class NameListDataset(DatasetInterface):
 
     def evaluate_correct(
         self, questions: list[str], responses: list[str], expected_answers: list[str]
-    ) -> tuple[int, int, list[str]]:
+    ) -> tuple[float, float, list[str]]:
         reasoning = []
         correct = 0
-        score = 0
+        score = 0.0
         lowered_expected = [n.lower() for n in expected_answers]
 
         try:
@@ -85,4 +85,4 @@ class NameListDataset(DatasetInterface):
             logging.exception("Response not in correct format")
             reasoning.append("Response not in correct format")
 
-        return score, 1, reasoning
+        return score, 1.0, reasoning
