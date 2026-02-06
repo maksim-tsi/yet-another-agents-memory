@@ -47,6 +47,63 @@ Completed the full mypy remediation sequence across storage adapters, memory tie
 git status -s
 ```
 
+### 2026-02-05 - Poetry Migration Complete 📦
+
+**Status:** ✅ Complete
+
+**Summary:**
+Migrated both projects (MAS Memory Layer and GoodAI LTM Benchmark) from pip/requirements.txt to Poetry for dependency management. This provides reproducible builds via `poetry.lock`, cleaner separation of production vs dev/test dependencies, and simplified environment setup.
+
+**Key Changes:**
+- Created `pyproject.toml` for MAS Memory Layer with all dependencies organized into main, test, and dev groups
+- Created `pyproject.toml` for GoodAI Benchmark at `benchmarks/goodai-ltm-benchmark/`
+- Configured Poetry with `virtualenvs.in-project = true` to preserve `.venv/bin/python` path contracts
+- Updated orchestration script (`scripts/run_subset_experiments.sh`) to reference new benchmark venv location
+- Updated agent instruction files (AGENTS.MD, copilot-instructions.md) with Poetry commands
+- Updated README.md with Poetry installation and two-environment architecture documentation
+
+**Two-Environment Architecture:**
+- **MAS Memory Layer** (root): `poetry install --with test,dev` creates `.venv/`
+  - Python: `>=3.12,<3.14`
+- **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install` creates its own `.venv/`
+  - Python: `>=3.10,<3.13` (constrained by `pymemgpt` which requires `<3.13`)
+
+**Dependency Constraints Discovered:**
+- `pymemgpt` requires Python `<3.13` — all versions (0.1.0 through 0.3.25) have this constraint
+- `langchain==0.1.1` (benchmark) conflicts with `langchain-core>=0.3.25` (MAS) — hence separate environments
+
+Environments are isolated due to incompatible langchain versions:
+- MAS uses `langchain-core>=0.3.25,<0.4.0`
+- Benchmark uses `langchain==0.1.1`
+
+**Files Modified:**
+- `pyproject.toml` (replaced with Poetry-managed version)
+- `benchmarks/goodai-ltm-benchmark/pyproject.toml` (created)
+- `scripts/run_subset_experiments.sh` (updated venv paths)
+- `AGENTS.MD` (updated environment protocols)
+- `.github/copilot-instructions.md` (updated environment section)
+- `README.md` (updated Getting Started section)
+
+**Migration Commands (for reference):**
+```bash
+# MAS Memory Layer
+cd /path/to/mas-memory-layer
+poetry install --with test,dev
+
+# GoodAI Benchmark
+cd benchmarks/goodai-ltm-benchmark
+poetry install
+```
+
+**✅ What's Complete:**
+- Poetry pyproject.toml for both projects
+- poetry.lock generated for both projects (MAS Memory Layer + GoodAI Benchmark)
+- All agent documentation updated
+- Both environments installed and verified (228 packages for benchmark)
+
+**❌ What's Pending:**
+- Full test suite validation after Poetry migration
+
 ### 2026-02-05 - GoodAI Benchmark Mypy Cleanup 📊
 
 **Status:** ✅ Complete

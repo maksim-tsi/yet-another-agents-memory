@@ -12,6 +12,7 @@ Tests cover:
 - Health checks
 """
 
+import warnings
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
@@ -30,18 +31,18 @@ class TestWorkingMemoryTierStore:
         tier = WorkingMemoryTier(postgres_adapter=postgres_adapter, config={"ciar_threshold": 0.6})
         await tier.initialize()
 
-        fact_data = {
-            "fact_id": "fact-001",
-            "session_id": "session-123",
-            "content": "User prefers email communication",
-            "ciar_score": 0.75,
-            "certainty": 0.85,
-            "impact": 0.90,
-            "fact_type": FactType.PREFERENCE,
-            "source_uri": "l1:session:123:turn:005",
-        }
+        fact = Fact(
+            fact_id="fact-001",
+            session_id="session-123",
+            content="User prefers email communication",
+            ciar_score=0.75,
+            certainty=0.85,
+            impact=0.90,
+            fact_type=FactType.PREFERENCE,
+            source_uri="l1:session:123:turn:005",
+        )
 
-        fact_id = await tier.store(fact_data)
+        fact_id = await tier.store(fact)
 
         assert fact_id == "fact-001"
         postgres_adapter.insert.assert_called_once()
@@ -56,14 +57,14 @@ class TestWorkingMemoryTierStore:
         tier = WorkingMemoryTier(postgres_adapter=postgres_adapter, config={"ciar_threshold": 0.6})
         await tier.initialize()
 
-        low_ciar_fact = {
-            "fact_id": "fact-002",
-            "session_id": "session-123",
-            "content": "Random mention",
-            "ciar_score": 0.4,  # Below threshold
-            "certainty": 0.5,
-            "impact": 0.8,
-        }
+        low_ciar_fact = Fact(
+            fact_id="fact-002",
+            session_id="session-123",
+            content="Random mention",
+            ciar_score=0.4,  # Below threshold
+            certainty=0.5,
+            impact=0.8,
+        )
 
         with pytest.raises(ValueError, match="below threshold"):
             await tier.store(low_ciar_fact)
@@ -106,17 +107,42 @@ class TestWorkingMemoryTierStore:
         await tier.initialize()
 
         # Fact with CIAR 0.75 (above default 0.6 but below 0.8)
-        fact_data = {
-            "fact_id": "fact-004",
-            "session_id": "session-123",
-            "content": "Medium significance fact",
-            "ciar_score": 0.75,
-            "certainty": 0.85,
-            "impact": 0.88,
-        }
+        fact_data = Fact(
+            fact_id="fact-004",
+            session_id="session-123",
+            content="Medium significance fact",
+            ciar_score=0.75,
+            certainty=0.85,
+            impact=0.88,
+        )
 
         with pytest.raises(ValueError, match=r"below threshold 0.8"):
             await tier.store(fact_data)
+
+        await tier.cleanup()
+
+    @pytest.mark.asyncio
+    async def test_store_fact_deprecated_dict_input(self, postgres_adapter):
+        """Test dict input emits deprecation warning."""
+        tier = WorkingMemoryTier(postgres_adapter=postgres_adapter, config={"ciar_threshold": 0.6})
+        await tier.initialize()
+
+        fact_data = {
+            "fact_id": "fact-005",
+            "session_id": "session-123",
+            "content": "Deprecated dict input",
+            "ciar_score": 0.75,
+            "certainty": 0.85,
+            "impact": 0.90,
+        }
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            await tier.store(fact_data)
+
+        assert any(
+            issubclass(warning.category, DeprecationWarning) for warning in captured
+        ), "Expected DeprecationWarning for dict input"
 
         await tier.cleanup()
 
@@ -155,6 +181,7 @@ class TestWorkingMemoryTierRetrieve:
         fact = await tier.retrieve("fact-001")
 
         assert fact is not None
+        assert isinstance(fact, Fact)
         assert fact.fact_id == "fact-001"
         assert fact.content == "Test fact"
 
@@ -213,6 +240,7 @@ class TestWorkingMemoryTierRetrieve:
 
         fact = await tier.retrieve("fact-001")
         assert fact is not None
+        assert isinstance(fact, Fact)
 
         # Verify recency boost increased
         update_data = postgres_adapter.update.call_args[1]["data"]

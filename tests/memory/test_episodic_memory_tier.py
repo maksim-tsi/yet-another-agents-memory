@@ -5,13 +5,14 @@ Tests dual-indexed episode storage with Qdrant (vector) and Neo4j (graph),
 bi-temporal properties, and hybrid retrieval patterns.
 """
 
+import warnings
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
 
-from src.memory.models import Episode
+from src.memory.models import Episode, EpisodeStoreInput
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.storage.neo4j_adapter import Neo4jAdapter
 from src.storage.qdrant_adapter import QdrantAdapter
@@ -104,14 +105,13 @@ class TestEpisodicMemoryTierStore:
         episodic_tier.neo4j.execute_query = AsyncMock(return_value=[{"id": "ep_001"}])
 
         # Store episode
-        episode_id = await episodic_tier.store(
-            {
-                "episode": sample_episode,
-                "embedding": sample_embedding,
-                "entities": [],
-                "relationships": [],
-            }
+        payload = EpisodeStoreInput(
+            episode=sample_episode,
+            embedding=sample_embedding,
+            entities=[],
+            relationships=[],
         )
+        episode_id = await episodic_tier.store(payload)
 
         # Verify
         assert episode_id == "ep_001"
@@ -145,19 +145,41 @@ class TestEpisodicMemoryTierStore:
         episodic_tier.neo4j.execute_query = AsyncMock(return_value=[{"id": "ep_001"}])
 
         # Store
-        episode_id = await episodic_tier.store(
-            {
-                "episode": sample_episode,
-                "embedding": sample_embedding,
-                "entities": entities,
-                "relationships": [],
-            }
+        payload = EpisodeStoreInput(
+            episode=sample_episode,
+            embedding=sample_embedding,
+            entities=entities,
+            relationships=[],
         )
+        episode_id = await episodic_tier.store(payload)
 
         # Verify entities were created
         assert episode_id == "ep_001"
         # Should call Neo4j for: create episode + 2 entities + link indexes
         assert episodic_tier.neo4j.execute_query.call_count >= 4
+
+    @pytest.mark.asyncio
+    async def test_store_episode_deprecated_dict_input(
+        self, episodic_tier, sample_episode, sample_embedding
+    ):
+        """Test dict input emits deprecation warning."""
+        episodic_tier.neo4j.execute_query = AsyncMock(return_value=[{"id": "ep_001"}])
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            episode_id = await episodic_tier.store(
+                {
+                    "episode": sample_episode,
+                    "embedding": sample_embedding,
+                    "entities": [],
+                    "relationships": [],
+                }
+            )
+
+        assert episode_id == "ep_001"
+        assert any(
+            issubclass(warning.category, DeprecationWarning) for warning in captured
+        ), "Expected DeprecationWarning for dict input"
 
     @pytest.mark.asyncio
     async def test_store_episode_validates_embedding_size(self, episodic_tier, sample_episode):
@@ -191,14 +213,13 @@ class TestEpisodicMemoryTierStore:
         episodic_tier.neo4j.execute_query = AsyncMock(return_value=[{"id": "ep_001"}])
 
         # Store
-        await episodic_tier.store(
-            {
-                "episode": sample_episode,
-                "embedding": sample_embedding,
-                "entities": [],
-                "relationships": [],
-            }
+        payload = EpisodeStoreInput(
+            episode=sample_episode,
+            embedding=sample_embedding,
+            entities=[],
+            relationships=[],
         )
+        await episodic_tier.store(payload)
 
         # Verify link update was called
         calls = episodic_tier.neo4j.execute_query.call_args_list
@@ -246,6 +267,7 @@ class TestEpisodicMemoryTierRetrieve:
 
         # Verify
         assert episode is not None
+        assert isinstance(episode, Episode)
         assert episode.episode_id == "ep_001"
         assert episode.session_id == "session_1"
         assert episode.summary == "Test summary"
@@ -289,6 +311,8 @@ class TestEpisodicMemoryTierRetrieve:
 
         episode = await episodic_tier.retrieve("ep_001")
 
+        assert episode is not None
+        assert isinstance(episode, Episode)
         assert isinstance(episode.time_window_start, datetime)
         assert isinstance(episode.fact_valid_from, datetime)
 

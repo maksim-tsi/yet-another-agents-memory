@@ -1,6 +1,7 @@
 import webbrowser
 
 import click
+
 from reporting.generate import gather_results, generate_report
 
 

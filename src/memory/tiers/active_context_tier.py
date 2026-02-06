@@ -209,6 +209,7 @@ class ActiveContextTier(BaseTier[TurnData]):
             except Exception as e:
                 logger.error(f"Failed to store turn in L1: {e}")
                 raise TierOperationError(f"Failed to store turn: {e}") from e
+        raise AssertionError("Unreachable: store should return or raise.")
 
     async def retrieve(self, turn_id: str) -> TurnData | None:
         """
@@ -258,6 +259,7 @@ class ActiveContextTier(BaseTier[TurnData]):
             except Exception as e:
                 logger.error(f"Failed to retrieve turn from L1: {e}")
                 raise TierOperationError(f"Failed to retrieve turn: {e}") from e
+        raise AssertionError("Unreachable: retrieve should return or raise.")
 
     async def retrieve_session(self, session_id: str) -> list[TurnData] | None:
         """
@@ -353,9 +355,10 @@ class ActiveContextTier(BaseTier[TurnData]):
             except Exception as e:
                 logger.error(f"Failed to retrieve session from L1: {e}")
                 raise TierOperationError(f"Failed to retrieve session: {e}") from e
+        raise AssertionError("Unreachable: retrieve_session should return or raise.")
 
     async def query(
-        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs: Any
     ) -> list[TurnData]:
         """
         Query turns with filters.
@@ -411,6 +414,7 @@ class ActiveContextTier(BaseTier[TurnData]):
             except Exception as e:
                 logger.error(f"Failed to query L1: {e}")
                 raise TierOperationError(f"Failed to query L1: {e}") from e
+        raise AssertionError("Unreachable: query should return or raise.")
 
     async def delete(self, session_id: str) -> bool:
         """
@@ -457,6 +461,7 @@ class ActiveContextTier(BaseTier[TurnData]):
             except Exception as e:
                 logger.error(f"Failed to delete session from L1: {e}")
                 raise TierOperationError(f"Failed to delete session: {e}") from e
+        raise AssertionError("Unreachable: delete should return or raise.")
 
     async def get_window_size(self, session_id: str) -> int:
         """

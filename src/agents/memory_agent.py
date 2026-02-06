@@ -13,7 +13,7 @@ from src.agents.base_agent import BaseAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.runtime import AgentState
 from src.agents.tools.unified_tools import UNIFIED_TOOLS
-from src.memory.models import ContextBlock
+from src.memory.models import ContextBlock, TurnData
 from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
@@ -195,24 +195,22 @@ class MemoryAgent(BaseAgent):
         user_turn_id = self._encode_turn_id(turn_id, role="user")
         assistant_turn_id = self._encode_turn_id(turn_id, role="assistant")
 
-        await self._memory_system.l1_tier.store(
-            {
-                "session_id": session_id,
-                "turn_id": user_turn_id,
-                "role": "user",
-                "content": user_message,
-                "timestamp": timestamp,
-            }
+        user_turn = TurnData(
+            session_id=session_id,
+            turn_id=str(user_turn_id),
+            role="user",
+            content=user_message,
+            timestamp=timestamp,
         )
-        await self._memory_system.l1_tier.store(
-            {
-                "session_id": session_id,
-                "turn_id": assistant_turn_id,
-                "role": "assistant",
-                "content": assistant_response,
-                "timestamp": timestamp,
-            }
+        assistant_turn = TurnData(
+            session_id=session_id,
+            turn_id=str(assistant_turn_id),
+            role="assistant",
+            content=assistant_response,
+            timestamp=timestamp,
         )
+        await self._memory_system.l1_tier.store(user_turn)
+        await self._memory_system.l1_tier.store(assistant_turn)
 
         if hasattr(self._memory_system, "run_promotion_cycle"):
             try:

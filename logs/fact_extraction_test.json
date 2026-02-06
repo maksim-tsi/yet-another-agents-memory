@@ -1,6 +1,6 @@
 [
   {
-    "fact_id": "c879fa9f-c419-4ee9-bdfb-e933d7120ceb",
+    "fact_id": "df7abba2-b4ce-4849-be69-2238d1b22200",
     "content": "Modern supply chain management utilizes network analysis to optimize the flow of goods from manufacturers to consumers.",
     "type": "relationship",
     "category": "business",
@@ -9,7 +9,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "efc43dc6-f610-472d-86b2-f348e4b74969",
+    "fact_id": "b134c46b-e8fa-4963-b574-7352c79c1d65",
     "content": "Network optimization reduces costs, improves delivery times, and enhances supply chain resilience.",
     "type": "relationship",
     "category": "business",
@@ -18,7 +18,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "7050120d-0922-431f-bc79-f4f07adf8ddd",
+    "fact_id": "534ccaf5-3e45-4716-ac63-c7d8f3efb846",
     "content": "Supply chain networks are modeled as complex adaptive systems where nodes represent facilities and edges represent transportation links or business relationships.",
     "type": "entity",
     "category": "technical",
@@ -27,7 +27,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "df4e8a6c-430b-48e9-ac42-e75aea2c38f6",
+    "fact_id": "e9998591-70ef-452f-854a-577f54a4722c",
     "content": "Hub-and-spoke configurations enable economies of scale but create potential single points of failure.",
     "type": "constraint",
     "category": "operational",
@@ -36,7 +36,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "fed7f9af-cd10-4ef5-ab65-469261f47f56",
+    "fact_id": "bfaa82a2-c0b1-4ab7-a2d3-db46321e0204",
     "content": "Direct shipping networks offer greater flexibility and resilience at the cost of higher per-unit transportation expenses.",
     "type": "constraint",
     "category": "operational",
@@ -45,7 +45,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "ef49f35f-9998-4279-bdb9-55c8b8c1c017",
+    "fact_id": "30b09d5e-e885-447d-9bd5-74ed55fb5cd8",
     "content": "Disruptions at tier-two suppliers can propagate forward through multi-tier networks to affect multiple downstream manufacturers.",
     "type": "relationship",
     "category": "operational",
@@ -54,7 +54,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "6b268882-1e4c-4a08-a68d-48a9104d4764",
+    "fact_id": "99ec274c-1ae1-472d-ab5e-658b2ec1ad7d",
     "content": "Companies employ network visualization tools to gain visibility into extended supply networks beyond direct suppliers.",
     "type": "mention",
     "category": "technical",
@@ -63,7 +63,7 @@
     "ciar_score": 0.0
   },
   {
-    "fact_id": "21b6c830-1ad8-47f7-9a27-9c159dda631b",
+    "fact_id": "c6237455-e79f-4b81-9d1d-c83951bc6a58",
     "content": "Supply chain network optimization requires balancing competing objectives such as cost minimization and service level maximization.",
     "type": "constraint",
     "category": "business",

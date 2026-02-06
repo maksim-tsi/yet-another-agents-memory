@@ -5,6 +5,7 @@ Tests distilled knowledge document storage, full-text search,
 faceted filtering, and provenance tracking.
 """
 
+import warnings
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
@@ -103,10 +104,15 @@ class TestSemanticMemoryTierStore:
             "episode_count": 5,
         }
 
-        knowledge_id = await semantic_tier.store(knowledge_dict)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            knowledge_id = await semantic_tier.store(knowledge_dict)
 
         assert knowledge_id == "know_002"
         semantic_tier.typesense.index_document.assert_called_once()
+        assert any(
+            issubclass(warning.category, DeprecationWarning) for warning in captured
+        ), "Expected DeprecationWarning for dict input"
 
     @pytest.mark.asyncio
     async def test_store_validates_data(self, semantic_tier):
@@ -163,6 +169,7 @@ class TestSemanticMemoryTierRetrieve:
 
         # Verify
         assert knowledge is not None
+        assert isinstance(knowledge, KnowledgeDocument)
         assert knowledge.knowledge_id == "know_001"
         assert knowledge.title == "Test knowledge"
         assert knowledge.confidence_score == 0.85

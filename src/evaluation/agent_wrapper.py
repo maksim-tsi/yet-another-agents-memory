@@ -7,11 +7,12 @@ import asyncio
 import json
 import logging
 import os
+import time
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import redis
 import uvicorn
@@ -23,6 +24,7 @@ from src.agents.full_context_agent import FullContextAgent
 from src.agents.memory_agent import MemoryAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.rag_agent import RAGAgent
+from src.memory.models import TurnData
 from src.memory.tiers import ActiveContextTier, WorkingMemoryTier
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.redis_adapter import RedisAdapter
@@ -333,9 +335,13 @@ def create_app(config: WrapperConfig) -> FastAPI:
         await state.rate_limiter.wait_if_needed(estimated_input_tokens)
 
         try:
+            t0 = time.perf_counter()
             await _store_turn(state, updated_request, role=updated_request.role)
+            t1 = time.perf_counter()
             response = await state.agent.run_turn(updated_request)
+            t2 = time.perf_counter()
             await _store_turn(state, response, role=response.role)
+            t3 = time.perf_counter()
             estimated_total_tokens = _estimate_tokens(
                 f"{updated_request.content}\n{response.content}"
             )
@@ -345,7 +351,16 @@ def create_app(config: WrapperConfig) -> FastAPI:
             logger.exception("Error handling /run_turn for session %s", session_id)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return response
+        metadata = dict(response.metadata or {})
+        metadata.update(
+            {
+                "storage_ms_pre": (t1 - t0) * 1000,
+                "llm_ms": (t2 - t1) * 1000,
+                "storage_ms_post": (t3 - t2) * 1000,
+                "storage_ms": (t1 - t0 + t3 - t2) * 1000,
+            }
+        )
+        return response.model_copy(update={"metadata": metadata})
 
     @app.get("/sessions")
     async def list_sessions() -> dict[str, Any]:
@@ -404,7 +419,9 @@ def create_app(config: WrapperConfig) -> FastAPI:
     return app
 
 
-async def _store_turn(state: AgentWrapperState, message: Any, role: str) -> None:
+async def _store_turn(
+    state: AgentWrapperState, message: Any, role: Literal["user", "assistant"]
+) -> None:
     """Store a user or assistant turn in L1 for context assembly."""
 
     def _encode_turn_id(turn_id: int, message_role: str) -> int:
@@ -416,16 +433,15 @@ async def _store_turn(state: AgentWrapperState, message: Any, role: str) -> None
     timestamp = getattr(message, "timestamp", None) or datetime.now(UTC)
     metadata = getattr(message, "metadata", None) or {}
     stored_turn_id = _encode_turn_id(int(message.turn_id), role)
-    await state.l1_tier.store(
-        {
-            "session_id": message.session_id,
-            "turn_id": str(stored_turn_id),
-            "role": role,
-            "content": message.content,
-            "timestamp": timestamp,
-            "metadata": metadata,
-        }
+    turn = TurnData(
+        session_id=message.session_id,
+        turn_id=str(stored_turn_id),
+        role=role,
+        content=message.content,
+        timestamp=timestamp,
+        metadata=metadata,
     )
+    await state.l1_tier.store(turn)
 
 
 def _estimate_tokens(text: str) -> int:

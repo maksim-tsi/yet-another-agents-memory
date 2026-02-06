@@ -3,6 +3,14 @@
 # Script: run_subset_experiments.sh
 # Purpose: Orchestrate GoodAI subset runs with wrapper services and cleanup verification.
 # Usage: ./scripts/run_subset_experiments.sh
+#
+# Environment: Both projects use Poetry with in-project venvs (virtualenvs.in-project = true).
+#   MAS Memory Layer:     PROJECT_ROOT/.venv (managed by pyproject.toml)
+#   GoodAI Benchmark:     PROJECT_ROOT/benchmarks/goodai-ltm-benchmark/.venv
+#
+# Setup:
+#   cd PROJECT_ROOT && poetry install --with test,dev
+#   cd benchmarks/goodai-ltm-benchmark && poetry install
 
 set -e
 set -u
@@ -19,10 +27,13 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_ROOT"
 
+# MAS Memory Layer venv (Poetry-managed, in-project)
 PYTHON="$PROJECT_ROOT/.venv/bin/python"
 PIP="$PROJECT_ROOT/.venv/bin/pip"
 PYTEST="$PROJECT_ROOT/.venv/bin/pytest"
-BENCH_VENV="$PROJECT_ROOT/benchmarks/.venv-benchmark"
+
+# GoodAI Benchmark venv (Poetry-managed, in-project under benchmark dir)
+BENCH_VENV="$PROJECT_ROOT/benchmarks/goodai-ltm-benchmark/.venv"
 BENCH_PYTHON="$BENCH_VENV/bin/python"
 
 WRAPPER_LOG_DIR="$PROJECT_ROOT/logs"
@@ -58,7 +69,7 @@ function check_prerequisites() {
 
     if [ ! -f "$BENCH_PYTHON" ]; then
         echo -e "${RED}Error: GoodAI benchmark venv not found at $BENCH_VENV${NC}"
-        echo "Create it and install benchmark requirements before running this script."
+        echo "Run: cd benchmarks/goodai-ltm-benchmark && poetry install"
         exit 1
     fi
 }

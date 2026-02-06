@@ -6,7 +6,7 @@ import json
 from typing import Any
 
 
-def export_metrics(metrics: dict[str, Any], format: str = "dict") -> dict | str:
+def export_metrics(metrics: dict[str, Any], format: str = "dict") -> dict[str, Any] | str:
     """
     Export metrics in specified format.
 

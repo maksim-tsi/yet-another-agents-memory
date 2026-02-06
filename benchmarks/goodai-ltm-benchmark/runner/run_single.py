@@ -43,8 +43,8 @@ def main(
     )
     dataset_list = datasets.split(",")
     dataset_list = [d.strip() for d in dataset_list]
-    chat_session = get_chat_session(agent, max_prompt_size)
     run_name = "_RunSingle"
+    chat_session = get_chat_session(agent, max_prompt_size, run_name=run_name, is_local=True)
     config_dict = dict(
         config=dict(
             run_name=run_name,
@@ -61,7 +61,7 @@ def main(
     )
     examples = generate_test_examples(
         config_dict,
-        max_message_tokens=chat_session.max_message_size,
+        max_message_size=chat_session.max_message_size,
         pass_default=y,
         force_regenerate=True,
     )

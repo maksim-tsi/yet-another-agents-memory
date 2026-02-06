@@ -193,6 +193,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
             except Exception as e:
                 logger.error(f"Failed to store fact in L2: {e}")
                 raise TierOperationError(f"Failed to store fact: {e}") from e
+        raise AssertionError("Unreachable: store should return or raise.")
 
     def _cache_fact(self, fact: Fact) -> None:
         """Keep a small recent fact buffer per session for fast retrieval."""
@@ -249,9 +250,10 @@ class WorkingMemoryTier(BaseTier[Fact]):
             except Exception as e:
                 logger.error(f"Failed to retrieve fact from L2: {e}")
                 raise TierOperationError(f"Failed to retrieve fact: {e}") from e
+        raise AssertionError("Unreachable: retrieve should return or raise.")
 
     async def query(
-        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs: Any
     ) -> list[Fact]:
         """
         Query facts with optional filters.
@@ -332,6 +334,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
             except Exception as e:
                 logger.error(f"Failed to query L2: {e}")
                 raise TierOperationError(f"Failed to query L2: {e}") from e
+        raise AssertionError("Unreachable: query should return or raise.")
 
     async def query_by_session(
         self, session_id: str, min_ciar_score: float | None = None, limit: int = 100
@@ -450,9 +453,10 @@ class WorkingMemoryTier(BaseTier[Fact]):
             except Exception as e:
                 logger.error(f"Failed to search facts in L2: {e}")
                 raise TierOperationError(f"Failed to search facts: {e}") from e
+        raise AssertionError("Unreachable: search_facts should return or raise.")
 
     async def update_ciar_score(
-        self, fact_id: str, ciar_score: float | None = None, **components
+        self, fact_id: str, ciar_score: float | None = None, **components: float
     ) -> bool:
         """
         Update CIAR score and/or components.
@@ -509,6 +513,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
         except Exception as e:
             logger.error(f"Failed to update CIAR score: {e}")
             raise TierOperationError(f"Failed to update CIAR score: {e}") from e
+        raise AssertionError("Unreachable: update_ciar_score should return or raise.")
 
     async def delete(self, fact_id: str) -> bool:
         """
@@ -542,6 +547,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
             except Exception as e:
                 logger.error(f"Failed to delete fact from L2: {e}")
                 raise TierOperationError(f"Failed to delete fact: {e}") from e
+        raise AssertionError("Unreachable: delete should return or raise.")
 
     async def cleanup_expired(self) -> int:
         """

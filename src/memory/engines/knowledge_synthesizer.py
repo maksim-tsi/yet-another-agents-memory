@@ -254,7 +254,7 @@ class KnowledgeSynthesizer:
 
         return result
 
-    def _cache_result(self, cache_key: str, result: str):
+    def _cache_result(self, cache_key: str, result: str) -> None:
         """Store result in cache with timestamp."""
         self._cache[cache_key] = (result, datetime.now(UTC))
 
@@ -483,7 +483,7 @@ Synthesized Response:"""
                 fallback += f"{i + 1}. {doc.title}: {doc.content[:200]}...\n\n"
             return fallback
 
-    async def clear_cache(self):
+    async def clear_cache(self) -> None:
         """Clear the synthesis cache."""
         self._cache.clear()
         logger.info("Synthesis cache cleared")

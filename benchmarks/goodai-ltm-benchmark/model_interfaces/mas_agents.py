@@ -59,6 +59,7 @@ class MASWrapperSession(ChatSession):
         response_json = self._post_with_retry(payload)
         self.turn_id += 1
 
+        self.last_metadata = response_json.get("metadata")
         response_text = cast(str, response_json.get("content", ""))
         self._update_costs(user_message, response_text)
         return response_text
