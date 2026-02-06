@@ -13,6 +13,7 @@ class ChatSession(ABC):
     costs_usd: float = 0
     is_local: bool = False
     max_message_size: int = 4096
+    last_metadata: dict | None = None
 
     def message_to_agent(
         self, user_message: str, agent_response: str | None = None

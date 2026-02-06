@@ -1,0 +1,53 @@
+{
+  "llm_presets": [
+    {
+      "id": "mas-full-flash-lite",
+      "label": "MAS Full (Gemini 2.5 Flash Lite)",
+      "agent_name": "mas-full",
+      "wrapper_agent_type": "full",
+      "wrapper_model": "gemini-2.5-flash-lite",
+      "wrapper_port": 8080
+    },
+    {
+      "id": "mas-rag-flash-lite",
+      "label": "MAS RAG (Gemini 2.5 Flash Lite)",
+      "agent_name": "mas-rag",
+      "wrapper_agent_type": "rag",
+      "wrapper_model": "gemini-2.5-flash-lite",
+      "wrapper_port": 8081
+    },
+    {
+      "id": "mas-full-context-flash-lite",
+      "label": "MAS Full Context (Gemini 2.5 Flash Lite)",
+      "agent_name": "mas-full-context",
+      "wrapper_agent_type": "full_context",
+      "wrapper_model": "gemini-2.5-flash-lite",
+      "wrapper_port": 8082
+    },
+    {
+      "id": "gemini-direct",
+      "label": "Gemini Direct",
+      "agent_name": "gemini"
+    }
+  ],
+  "agent_presets": [
+    {"id": "mas-full", "label": "MAS Full"},
+    {"id": "mas-rag", "label": "MAS RAG"},
+    {"id": "mas-full-context", "label": "MAS Full Context"},
+    {"id": "gemini", "label": "Gemini Direct"}
+  ],
+  "benchmark_presets": [
+    {
+      "id": "mas_single_test",
+      "label": "MAS Single Test",
+      "config_path": "configurations/mas_single_test.yml",
+      "description": "Single test run for quick validation."
+    },
+    {
+      "id": "mas_subset_32k",
+      "label": "MAS Subset 32k",
+      "config_path": "configurations/mas_subset_32k.yml",
+      "description": "Subset benchmark run with 32k context budget."
+    }
+  ]
+}

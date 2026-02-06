@@ -251,7 +251,7 @@ class PromotionEngine(BaseEngine):
                             continue
 
                         # Store in L2
-                        await self.l2.store(fact.model_dump())
+                        await self.l2.store(fact)
                         inc("facts_promoted")
 
                 except Exception as e:
@@ -281,7 +281,7 @@ class PromotionEngine(BaseEngine):
                     topic_label="General Discussion",
                     topic_segment_id="fallback",
                 )
-                await self.l2.store(fallback_fact.model_dump())
+                await self.l2.store(fallback_fact)
                 inc("facts_extracted")
                 inc("facts_promoted")
 

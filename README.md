@@ -457,17 +457,19 @@ This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch.
 docker-compose up -d
 ```
 
-### 2. Create Python Virtual Environment
+### 2. Create Python Virtual Environment (Poetry)
+
+This project uses **Poetry** for dependency management with in-project virtual environments.
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
+# Install Poetry (if not already installed)
+curl -sSL https://install.python-poetry.org | python3 -
 
-# Activate it
-source .venv/bin/activate  # Linux/macOS
-# or: .venv\Scripts\activate  # Windows
+# Add Poetry to PATH (if needed)
+export PATH="$HOME/.local/bin:$PATH"
 
-# Upgrade pip
+# Install dependencies (creates .venv/ in project root)
+poetry install --with test,dev
 ```
 
 ### 3. Environment Bootstrap Checklist (Multi-Host Safe)
@@ -482,49 +484,57 @@ source .venv/bin/activate  # Linux/macOS
   - Remote Ubuntu over SSH → expect `Linux` plus `/home/<user>/code/mas-memory-layer`.
   - Local Ubuntu desktop/RDP → expect `Linux` with `/home/<user>/...` but no SSH hostname suffix.
 
-2. **Create/refresh the virtual environment using a relative path** so the same instructions work on every host:
+2. **Create/refresh the virtual environment using Poetry** so the same instructions work on every host:
   ```bash
-  python3 -m venv .venv
+  # Install Poetry if needed
+  curl -sSL https://install.python-poetry.org | python3 -
+  export PATH="$HOME/.local/bin:$PATH"
+  
+  # Configure Poetry to create .venv in-project
+  poetry config virtualenvs.in-project true
+  
+  # Install dependencies
+  poetry install --with test,dev
   ```
 
-3. **Install primary dependencies explicitly via the venv interpreter.** Avoid `pip` from the system path.
-  ```bash
-  ./.venv/bin/pip install -r requirements.txt
-  ```
-
-4. **Install test and tooling dependencies whenever you plan to run any test suite.**
-  ```bash
-  ./.venv/bin/pip install -r requirements-test.txt
-  ```
-
-5. **Verify the interpreter being used by automation.** The command below must print the absolute path to `.venv/bin/python` on the current host.
+3. **Verify the interpreter being used by automation.** The command below must print the absolute path to `.venv/bin/python` on the current host.
   ```bash
   ./.venv/bin/python -c "import sys; print(sys.executable)"
   ```
 
-6. **Run smoke validations before heavy workflows.**
+4. **Run smoke validations before heavy workflows.**
   ```bash
   ./.venv/bin/python scripts/test_llm_providers.py --help
   ./scripts/run_smoke_tests.sh --summary
   ```
 
-> **Why this sequence?** Contributors regularly switch between a remote Ubuntu VM, a macOS laptop, and containerised CI. Using relative paths plus the explicit interpreter commands prevents accidental invocation of a different Python installation that might live outside the repo.
+> **Why Poetry?** Poetry provides reproducible builds via `poetry.lock`, automatic dependency resolution, and cleaner separation of production vs dev dependencies. Using `virtualenvs.in-project = true` preserves the `.venv/bin/python` path contracts expected by orchestration scripts and agent protocols.
 
 For more detailed troubleshooting guidance, see [`docs/environment-guide.md`](docs/environment-guide.md).
-pip install --upgrade pip
-```
 
-See [`docs/python-environment-setup.md`](docs/python-environment-setup.md) for detailed setup instructions.
+### Two-Environment Architecture
+
+This repository contains two separate Poetry projects with isolated dependencies:
+
+1. **MAS Memory Layer** (root): `poetry install --with test,dev`
+2. **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install`
+
+These environments are intentionally isolated due to incompatible langchain versions:
+- MAS uses `langchain-core>=0.3.25,<0.4.0`
+- Benchmark uses `langchain==0.1.1`
 
 ### 3. Install Dependencies
 
-Install the required Python packages from `requirements.txt`.
+Dependencies are managed via `pyproject.toml`. Poetry handles installation automatically.
 
 ```bash
-pip install -r requirements.txt
+# Install all dependencies (already done in step 2)
+poetry install --with test,dev
 
-# Optional: Install test dependencies
-pip install -r requirements-test.txt
+# For benchmark environment (if running GoodAI benchmarks)
+cd benchmarks/goodai-ltm-benchmark
+poetry install
+cd ../..  # Return to project root
 ```
 
 ### 4. Run Tests

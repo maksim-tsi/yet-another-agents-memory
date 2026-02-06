@@ -10,7 +10,8 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from types import TracebackType
+from typing import Any, Self
 
 from pydantic import BaseModel
 
@@ -147,7 +148,7 @@ class BaseTier[TModel: BaseModel](ABC):
 
     @abstractmethod
     async def query(
-        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs: Any
     ) -> list[TModel]:
         """
         Query data with optional filters.
@@ -311,12 +312,17 @@ class BaseTier[TModel: BaseModel](ABC):
         """
         return self.storage_adapters.get(name)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         """Context manager entry - initialize tier."""
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
         """Context manager exit - cleanup tier."""
         await self.cleanup()
         return False

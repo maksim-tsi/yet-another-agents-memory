@@ -2,8 +2,9 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 
-from model_interfaces.interface import ChatSession
 from utils.ui import colour_print, multiline_input
+
+from model_interfaces.interface import ChatSession
 
 
 @dataclass

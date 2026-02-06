@@ -88,6 +88,8 @@ class EpisodicMemoryTier(BaseTier[Episode]):
         """
         async with OperationTimer(self.metrics, "l3_store"):
             if isinstance(data, dict):
+                if data.get("embedding") is None:
+                    raise ValueError("Embedding required")
                 warnings.warn(
                     "Passing dict to EpisodicMemoryTier.store() is deprecated. "
                     "Use EpisodeStoreInput model directly.",
@@ -142,6 +144,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             await self._link_indexes(episode)
 
             return episode.episode_id
+        raise AssertionError("Unreachable: store should return or raise.")
 
     async def retrieve(self, episode_id: str) -> Episode | None:
         """
@@ -188,6 +191,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             )
 
             return episode
+        raise AssertionError("Unreachable: retrieve should return or raise.")
 
     async def search_similar(
         self,
@@ -245,6 +249,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
                 episodes.append(episode)
 
             return episodes
+        raise AssertionError("Unreachable: search_similar should return or raise.")
 
     async def query_graph(
         self, cypher_query: str, parameters: dict[str, Any] | None = None
@@ -263,6 +268,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             results = await self.neo4j.execute_query(cypher_query, parameters or {})
 
             return results
+        raise AssertionError("Unreachable: query_graph should return or raise.")
 
     async def get_episode_entities(self, episode_id: str) -> list[dict[str, Any]]:
         """
@@ -391,9 +397,10 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             await self.neo4j.execute_query(delete_query, {"episode_id": episode_id})
 
             return True
+        raise AssertionError("Unreachable: delete should return or raise.")
 
     async def query(
-        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs: Any
     ) -> list[Episode]:
         """
         Query episodes from Neo4j with filters.

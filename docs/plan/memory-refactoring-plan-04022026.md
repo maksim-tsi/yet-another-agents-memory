@@ -131,10 +131,10 @@ async def store(self, data: TModel | dict[str, Any]) -> str:
 ```
 
 **Files to Update:**
-1. `src/memory/tiers/l4_semantic_memory.py` (line ~50) — **Start here (lowest risk)**
-2. `src/memory/tiers/l3_episodic_memory.py` (line ~74)
-3. `src/memory/tiers/l2_working_memory.py` (line ~127)
-4. `src/memory/tiers/l1_active_context.py` (line ~113) — **Do last (performance-critical)**
+1. `src/memory/tiers/semantic_memory_tier.py` (line ~50) — **Start here (lowest risk)**
+2. `src/memory/tiers/episodic_memory_tier.py` (line ~74)
+3. `src/memory/tiers/working_memory_tier.py` (line ~127)
+4. `src/memory/tiers/active_context_tier.py` (line ~113) — **Do last (performance-critical)**
 
 #### Step 3: Create `EpisodeStoreInput` Model for L3
 
@@ -313,7 +313,7 @@ def test_store_accepts_dict_with_deprecation_warning(tier):
 # Check specific tier files
 /home/max/code/mas-memory-layer/.venv/bin/python -m mypy \
     src/memory/tiers/base_tier.py \
-    src/memory/tiers/l4_semantic_memory.py \
+    src/memory/tiers/semantic_memory_tier.py \
     --strict
 
 # Check all memory module
@@ -383,10 +383,10 @@ Phase 2E is complete when:
 | File | Changes |
 |------|---------|
 | `src/memory/tiers/base_tier.py` | Update `store()` signature and docstring |
-| `src/memory/tiers/l1_active_context.py` | Update `store()` implementation |
-| `src/memory/tiers/l2_working_memory.py` | Update `store()` implementation |
-| `src/memory/tiers/l3_episodic_memory.py` | Update `store()`, handle `EpisodeStoreInput` |
-| `src/memory/tiers/l4_semantic_memory.py` | Update `store()` implementation |
+| `src/memory/tiers/active_context_tier.py` | Update `store()` implementation |
+| `src/memory/tiers/working_memory_tier.py` | Update `store()` implementation |
+| `src/memory/tiers/episodic_memory_tier.py` | Update `store()`, handle `EpisodeStoreInput` |
+| `src/memory/tiers/semantic_memory_tier.py` | Update `store()` implementation |
 | `src/memory/models.py` | Add `EpisodeStoreInput` model |
 | `src/memory/engines/promotion_engine.py` | Remove `.model_dump()` calls |
 | `src/memory/engines/consolidation_engine.py` | Use `EpisodeStoreInput` |

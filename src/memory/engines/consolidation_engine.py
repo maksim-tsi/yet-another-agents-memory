@@ -18,18 +18,25 @@ import asyncio
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
 from src.memory.engines.base_engine import BaseEngine
 from src.memory.lifecycle_stream import LifecycleStreamConsumer
-from src.memory.models import Episode, Fact
+from src.memory.models import Episode, EpisodeStoreInput, Fact
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
 from src.utils.llm_client import LLMClient
 from src.utils.providers import BaseProvider
 
 logger = logging.getLogger(__name__)
+
+
+class EmbeddingProvider(Protocol):
+    async def get_embedding(
+        self, text: str, model: str | None = None, output_dimensionality: int = 768
+    ) -> list[float]:
+        ...
 
 
 class ConsolidationEngine(BaseEngine):
@@ -84,7 +91,7 @@ class ConsolidationEngine(BaseEngine):
         self.batch_size = self.config.get("batch_size", self.DEFAULT_BATCH_SIZE)
         self._running = False
         self._buffer: list[Fact] = []
-        self._stream_task: asyncio.Task | None = None
+        self._stream_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """
@@ -284,14 +291,13 @@ class ConsolidationEngine(BaseEngine):
                 episode = await self._create_episode_from_facts(session_id, cluster)
                 embedding = await self._generate_embedding(episode)
 
-                await self.l3.store(
-                    {
-                        "episode": episode,
-                        "embedding": embedding,
-                        "entities": [],
-                        "relationships": [],
-                    }
+                payload = EpisodeStoreInput(
+                    episode=episode,
+                    embedding=embedding,
+                    entities=[],
+                    relationships=[],
                 )
+                await self.l3.store(payload)
 
                 stats["episodes_created"] = stats.get("episodes_created", 0) + 1
 
@@ -361,14 +367,13 @@ class ConsolidationEngine(BaseEngine):
                     embedding = await self._generate_embedding(episode)
 
                     # 6. Store in L3
-                    await self.l3.store(
-                        {
-                            "episode": episode,
-                            "embedding": embedding,
-                            "entities": [],  # Could extract from facts
-                            "relationships": [],  # Could extract from facts
-                        }
+                    payload = EpisodeStoreInput(
+                        episode=episode,
+                        embedding=embedding,
+                        entities=[],  # Could extract from facts
+                        relationships=[],  # Could extract from facts
                     )
+                    await self.l3.store(payload)
 
                     inc("episodes_created")
 
@@ -583,11 +588,11 @@ Format as JSON:
             **provider_health,
         }
 
-    def _get_embedding_provider(self):
+    def _get_embedding_provider(self) -> EmbeddingProvider | None:
         """Select a provider that supports embeddings from the registered LLM client."""
         for provider in self.llm._providers.values():
             if hasattr(provider, "get_embedding"):
-                return provider
+                return cast(EmbeddingProvider, provider)
         return None
 
     def _fallback_embedding(self, text: str) -> list[float]:

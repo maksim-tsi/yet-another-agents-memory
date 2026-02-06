@@ -89,6 +89,7 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             )
 
             return knowledge.knowledge_id
+        raise AssertionError("Unreachable: store should return or raise.")
 
     async def retrieve(self, knowledge_id: str) -> KnowledgeDocument | None:
         """
@@ -131,6 +132,7 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             await self._update_access(knowledge)
 
             return knowledge
+        raise AssertionError("Unreachable: retrieve should return or raise.")
 
     async def search(
         self,
@@ -203,9 +205,10 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
                 documents.append(knowledge)
 
             return documents
+        raise AssertionError("Unreachable: search should return or raise.")
 
     async def query(
-        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs: Any
     ) -> list[KnowledgeDocument]:
         """
         Query knowledge documents with filters (without text search).
@@ -266,6 +269,7 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             )
 
             return True
+        raise AssertionError("Unreachable: delete should return or raise.")
 
     async def get_statistics(self) -> dict[str, Any]:
         """

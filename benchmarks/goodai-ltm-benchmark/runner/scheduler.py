@@ -1,5 +1,6 @@
 import json
 import math
+import time
 import webbrowser
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -25,7 +26,9 @@ from utils.ui import colour_print
 
 from runner.config import RunConfig
 from runner.master_log import MasterLog
-from runner.progress import ProgressDialog, ProgressDialogProtocol
+from runner.progress import ProgressDialogProtocol, build_progress_dialog
+from runner.stuck_watchdog import StuckWatchdog
+from runner.turn_metrics import TurnMetrics, TurnMetricsWriter
 
 
 class WaitState(TypedDict):
@@ -70,6 +73,11 @@ class TestRunner:
     master_log: MasterLog | None = None
     progress_dialog: ProgressDialogProtocol | None = None
     random: Random = field(default_factory=lambda: Random(0))
+    run_id: str | None = None
+    metrics_writer: TurnMetricsWriter | None = None
+    stuck_watchdog: StuckWatchdog | None = None
+    llm_durations_ms: list[float] = field(default_factory=list)
+    storage_durations_ms: list[float] = field(default_factory=list)
 
     @property
     def runstats_path(self):
@@ -99,6 +107,12 @@ class TestRunner:
             managing_costs_usd=self.test_managing_costs_usd,
             duration=self.agent_benchmark_duration,
             rnd_state=self.random.getstate(),
+            llm_ms_p50=_percentile(self.llm_durations_ms, 50),
+            llm_ms_p95=_percentile(self.llm_durations_ms, 95),
+            llm_ms_p99=_percentile(self.llm_durations_ms, 99),
+            storage_ms_p50=_percentile(self.storage_durations_ms, 50),
+            storage_ms_p95=_percentile(self.storage_durations_ms, 95),
+            storage_ms_p99=_percentile(self.storage_durations_ms, 99),
         )
         with open(self.runstats_path, "w") as fd:
             json.dump(stats, fd)
@@ -145,6 +159,8 @@ class TestRunner:
     def set_to_wait(self, example: TestExample, action: WaitAction, log_this: bool = True):
         master_log = self._require_master_log()
         unique_id = example.unique_id
+        if self.stuck_watchdog is not None:
+            self.stuck_watchdog.touch()
 
         # We convert the percentage to tokens
         if action.percentage_finished > 0.0:
@@ -185,10 +201,14 @@ class TestRunner:
     def send_message(self, test_id: str, action: SendMessageAction) -> int:
         master_log = self._require_master_log()
         progress_dialog = self._require_progress_dialog()
+        if self.stuck_watchdog is not None:
+            self.stuck_watchdog.touch()
         agent_reply = None if not action.is_filling else action.filler_response
+        t0 = time.perf_counter()
         action.reply, action.sent_ts, action.reply_ts = self.agent.message_to_agent(
             action.message, agent_reply
         )
+        t1 = time.perf_counter()
         self.debug_message(action.message, action.reply, action.sent_ts, action.reply_ts)
         master_log.add_send_message(
             test_id=test_id,
@@ -208,7 +228,43 @@ class TestRunner:
         self.agent_token_count += reply_tokens
         self.total_token_count += message_tokens + reply_tokens
         progress_dialog.notify_message(self.total_token_count)
+        self._record_turn_metrics(
+            test_id=test_id,
+            message_tokens=message_tokens,
+            reply_tokens=reply_tokens,
+            total_ms=(t1 - t0) * 1000,
+        )
         return message_tokens + reply_tokens
+
+    def _record_turn_metrics(
+        self, test_id: str, message_tokens: int, reply_tokens: int, total_ms: float
+    ) -> None:
+        if self.metrics_writer is None or self.run_id is None:
+            return
+        last_metadata = getattr(self.agent, "last_metadata", None) or {}
+        llm_ms = _safe_float(last_metadata.get("llm_ms"))
+        storage_ms = _safe_float(last_metadata.get("storage_ms"))
+        if llm_ms is not None:
+            self.llm_durations_ms.append(llm_ms)
+        if storage_ms is not None:
+            self.storage_durations_ms.append(storage_ms)
+        dataset_name = ""
+        if test_id in self.in_progress_results:
+            dataset_name = self.in_progress_results[test_id].dataset_name
+        metrics = TurnMetrics.now(
+            run_id=self.run_id,
+            session_id=self.agent.save_name,
+            turn_id=self.total_token_count,
+            test_id=test_id,
+            dataset_name=dataset_name,
+            llm_ms=llm_ms,
+            storage_ms=storage_ms,
+            total_ms=total_ms,
+            tokens_in=message_tokens,
+            tokens_out=reply_tokens,
+            status="ok",
+        )
+        self.metrics_writer.write(metrics)
 
     def get_blocked_test(self, waiting_on: str) -> str | None:
         assert waiting_on in ["tokens", "time"]
@@ -468,6 +524,14 @@ class TestRunner:
 
                 self.save_runstats()
                 self.agent.save()
+                if self.stuck_watchdog is not None:
+                    self.stuck_watchdog.check_or_raise(
+                        {
+                            "run_name": self.config.run_name,
+                            "agent": self.agent.name,
+                            "test_id": example.unique_id,
+                        }
+                    )
 
             self.check_result_callbacks()
             if self.config.isolated:
@@ -506,6 +570,23 @@ class TestRunner:
         master_log.register_callback(example.unique_id, datetime.now())
         self.result_callbacks.append((cb, example))
 
+
+def _safe_float(value: object) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _percentile(values: list[float], pct: int) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    k = max(0, min(len(ordered) - 1, round((pct / 100) * (len(ordered) - 1))))
+    return float(ordered[k])
+
     def check_result_callbacks(self):
         master_log = self._require_master_log()
         deregistered_cb = []
@@ -543,7 +624,9 @@ class TestRunner:
         self.set_cost_callback()
         colour_print("green", f"Number of tests to run: {len(self.tests)}.")
         self.tests.sort(key=lambda t: t.unique_id)
-        self.progress_dialog = ProgressDialog(len(self.tests), self.config.isolated)
+        self.progress_dialog = build_progress_dialog(
+            self.config.progress, len(self.tests), self.config.isolated
+        )
         self.run_tests()
         self._require_progress_dialog().close()
         self.save_runstats()
