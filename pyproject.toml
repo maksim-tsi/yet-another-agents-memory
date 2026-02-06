@@ -72,6 +72,7 @@ optional = true
 
 [tool.poetry.group.dev.dependencies]
 mypy = "1.19.1"
+ruff = ">=0.4.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
