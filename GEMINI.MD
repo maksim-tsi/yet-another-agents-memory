@@ -52,7 +52,7 @@ All development work must adhere to these five principles:
 ## Technology Stack
 
 **Language**: Python 3.12.3  
-**Virtual Environment**: `/home/max/code/mas-memory-layer/.venv`  
+**Virtual Environment**: `.venv/` (Poetry-managed, in-project via `virtualenvs.in-project = true`)  
 **Key Dependencies**:
 - `pydantic==2.8.2` - Data validation and models
 - `redis==5.0.7` - L1 Active Context storage
@@ -65,24 +65,42 @@ All development work must adhere to these five principles:
 
 ## Python Execution Protocol
 
-**CRITICAL**: You are operating on a remote Ubuntu machine (skz-dev-lv) via SSH. Always use absolute paths to executables:
+**CRITICAL ENVIRONMENT RULE**: The terminal operates in a **stateless shell**. You **MUST NOT** use `source .venv/bin/activate` because activation will be lost on the very next command.
+
+**Host Detection**: Before running any command, determine your host:
+```bash
+uname -a && hostname && pwd
+```
+Consult `docs/environment-guide.md` for examples of expected output.
+
+**MANDATORY**:
+- If on the managed remote host (Linux + hostname like `skz-dev-lv`), use **absolute executable paths**:
+  - `/home/max/code/mas-memory-layer/.venv/bin/python`
+  - `/home/max/code/mas-memory-layer/.venv/bin/pytest`
+  - `/home/max/code/mas-memory-layer/.venv/bin/pip`
+- If on a local macOS/Linux checkout, use **relative paths** for portability:
+  - `./.venv/bin/python`
+  - `./.venv/bin/pytest`
+  - `./.venv/bin/pip`
 
 ```bash
-# Correct - Use absolute paths
-/home/max/code/mas-memory-layer/.venv/bin/python script.py
-/home/max/code/mas-memory-layer/.venv/bin/pytest tests/
-/home/max/code/mas-memory-layer/.venv/bin/pip install package
+# CORRECT (local)
+./.venv/bin/python script.py
+./.venv/bin/pytest tests/ -v
+
+# CORRECT (remote)
+/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ -v
 
 # WRONG - Do NOT use these
 source .venv/bin/activate  # Shell state is lost between commands
 python script.py           # May use wrong interpreter
 ```
 
-**Terminal Output Capture**: When running commands, use redirect-and-cat pattern for reliability:
-```bash
-command > /tmp/gemini.out 2>&1; cat /tmp/gemini.out
-```
-The semicolon ensures logs are displayed even if the command exits non-zero. See `docs/lessons-learned.md` (entry LL-20251115-01) for context.
+**Two-Environment Architecture**: This repository contains two separate Poetry projects:
+1. **MAS Memory Layer** (root): `poetry install --with test,dev` creates `.venv/`
+2. **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install` creates `.venv/` in that subdirectory
+
+These environments are intentionally isolated due to incompatible langchain versions.
 
 ## Multi-Host Development Guidance
 
@@ -95,7 +113,7 @@ Multiple contributors alternate between a remote Ubuntu VM, local macOS laptops,
 
 See [`docs/environment-guide.md`](docs/environment-guide.md) for the full detection and bootstrap procedure.
 
-Maintain the structured incident log in [`docs/lessons-learned.md`](docs/lessons-learned.md) whenever a workflow issue or mitigation is discovered. Reference the relevant entry ID when updating instructions or DEVLOG notes.
+Maintain the structured incident log in [`docs/lessons-learned.md`](docs/lessons-learned.md) whenever a workflow issue or mitigation is discovered.
 
 ## Coding Style
 
@@ -167,7 +185,7 @@ tests/
 ├── memory/              # Memory tier tests
 └── fixtures.py          # Shared test fixtures
 
-**Test status**: Run `/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ -v` for current results, or check `DEVLOG.md` for latest coverage reports.
+**Test status**: Run `./.venv/bin/pytest tests/ -v` for current results (on remote host use the absolute `.venv` path), or check `DEVLOG.md` for latest coverage reports.
 
 docs/
 ├── ADR/                 # Architecture Decision Records
@@ -199,17 +217,17 @@ docs/
 ### Running Tests
 ```bash
 # All tests
-/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ -v
+./.venv/bin/pytest tests/ -v
 
 # Specific test category
-/home/max/code/mas-memory-layer/.venv/bin/pytest tests/storage/ -v
-/home/max/code/mas-memory-layer/.venv/bin/pytest tests/memory/ -v
+./.venv/bin/pytest tests/storage/ -v
+./.venv/bin/pytest tests/memory/ -v
 
 # Smoke tests (connectivity checks)
-/home/max/code/mas-memory-layer/scripts/run_smoke_tests.sh
+./scripts/run_smoke_tests.sh
 
 # With coverage
-/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ --cov=src --cov-report=html
+./.venv/bin/pytest tests/ --cov=src --cov-report=html
 ```
 
 ### Real LLM/provider checks
@@ -219,14 +237,14 @@ docs/
 
 ### Running Benchmarks
 ```bash
-/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py run --size 10000
-/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py analyze
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 10000
+./.venv/bin/python scripts/run_storage_benchmark.py analyze
 ```
 
 ### Database Setup
 ```bash
 # PostgreSQL migrations
-/home/max/code/mas-memory-layer/scripts/setup_database.sh
+./scripts/setup_database.sh
 ```
 
 ### Environment Setup
