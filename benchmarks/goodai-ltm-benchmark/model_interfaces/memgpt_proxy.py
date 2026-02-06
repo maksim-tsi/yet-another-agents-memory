@@ -1,14 +1,15 @@
 import json
 from time import sleep
+from typing import Any
 
-import requests  # type: ignore[import-untyped]
+import requests
 from flask import Flask, request
 
 app = Flask("MemGPTproxy")
 
 
 @app.route("/<path:url_path>", methods=["POST"])
-def proxy_request(url_path):
+def proxy_request(url_path: str) -> tuple[Any, int, Any]:
     """
     Be extremely careful when changing anything in this code.
     Following actions leak stuff into the HTTP response:

@@ -38,7 +38,7 @@ STATEMENTS_REMOVE = [
 NUMBER = [1, 2, 3]
 
 
-def match_plural(answer_name: str, expected_names: list[str]):
+def match_plural(answer_name: str, expected_names: list[str]) -> tuple[bool, str]:
     for name in expected_names:
         # The answer_name could be the one that is plural
         if name in answer_name:
@@ -191,7 +191,7 @@ class ShoppingDataset(DatasetInterface):
         return score, max_score, ["\n".join(reasoning)]
 
 
-def main():
+def main() -> None:
     # Create a conversation for the agent using a name and phil
     items = ShoppingDataset()
     items.generate_examples(1)

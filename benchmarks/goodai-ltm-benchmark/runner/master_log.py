@@ -43,13 +43,13 @@ class LogEvent:
 
 
 class MasterLog:
-    def __init__(self, save_file: Path):
+    def __init__(self, save_file: Path) -> None:
         self.log: list[LogEvent] = []
         self.save_file = save_file
 
     def add_send_message(
         self, message: str, timestamp: datetime, test_id: str = "", is_question: bool = False
-    ):
+    ) -> None:
         event_type = EventType.SEND_MESSAGE if test_id != "" else EventType.SEND_FILL
         assert not (
             is_question and event_type == EventType.SEND_FILL
@@ -61,7 +61,7 @@ class MasterLog:
 
     def add_response_message(
         self, message: str, timestamp: datetime, test_id: str = "", is_question: bool = False
-    ):
+    ) -> None:
         event_type = EventType.RESPONSE_MESSAGE if test_id != "" else EventType.RESPONSE_FILL
         assert not (
             is_question and event_type == EventType.RESPONSE_FILL
@@ -77,7 +77,7 @@ class MasterLog:
         timestamp: datetime,
         tokens: int = 0,
         time: timedelta = timedelta(seconds=0),
-    ):
+    ) -> None:
         event = LogEvent(
             EventType.WAIT,
             timestamp=timestamp,
@@ -86,39 +86,39 @@ class MasterLog:
         )
         self.add_event(event)
 
-    def begin_test(self, test_id, timestamp, tokens):
+    def begin_test(self, test_id: str, timestamp: datetime, tokens: int) -> None:
         event = LogEvent(
             EventType.BEGIN, timestamp=timestamp, test_id=test_id, data={"tokens": tokens}
         )
         self.add_event(event)
 
-    def end_test(self, test_id: str, timestamp: datetime):
+    def end_test(self, test_id: str, timestamp: datetime) -> None:
         event = LogEvent(EventType.END, timestamp=timestamp, test_id=test_id)
         self.add_event(event)
 
-    def add_reset_event(self, timestamp: datetime):
+    def add_reset_event(self, timestamp: datetime) -> None:
         event = LogEvent(EventType.SUITE_RESET, timestamp=timestamp, test_id="")
         self.add_event(event)
 
-    def add_llm_call(self, test_id: str, timestamp: datetime, response: str):
+    def add_llm_call(self, test_id: str, timestamp: datetime, response: str) -> None:
         event = LogEvent(
             EventType.LLM_CALL, test_id=test_id, timestamp=timestamp, data={"response": response}
         )
         self.add_event(event)
 
-    def register_callback(self, test_id: str, timestamp: datetime):
+    def register_callback(self, test_id: str, timestamp: datetime) -> None:
         event = LogEvent(EventType.REGISTER_CALLBACK, timestamp=timestamp, test_id=test_id)
         self.add_event(event)
 
-    def deregister_callback(self, test_id: str, timestamp: datetime):
+    def deregister_callback(self, test_id: str, timestamp: datetime) -> None:
         event = LogEvent(EventType.DEREGISTER_CALLBACK, timestamp=timestamp, test_id=test_id)
         self.add_event(event)
 
-    def add_event(self, event: LogEvent):
+    def add_event(self, event: LogEvent) -> None:
         self.log.append(event)
         self.save_event(event)
 
-    def save_event(self, event: LogEvent):
+    def save_event(self, event: LogEvent) -> None:
         with open(self.save_file, "a") as fd:
             fd.write(json.dumps(event.to_json()) + "\n")
 
@@ -182,7 +182,7 @@ class MasterLog:
                 return idx
         raise ValueError(f"Message {message!r} for test {test_id!r} not found in log.")
 
-    def load(self):
+    def load(self) -> None:
         self.log = []
         with open(self.save_file) as fd:
             events_list = [json.loads(x) for x in fd.readlines()]

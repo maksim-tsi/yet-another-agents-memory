@@ -35,7 +35,7 @@ class LengthBiasAgent(BaseLTMAgent):
         ctx_fraction_for_mem: float = 0.5,
         llm_temperature: float = 0.01,
         run_name: str = "",
-    ):
+    ) -> None:
         super().__init__(run_name=run_name, model=model)
         if system_message is None:
             system_message = _default_system_message
@@ -48,7 +48,7 @@ class LengthBiasAgent(BaseLTMAgent):
         self.message_history: list[Message] = []
 
     @property
-    def name(self):
+    def name(self) -> str:
         return f"{super().name} - {self.model} - {self.max_prompt_size}"
 
     def build_llm_context(self, user_content: str) -> list[dict]:
@@ -95,7 +95,7 @@ class LengthBiasAgent(BaseLTMAgent):
         return make_system_message(excerpts_content)
 
     @staticmethod
-    def get_elapsed_time_descriptor(event_timestamp: float, current_timestamp: float):
+    def get_elapsed_time_descriptor(event_timestamp: float, current_timestamp: float) -> str:
         elapsed = current_timestamp - event_timestamp
         if elapsed < 1:
             return "just now"
@@ -143,15 +143,15 @@ class LengthBiasAgent(BaseLTMAgent):
         self.message_history.append(assistant_message)
         return response
 
-    def reset_history(self):
+    def reset_history(self) -> None:
         self.message_history = []
         self.session_index += 1
 
-    def reset_all(self):
+    def reset_all(self) -> None:
         self.reset_history()
         self.session_index = 0
 
-    def save(self):
+    def save(self) -> None:
         infos = [self.message_history]
         files = ["message_hist.json"]
 
@@ -160,7 +160,7 @@ class LengthBiasAgent(BaseLTMAgent):
             with open(fname, "w") as fd:
                 json.dump(obj, fd, cls=CustomEncoder)
 
-    def load(self):
+    def load(self) -> None:
         fname = self.save_path.joinpath("message_hist.json")
         with open(fname) as fd:
             ctx = json.load(fd)

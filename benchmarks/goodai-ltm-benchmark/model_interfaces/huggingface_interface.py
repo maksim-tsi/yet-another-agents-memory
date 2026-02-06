@@ -2,8 +2,10 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
+from typing import Any, cast
 
-from openai import ChatCompletion, OpenAI
+from openai import OpenAI
+from openai.types.chat import ChatCompletion
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 from utils.llm import LLMContext, make_assistant_message, make_user_message
 
@@ -23,11 +25,11 @@ class HFChatSession(ChatSession):
     tokens_used_last: int = 0
 
     @property
-    def name(self):
+    def name(self) -> str:
         name = f"{super().name} - {self.model} - {self.max_prompt_size}"
         return name.replace("/", "-")
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         if self.base_url is None:
             self.base_url = os.getenv("HUGGINGFACE_API_BASE")
@@ -45,7 +47,7 @@ class HFChatSession(ChatSession):
             try:
                 return self.client.chat.completions.create(
                     model="tgi",
-                    messages=self.context,
+                    messages=cast(Any, self.context),
                     max_tokens=self.max_response_tokens,
                     temperature=0,
                 )
@@ -53,6 +55,7 @@ class HFChatSession(ChatSession):
                 if i > 0:
                     raise exc
                 time.sleep(3)
+        raise RuntimeError("Unreachable")
 
     def reply(self, user_message: str, agent_response: str | None = None) -> str:
         self.context.append(make_user_message(user_message))
@@ -64,7 +67,8 @@ class HFChatSession(ChatSession):
             self.context = self.context[2:]
         if agent_response is None:
             completion = self.try_twice()
-            self.tokens_used_last = completion.usage.total_tokens
+            if completion.usage:
+                self.tokens_used_last = completion.usage.total_tokens
             message_content = completion.choices[0].message.content or ""
             response = message_content.removesuffix("</s>")
         else:
@@ -73,15 +77,15 @@ class HFChatSession(ChatSession):
         self.context.append(make_assistant_message(response))
         return response
 
-    def reset(self):
+    def reset(self) -> None:
         self.context = []
 
-    def save(self):
+    def save(self) -> None:
         fname = self.save_path.joinpath("context.json")
         with open(fname, "w") as fd:
             json.dump(self.context, fd)
 
-    def load(self):
+    def load(self) -> None:
         fname = self.save_path.joinpath("context.json")
         with open(fname) as fd:
             self.context = json.load(fd)

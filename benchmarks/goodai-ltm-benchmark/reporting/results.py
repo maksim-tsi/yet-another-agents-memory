@@ -25,7 +25,7 @@ class TestResult:
     full_log: list[str] = field(default_factory=list)
     needles: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._saved_attrs = [
             "task_log",
             "actual_responses",
@@ -39,7 +39,7 @@ class TestResult:
             "needles",
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         string = ""
         string += f"Dataset Name: {self.dataset_name}\n"
         string += f"Run Name: {self.run_name}\n"
@@ -57,7 +57,7 @@ class TestResult:
         return string
 
     @property
-    def unique_id(self):
+    def unique_id(self) -> str:
         return f"{self.dataset_name} - {self.example_id}"
 
     @property
@@ -66,13 +66,13 @@ class TestResult:
             self.run_name, self.agent_name, self.dataset_name, self.example_id, self.repetition
         )
 
-    def save(self):
+    def save(self) -> None:
         file_path = self.path
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, "w") as fd:
             json.dump({k: getattr(self, k) for k in self._saved_attrs}, fd, indent=2)
 
-    def load(self):
+    def load(self) -> None:
         with open(self.path) as fd:
             d = json.load(fd)
         for k in self._saved_attrs:

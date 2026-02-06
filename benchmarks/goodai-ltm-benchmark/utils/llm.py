@@ -327,8 +327,8 @@ def count_tokens_for_model(
         return fallback_count
 
 
-def create_huggingface_chat_context(model: str, context: LLMContext):
+def create_huggingface_chat_context(model: str, context: LLMContext) -> str:
     model_only = model[model.index("/") + 1 :]
     tokenizer = AutoTokenizer.from_pretrained(model_only)
     c = context[1:] if context[0]["role"] == "system" else context
-    return tokenizer.apply_chat_template(c, tokenize=False)
+    return str(tokenizer.apply_chat_template(c, tokenize=False))

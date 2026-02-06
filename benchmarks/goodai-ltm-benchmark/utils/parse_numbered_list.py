@@ -17,7 +17,7 @@ genres = [
 ]
 
 
-def main():
+def main() -> None:
     for g in genres:
         fname_read = FOLDER.joinpath(f"{g}_numbered.txt")
         name_list = []

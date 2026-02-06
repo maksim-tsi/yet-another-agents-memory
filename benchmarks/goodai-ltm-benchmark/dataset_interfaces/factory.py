@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any, cast
+from typing import Any
 
 from datasets.chapterbreak import ChapterBreakDataset
 from datasets.colours import ColourDataset
@@ -43,9 +43,7 @@ DATASETS: dict[str, type[DatasetInterface]] = {
     "restaurant": RestaurantDataset,
     "spy_meeting": SpyMeetingDataset,
 }
-DATASETS_BY_NAME: dict[str, type[DatasetInterface]] = {
-    cast(str, ds.name): ds for ds in DATASETS.values()
-}
+DATASETS_BY_NAME: dict[str, type[DatasetInterface]] = {ds.name: ds for ds in DATASETS.values()}
 
 
 class DatasetFactory:

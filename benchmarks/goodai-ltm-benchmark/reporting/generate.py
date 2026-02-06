@@ -7,7 +7,7 @@ from random import Random
 from typing import Any, cast
 
 import humanize
-import yaml  # type: ignore[import-untyped]
+import yaml
 from jinja2 import Environment, FileSystemLoader
 from utils.constants import (
     GOODAI_GREEN,
@@ -126,11 +126,13 @@ def arrange_data(results: list[TestResult]) -> dict[str, Any]:
     )
 
 
-def render_template(template_name: str, output_name: str | None = None, **kwargs) -> Path | str:
+def render_template(
+    template_name: str, output_name: str | None = None, **kwargs: Any
+) -> Path | str:
     file_loader = FileSystemLoader(REPORT_TEMPLATES_DIR)
     env = Environment(loader=file_loader)
     template = env.get_template(f"{template_name}.html")
-    output = cast(str, template.render(**kwargs))
+    output = template.render(**kwargs)
     if output_name is None:
         return output
     path = REPORT_OUTPUT_DIR.joinpath(f"{output_name}.html")
@@ -232,7 +234,7 @@ def generate_summary_report(
     agent_names: list[str],
     short_names: list[str] | None = None,
     output_name: str | None = None,
-):
+) -> Path | str:
     metric_keys = sorted(METRIC_NAMES.keys())
     metric_names = [METRIC_NAMES[k] for k in metric_keys]
     data_by_agent: list[dict[str, Any]] = [dict() for _ in agent_names]

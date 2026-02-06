@@ -29,7 +29,7 @@ class ChatSession(ABC):
             ), "The agent implementation is not providing any cost information."
         return response, sent_ts, reply_ts
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert self.run_name != "", "Run name is not set!"
 
     @property
@@ -55,15 +55,15 @@ class ChatSession(ABC):
         pass
 
     @abstractmethod
-    def reset(self):
+    def reset(self) -> None:
         pass
 
     @abstractmethod
-    def save(self):
+    def save(self) -> None:
         pass
 
     @abstractmethod
-    def load(self):
+    def load(self) -> None:
         pass
 
     def token_len(self, text: str) -> int:

@@ -134,7 +134,7 @@ class SpyMeetingDataset(DatasetInterface):
 
         return score, 1.0, reasoning
 
-    def get_answers_for_others(self, expected_answers):
+    def get_answers_for_others(self, expected_answers: list[list[str]]) -> set[str]:
         other_answers = set()
         for tup in CODED_INFO_TIME + CODED_INFO_THING + CODED_INFO_PLACE:
             for item in tup[1]:
