@@ -75,11 +75,6 @@ This project is guided by five core principles. All new code and refactoring sho
 
 These environments are intentionally isolated due to incompatible langchain versions (MAS uses `langchain-core>=0.3.25,<0.4.0` while benchmark uses `langchain==0.1.1`).
 
-## MANDATORY: Terminal Resiliency Protocol (Remote SSH)
-
-  * **Pattern**: `<command> > /tmp/copilot.out 2>&1; cat /tmp/copilot.out`
-  * The semicolon ensures the log is surfaced even if the primary command exits non-zero. See `docs/lessons-learned.md` (entry LL-20251115-01) for the incident summary.
-
 ## Path-Specific Instructions
 
 Detailed implementation patterns are organized by directory:
@@ -95,21 +90,19 @@ Detailed implementation patterns are organized by directory:
 
 ## Development Workflow
 
-**IMPORTANT**: All commands MUST follow the Terminal Resiliency Protocol (redirect-and-cat pattern).
-
 ### Running Tests
 ```bash
 # All tests (pytest discovers tests/ directory)
-/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ -v > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./.venv/bin/pytest tests/ -v
 
 # Smoke tests (connectivity checks)
-/home/max/code/mas-memory-layer/scripts/run_smoke_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./scripts/run_smoke_tests.sh
 
 # Specific storage adapter
-/home/max/code/mas-memory-layer/scripts/run_redis_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./scripts/run_redis_tests.sh
 
 # Memory integration tests
-/home/max/code/mas-memory-layer/scripts/run_memory_integration_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./scripts/run_memory_integration_tests.sh
 ```
 
 **Markers and real LLM/provider checks**
@@ -122,14 +115,14 @@ Tests use `pytest` with `pytest-asyncio`. See `.github/instructions/testing.inst
 ### Running Benchmarks
 ```bash
 # Storage performance benchmarks
-/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py run --size 10000 > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
-/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py analyze > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 10000
+./.venv/bin/python scripts/run_storage_benchmark.py analyze
 ```
 
 ### Database Setup
 ```bash
 # PostgreSQL migrations
-/home/max/code/mas-memory-layer/scripts/setup_database.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./scripts/setup_database.sh
 # Applies migrations/001_active_context.sql
 ```
 
@@ -148,10 +141,9 @@ Copy `.env.example` to `.env` with:
 - **Purpose**: For high-level, complex tasks, we will delegate to the `gemini` CLI. This tool is used for deep codebase analysis, multi-file refactoring planning, and architectural reviews.
 - **Invocation Pattern**: You MUST invoke it non-interactively using the `-p` flag.
 - **Context Syntax**: You MUST provide file and directory context using the `@` syntax inside the prompt string (e.g., `@src/memory/tiers/` or `@./`).
-- **Execution**: All `gemini` commands MUST follow the MANDATORY: Terminal Resiliency Protocol.
 - **Example Command**:
 ```bash
-gemini -p "@./ Review the project architecture and suggest improvements for the L3 tier" > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+gemini -p "@./ Review the project architecture and suggest improvements for the L3 tier"
 ```
 
 ## Critical Files & Directories
