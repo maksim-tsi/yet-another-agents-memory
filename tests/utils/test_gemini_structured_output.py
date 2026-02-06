@@ -17,6 +17,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.mark.asyncio
+@pytest.mark.llm_real
 async def test_fact_extraction_with_native_schema():
     """Test fact extraction using Gemini's native types.Schema format.
 

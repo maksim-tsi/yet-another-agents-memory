@@ -41,6 +41,8 @@ try:
 except ImportError:
     psycopg = None
 
+pytestmark = pytest.mark.integration
+
 try:
     from qdrant_client import QdrantClient
 except ImportError:

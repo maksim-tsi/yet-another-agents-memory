@@ -8,6 +8,8 @@ import pytest_asyncio
 from src.storage.base import StorageConnectionError, StorageDataError
 from src.storage.postgres_adapter import PostgresAdapter
 
+pytestmark = pytest.mark.integration
+
 
 @pytest_asyncio.fixture
 async def postgres_adapter():

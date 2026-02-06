@@ -9,6 +9,8 @@ import pytest_asyncio
 from src.storage.base import StorageConnectionError, StorageDataError, StorageTimeoutError
 from src.storage.redis_adapter import RedisAdapter
 
+pytestmark = pytest.mark.integration
+
 
 @pytest_asyncio.fixture
 async def redis_adapter():
