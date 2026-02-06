@@ -73,6 +73,7 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 mypy = "1.19.1"
 ruff = ">=0.4.0"
+types-pyyaml = "^6.0.12.20250915"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -144,6 +145,8 @@ warn_return_any = true
 warn_unused_ignores = true
 ignore_missing_imports = true
 disallow_untyped_defs = false
+namespace_packages = true
+explicit_package_bases = true
 # Staged rollout: start with core modules, expand over time
 # See docs/plan/enterprise-practices-rollout.md for details
 files = [
@@ -154,3 +157,4 @@ files = [
 [[tool.mypy.overrides]]
 module = "google.*"
 ignore_errors = true
+follow_imports = "skip"

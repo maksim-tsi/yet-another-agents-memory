@@ -187,6 +187,8 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense store failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Store failed: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def retrieve(self, id: str) -> dict[str, Any] | None:
         """Retrieve document by ID"""
         async with OperationTimer(self.metrics, "retrieve"):
@@ -220,6 +222,8 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense retrieve failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Retrieve failed: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def get_document(self, collection_name: str, document_id: str) -> dict[str, Any] | None:
         """Retrieve a document by ID from a specified collection."""
         async with OperationTimer(self.metrics, "get_document"):
@@ -252,6 +256,8 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense get_document failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Get document failed: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def update_document(
         self,
         collection_name: str,
@@ -278,6 +284,8 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense update_document failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Update document failed: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def delete_document(self, collection_name: str, document_id: str) -> bool:
         """Delete a document by ID from a specified collection."""
         async with OperationTimer(self.metrics, "delete_document"):
@@ -293,6 +301,8 @@ class TypesenseAdapter(StorageAdapter):
             except Exception as e:
                 logger.error(f"Typesense delete_document failed: {e}", exc_info=True)
                 return False
+
+        raise AssertionError("Unreachable")
 
     @overload
     async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]: ...
@@ -383,6 +393,8 @@ class TypesenseAdapter(StorageAdapter):
                 logger.error(f"Typesense search failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Search failed: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def delete(self, id: str) -> bool:
         """Delete document by ID"""
         async with OperationTimer(self.metrics, "delete"):
@@ -397,6 +409,8 @@ class TypesenseAdapter(StorageAdapter):
             except Exception as e:
                 logger.error(f"Typesense delete failed: {e}", exc_info=True)
                 return False
+
+        raise AssertionError("Unreachable")
 
     # Batch operations (optimized for Typesense)
 
@@ -533,6 +547,8 @@ class TypesenseAdapter(StorageAdapter):
             logger.error(f"Typesense batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch delete failed: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def health_check(self) -> dict[str, Any]:
         """
         Check Typesense backend health and performance.
@@ -601,10 +617,6 @@ class TypesenseAdapter(StorageAdapter):
                 "error": str(e),
                 "timestamp": datetime.now(UTC).isoformat(),
             }
-        except Exception as e:
-            latency_ms = (time.perf_counter() - start_time) * 1000
-            logger.error(f"Typesense health check failed: {e}", exc_info=True)
-
             return {
                 "status": "unhealthy",
                 "connected": self._connected,
@@ -613,6 +625,8 @@ class TypesenseAdapter(StorageAdapter):
                 "error": str(e),
                 "timestamp": datetime.now(UTC).isoformat(),
             }
+
+        raise AssertionError("Unreachable")
 
     async def _get_backend_metrics(self) -> dict[str, Any] | None:
         """Get Typesense-specific metrics."""
