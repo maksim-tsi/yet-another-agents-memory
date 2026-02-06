@@ -74,7 +74,7 @@ def get_chat_session(
             "1": LTMAgentVariant.QG_JSON_USER_INFO,
             "2": LTMAgentVariant.SEMANTIC_ONLY,
             "3": LTMAgentVariant.TEXT_SCRATCHPAD,
-        }.get(params["variant"], None)
+        }.get(params["variant"])
         if variant is None:
             raise ValueError(f"Unrecognized LTM Agent variant {params['variant']!r}.")
         return LTMAgentWrapper(model=model, variant=variant, **kwargs)

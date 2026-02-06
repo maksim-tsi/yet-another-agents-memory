@@ -6,13 +6,13 @@ with validation and serialization support.
 """
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 
-class FactType(str, Enum):
+class FactType(StrEnum):
     """Classification of fact types."""
 
     PREFERENCE = "preference"  # User preferences (high impact)
@@ -23,7 +23,7 @@ class FactType(str, Enum):
     EVENT = "event"  # Temporal events
 
 
-class FactCategory(str, Enum):
+class FactCategory(StrEnum):
     """Domain-specific fact categories."""
 
     PERSONAL = "personal"
