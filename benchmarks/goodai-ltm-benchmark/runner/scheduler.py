@@ -206,9 +206,14 @@ class TestRunner:
             self.stuck_watchdog.touch()
         agent_reply = None if not action.is_filling else action.filler_response
         t0 = time.perf_counter()
-        action.reply, action.sent_ts, action.reply_ts = self.agent.message_to_agent(
+        action.reply, action.sent_ts, action.reply_ts, metadata = self.agent.message_to_agent(
             action.message, agent_reply
         )
+
+        from runner.sanitizer import MetadataSanitizer
+
+        safe_metadata = MetadataSanitizer.sanitize(metadata)
+
         t1 = time.perf_counter()
         self.debug_message(action.message, action.reply, action.sent_ts, action.reply_ts)
         master_log.add_send_message(
@@ -222,6 +227,7 @@ class TestRunner:
             message=action.reply,
             timestamp=action.reply_ts,
             is_question=action.is_question,
+            metadata=safe_metadata,
         )
         self.agent_benchmark_duration += (action.reply_ts - action.sent_ts).total_seconds()
         message_tokens = self.agent.token_len(action.message)

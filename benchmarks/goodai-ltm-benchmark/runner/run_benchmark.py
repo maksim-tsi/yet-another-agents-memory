@@ -149,6 +149,17 @@ def load_test_examples(yaml_configuration, test_definition_paths: list[str]) -> 
     return examples
 
 
+def load_examples_from_dir(dataset_path: str, yaml_configuration: dict) -> list[TestExample]:
+    path = Path(dataset_path)
+    if not path.exists():
+        raise ValueError(f"Dataset path {dataset_path} does not exist.")
+
+    # Recursively find .def.json files
+    test_definition_paths = [str(p) for p in path.glob("**/*.def.json")]
+    print(f"Loading {len(test_definition_paths)} tests from {dataset_path}")
+    return load_test_examples(yaml_configuration, test_definition_paths)
+
+
 def check_result_files(
     run_name: str, agent_name: str, force_removal: bool = False, pass_default: bool = False
 ):
@@ -221,6 +232,7 @@ def check_result_files(
 @click.option("--turn-metrics/--no-turn-metrics", default=True)
 @click.option("--metrics-sample-rate", required=False, type=float, default=1.0)
 @click.option("--test-filter", required=False, type=str, default=None)
+@click.option("--dataset-path", required=False, type=str, default=None)
 def main(
     configuration: str,
     agent_name: str,
@@ -235,6 +247,7 @@ def main(
     turn_metrics: bool = True,
     metrics_sample_rate: float = 1.0,
     test_filter: str | None = None,
+    dataset_path: str | None = None,
 ):
     _main(
         configuration,
@@ -250,6 +263,7 @@ def main(
         turn_metrics,
         metrics_sample_rate,
         test_filter,
+        dataset_path,
     )
 
 
@@ -267,6 +281,7 @@ def _main(
     turn_metrics: bool = True,
     metrics_sample_rate: float = 1.0,
     test_filter: str | None = None,
+    dataset_path: str | None = None,
 ):
     progress = progress.lower()
     config_path = Path(configuration)
@@ -307,7 +322,10 @@ def _main(
         agent_name, max_prompt_size=max_prompt_size, run_name=config["run_name"], is_local=is_local
     )
 
-    examples = generate_test_examples(loaded_yaml, agent.max_message_size, pass_default=y)
+    if dataset_path:
+        examples = load_examples_from_dir(dataset_path, loaded_yaml)
+    else:
+        examples = generate_test_examples(loaded_yaml, agent.max_message_size, pass_default=y)
     examples = _apply_test_filter(examples, test_filter)
     resume = check_result_files(conf.run_name, agent.name, pass_default=y)
     if resume:
@@ -359,9 +377,7 @@ def _default_run_id(run_name: str) -> str:
     return f"{run_name}_{stamp}".replace(" ", "_")
 
 
-def _apply_test_filter(
-    examples: list[TestExample], test_filter: str | None
-) -> list[TestExample]:
+def _apply_test_filter(examples: list[TestExample], test_filter: str | None) -> list[TestExample]:
     if not test_filter:
         return examples
     dataset = ""

@@ -10,6 +10,7 @@ packages = [
     {include = "dataset_interfaces"},
     {include = "utils"},
     {include = "reporting"},
+    {include = "datasets"},
 ]
 
 [tool.poetry.dependencies]
@@ -81,7 +82,8 @@ dev = [
     "types-tqdm",
     "types-python-dateutil",
     "types-colorama",
-    "types-zstd"
+    "types-zstd",
+    "pytest-cov (>=7.0.0,<8.0.0)"
 ]
 
 [tool.mypy]

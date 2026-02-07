@@ -10,7 +10,9 @@ from transformers import AutoTokenizer
 try:  # Optional import for richer error typing
     from google.api_core import exceptions as google_exceptions
 except Exception:  # pragma: no cover - defensive fallback
-    google_exceptions = None
+    from typing import Any
+
+    google_exceptions: Any = None
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,14 @@
 from copy import deepcopy
 from typing import Any
 
-from datasets.chapterbreak import ChapterBreakDataset
-from datasets.colours import ColourDataset
-from datasets.conficting_personal_information import ConflictingPersonalInformationDataset
-from datasets.delayed_recall import DelayedRecallDataset
-from datasets.how_to_think import HowToThinkDataset
+try:
+    from datasets.chapterbreak import ChapterBreakDataset
+except ImportError:
+    ChapterBreakDataset = None
+# from datasets.colours import ColourDataset
+# from datasets.conficting_personal_information import ConflictingPersonalInformationDataset
+# from datasets.delayed_recall import DelayedRecallDataset
+# from datasets.how_to_think import HowToThinkDataset
 from datasets.instruction_recall import InstructionRecallDataset
 from datasets.jokes import JokesDataset
 from datasets.kv import KVPairsDataset
@@ -25,7 +28,7 @@ from dataset_interfaces.interface import DatasetInterface, TestExample
 
 DATASETS: dict[str, type[DatasetInterface]] = {
     "names": NamesDataset,
-    "colours": ColourDataset,
+    # "colours": ColourDataset,
     "shopping": ShoppingDataset,
     "locations": LocationsDataset,
     "locations_directions": LocationsDirectionsDataset,
@@ -33,16 +36,18 @@ DATASETS: dict[str, type[DatasetInterface]] = {
     "name_list": NameListDataset,
     "jokes": JokesDataset,
     "kv": KVPairsDataset,
-    "chapterbreak": ChapterBreakDataset,
-    "delayed_recall": DelayedRecallDataset,
+    # "delayed_recall": DelayedRecallDataset,
     "instruction_recall": InstructionRecallDataset,
-    "how_to_think": HowToThinkDataset,
+    # "how_to_think": HowToThinkDataset,
     "prospective_memory": ProspectiveMemoryDataset,
-    "conflicting_personal_info": ConflictingPersonalInformationDataset,
+    # "conflicting_personal_info": ConflictingPersonalInformationDataset,
     "trigger_response": TriggerResponseDataset,
     "restaurant": RestaurantDataset,
     "spy_meeting": SpyMeetingDataset,
 }
+
+if ChapterBreakDataset is not None:
+    DATASETS["chapterbreak"] = ChapterBreakDataset
 DATASETS_BY_NAME: dict[str, type[DatasetInterface]] = {ds.name: ds for ds in DATASETS.values()}
 
 
