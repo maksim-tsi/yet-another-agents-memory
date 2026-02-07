@@ -198,6 +198,41 @@ L1/L2 tiers, wired wrapper session prefixing, and registered MAS agents in the b
 - MAS agents registered in [benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py](benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py).
 - L1/L2 retrieval compatibility fixes in [memory_system.py](memory_system.py).
 
+### 2026-02-07 - GoodAI Benchmark WebUI Stabilization 📊
+
+**Status:** ✅ Complete
+
+**Summary:**
+Stabilized the GoodAI Benchmark WebUI for non-interactive execution, wrapper diagnostics, and run tracking. The backend now enforces unique run identities, injects auto-approval for definition reuse by default, and exposes wrapper health with last-error extraction. The frontend adds operator guidance, wrapper status visualization, and auto-selection of active runs. Benchmark runs now capture stdout/stderr and Python logging records into per-run console logs.
+
+**Key Findings:**
+- Wrapper startup required the root `.venv` interpreter to resolve Redis/Postgres dependencies.
+- Run progress stalling was caused by interactive prompts and non-unique run IDs.
+- Consistent console logging is necessary for post-hoc diagnosis of partial runs.
+
+**✅ What's Complete:**
+- Wrapper health endpoint and last-error surfacing in [benchmarks/goodai-ltm-benchmark/webui/server.py](benchmarks/goodai-ltm-benchmark/webui/server.py).
+- Run auto-approval toggle and inline operator guidance in [benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx](benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx).
+- Frontend styling updates in [benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css](benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css).
+- Consistent console logging for benchmark runs in [benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py](benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py).
+- Wrapper startup helper in [scripts/start_benchmark_wrappers.sh](scripts/start_benchmark_wrappers.sh).
+
+**❌ What's Missing:**
+- Automated wrapper restart controls in the WebUI.
+- Pre-run database connectivity validation.
+
+**Current Project Completion:**
+- **Phase 5**: ~80% 🚧 (no scope change recorded in this activity)
+
+**Evidence from Codebase:**
+```bash
+benchmarks/goodai-ltm-benchmark/webui/server.py
+benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx
+benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css
+benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py
+scripts/start_benchmark_wrappers.sh
+```
+
 **❌ What's Missing:**
 - Wrapper database isolation locks (Redis/Neo4j/Qdrant) and adapter-level instrumentation.
 - Wrapper API unit tests and instrumentation module (`src/evaluation/instrumentation.py`).

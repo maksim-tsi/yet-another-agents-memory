@@ -155,12 +155,16 @@ celerybeat.pid
 .env.*.local
 .env.old
 .envrc
+.envrc.local
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Node
+node_modules/
 
 # Spyder project settings
 .spyderproject

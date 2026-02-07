@@ -150,10 +150,100 @@ button {
   flex-wrap: wrap;
 }
 
+.wrapper-status {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+}
+
+.wrapper-status h3 {
+  margin: 0;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.wrapper-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(7, 10, 14, 0.7);
+}
+
+.wrapper-row strong {
+  margin-right: 10px;
+}
+
+.wrapper-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.status-ok {
+  color: var(--accent);
+  margin-left: 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.status-bad {
+  color: var(--danger);
+  margin-left: 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.status-error {
+  color: var(--danger);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+}
+
 .hint {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.advice {
+  margin: 0;
+  color: rgba(149, 162, 182, 0.85);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 20, 26, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.toggle label {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .scope {

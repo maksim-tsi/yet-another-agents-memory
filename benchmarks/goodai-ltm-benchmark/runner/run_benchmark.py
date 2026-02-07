@@ -5,9 +5,11 @@ import os
 import os.path
 import re
 import shutil
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import IO
 
 import click
 import yaml
@@ -38,6 +40,21 @@ from runner.run_manifest import RunManifest
 from runner.scheduler import TestRunner
 from runner.stuck_watchdog import StuckWatchdog
 from runner.turn_metrics import TurnMetricsWriter
+
+
+class _TeeWriter:
+    def __init__(self, *streams: IO[str]) -> None:
+        self._streams = streams
+
+    def write(self, data: str) -> int:
+        written = 0
+        for stream in self._streams:
+            written = stream.write(data)
+        return written
+
+    def flush(self) -> None:
+        for stream in self._streams:
+            stream.flush()
 
 
 def get_chat_session(
@@ -332,6 +349,17 @@ def _main(
         agent.load()
 
     run_path = make_run_path(conf.run_name, agent.name)
+    run_path.mkdir(parents=True, exist_ok=True)
+    console_log_path = run_path.joinpath("run_console.log")
+    log_handle = console_log_path.open("a", encoding="utf-8")
+    log_handler = logging.StreamHandler(log_handle)
+    log_handler.setLevel(logging.INFO)
+    log_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.getLogger().addHandler(log_handler)
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    sys.stdout = _TeeWriter(original_stdout, log_handle)
+    sys.stderr = _TeeWriter(original_stderr, log_handle)
     metrics_writer = None
     if conf.turn_metrics:
         metrics_writer = TurnMetricsWriter(
@@ -364,6 +392,10 @@ def _main(
     try:
         runner.run()
     finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+        logging.getLogger().removeHandler(log_handler)
+        log_handle.close()
         run_manifest.finish()
         run_manifest.write(run_path.joinpath("run_meta.json"))
 

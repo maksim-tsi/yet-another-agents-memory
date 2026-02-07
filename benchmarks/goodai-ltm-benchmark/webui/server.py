@@ -7,6 +7,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -21,6 +23,16 @@ BASE_DIR = Path(__file__).resolve().parent
 PRESETS_PATH = BASE_DIR.joinpath("presets.json")
 WEBUI_LOG_DIR = BASE_DIR.joinpath("logs")
 RUN_META_NAME = "run_meta.json"
+REPO_ROOT = BASE_DIR.parents[3]
+WRAPPER_PYTHON = os.environ.get(
+    "MAS_WRAPPER_PYTHON",
+    str(REPO_ROOT.joinpath(".venv", "bin", "python")),
+)
+WRAPPER_TARGETS = [
+    {"agent_type": "full", "label": "mas-full", "port": 8080},
+    {"agent_type": "rag", "label": "mas-rag", "port": 8081},
+    {"agent_type": "full_context", "label": "mas-full-context", "port": 8082},
+]
 
 app = FastAPI(title="GoodAI Benchmark WebUI", version="1.0")
 app.add_middleware(
@@ -63,8 +75,9 @@ def _run_status(meta_path: Path) -> dict[str, Any]:
         status = "completed"
     if run_error.exists():
         status = "stalled"
+    run_id = meta.get("run_id") or _run_key(meta)
     return {
-        "run_id": meta.get("run_id"),
+        "run_id": run_id,
         "run_name": meta.get("run_name"),
         "agent_name": meta.get("agent_name"),
         "start_time": meta.get("start_time"),
@@ -72,6 +85,51 @@ def _run_status(meta_path: Path) -> dict[str, Any]:
         "status": status,
         "path": str(run_dir),
     }
+
+
+def _default_run_name(agent_name: str) -> str:
+    safe_agent = agent_name.replace("_", " ").replace("-", " ").strip()
+    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    return f"MAS {safe_agent} {timestamp}"
+
+
+def _default_run_id(agent_name: str) -> str:
+    safe_agent = agent_name.replace("_", "-").replace(" ", "-").strip()
+    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    return f"{safe_agent}-{timestamp}"
+
+
+def _run_key(meta: dict[str, Any]) -> str:
+    run_name = meta.get("run_name") or "Run"
+    agent_name = meta.get("agent_name") or "agent"
+    start_time = meta.get("start_time") or "unknown"
+    return f"{run_name}:{agent_name}:{start_time}"
+
+
+def _extract_last_error(lines: list[str]) -> str | None:
+    for line in reversed(lines):
+        if "ERROR" in line or "Traceback" in line or "Exception" in line:
+            return line.strip()
+    return None
+
+
+def _read_wrapper_health(port: int) -> dict[str, Any]:
+    url = f"http://localhost:{port}/health"
+    req = Request(url, headers={"Accept": "application/json"})
+    try:
+        with urlopen(req, timeout=2) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        return {"ok": True, "payload": payload}
+    except URLError as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def _resolve_wrapper_log(port: int, agent_type: str) -> Path:
+    webui_log = WEBUI_LOG_DIR.joinpath(f"wrapper-{port}.log")
+    if webui_log.exists():
+        return webui_log
+    root_log = REPO_ROOT.joinpath("logs", f"wrapper_{agent_type}.log")
+    return root_log
 
 
 @app.get("/api/presets")
@@ -157,10 +215,15 @@ def start_run(payload: dict[str, Any]) -> dict[str, Any]:
     stuck_timeout = payload.get("stuck_timeout", 15)
     metrics_sample_rate = payload.get("metrics_sample_rate", 1.0)
     test_filter = payload.get("test_filter")
+    auto_approve = bool(payload.get("auto_approve", True))
     if not config_path or not agent_name:
         raise HTTPException(status_code=400, detail="config_path and agent_name are required")
 
-    run_dir = make_run_path(run_name or "Run", agent_name)
+    if not run_name or not str(run_name).strip():
+        run_name = _default_run_name(agent_name)
+    if not run_id or not str(run_id).strip():
+        run_id = _default_run_id(agent_name)
+    run_dir = make_run_path(run_name, agent_name)
     run_dir.mkdir(parents=True, exist_ok=True)
     log_path = run_dir.joinpath("run_console.log")
 
@@ -178,10 +241,10 @@ def start_run(payload: dict[str, Any]) -> dict[str, Any]:
         "--metrics-sample-rate",
         str(metrics_sample_rate),
     ]
-    if run_name:
-        cmd += ["--run-name", run_name]
-    if run_id:
-        cmd += ["--run-id", run_id]
+    cmd += ["--run-name", run_name]
+    cmd += ["--run-id", run_id]
+    if auto_approve:
+        cmd += ["-y"]
     if max_prompt_size:
         cmd += ["--max-prompt-size", str(max_prompt_size)]
     if test_filter:
@@ -197,7 +260,13 @@ def start_run(payload: dict[str, Any]) -> dict[str, Any]:
         )
 
     RUN_PROCESSES[run_id or run_name or agent_name] = process
-    return {"status": "started", "pid": process.pid, "log_path": str(log_path)}
+    return {
+        "status": "started",
+        "pid": process.pid,
+        "log_path": str(log_path),
+        "run_name": run_name,
+        "run_id": run_id,
+    }
 
 
 @app.get("/api/index")
@@ -226,7 +295,7 @@ def start_wrapper(payload: dict[str, Any]) -> dict[str, Any]:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir.joinpath(f"wrapper-{port}.log")
     cmd = [
-        sys.executable,
+        WRAPPER_PYTHON,
         "-m",
         "src.evaluation.agent_wrapper",
         "--agent-type",
@@ -237,23 +306,48 @@ def start_wrapper(payload: dict[str, Any]) -> dict[str, Any]:
     if model:
         cmd += ["--model", model]
 
+    env = os.environ.copy()
+    env["PYTHONPATH"] = f"{REPO_ROOT}{os.pathsep}{env.get('PYTHONPATH', '')}"
     with log_path.open("w", encoding="utf-8") as handle:
         process = subprocess.Popen(
             cmd,
-            cwd=str(Path(__file__).resolve().parents[3]),
+            cwd=str(REPO_ROOT),
             stdout=handle,
             stderr=subprocess.STDOUT,
-            env=os.environ.copy(),
+            env=env,
         )
 
     WRAPPER_PROCESSES[int(port)] = process
     return {"status": "started", "pid": process.pid, "log_path": str(log_path)}
 
 
+@app.get("/api/wrappers/status")
+def get_wrappers_status() -> dict[str, Any]:
+    statuses: list[dict[str, Any]] = []
+    for target in WRAPPER_TARGETS:
+        port = int(target["port"])
+        log_path = _resolve_wrapper_log(port, target["agent_type"])
+        lines = _tail_file(log_path, max_lines=200)
+        health = _read_wrapper_health(port)
+        statuses.append(
+            {
+                "agent_type": target["agent_type"],
+                "label": target["label"],
+                "port": port,
+                "running": health["ok"],
+                "health": health.get("payload"),
+                "error": health.get("error"),
+                "last_error": _extract_last_error(lines),
+                "log_path": str(log_path),
+            }
+        )
+    return {"wrappers": statuses}
+
+
 def _locate_run_meta(run_id: str) -> Path | None:
     for meta in _find_run_meta_files():
         data = _read_json(meta)
-        if data.get("run_id") == run_id:
+        if data.get("run_id") == run_id or _run_key(data) == run_id:
             return meta
     return None
 

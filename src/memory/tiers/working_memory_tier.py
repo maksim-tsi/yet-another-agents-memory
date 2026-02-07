@@ -416,18 +416,18 @@ class WorkingMemoryTier(BaseTier[Fact]):
                 # Using plainto_tsquery for simple natural language queries
                 sql = """
                     SELECT *,
-                           ts_rank(content_tsv, plainto_tsquery('simple', $1)) as rank
+                        ts_rank(content_tsv, plainto_tsquery('simple', %s)) as rank
                     FROM working_memory
-                    WHERE session_id = $2
-                      AND ciar_score >= $3
-                      AND (ttl_expires_at IS NULL OR ttl_expires_at > NOW())
-                      AND content_tsv @@ plainto_tsquery('simple', $1)
+                    WHERE session_id = %s
+                        AND ciar_score >= %s
+                        AND (ttl_expires_at IS NULL OR ttl_expires_at > NOW())
+                        AND content_tsv @@ plainto_tsquery('simple', %s)
                     ORDER BY rank DESC, ciar_score DESC, last_accessed DESC
-                    LIMIT $4
+                    LIMIT %s
                 """
 
                 results = await self.postgres.execute(
-                    sql, query, session_id, min_ciar_threshold, limit
+                    sql, query, session_id, min_ciar_threshold, query, limit
                 )
 
                 facts = []
