@@ -549,7 +549,11 @@ class ContextBlock(BaseModel):
 
         # Count turn content
         for turn in self.recent_turns:
-            total_chars += len(turn.get("content", ""))
+            if isinstance(turn, dict):
+                total_chars += len(turn.get("content", ""))
+            else:
+                # Handle TurnData objects
+                total_chars += len(getattr(turn, "content", ""))
 
         # Count fact content
         for fact in self.significant_facts:

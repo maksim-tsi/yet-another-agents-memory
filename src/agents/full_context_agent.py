@@ -143,10 +143,17 @@ class FullContextAgent(BaseAgent):
         """Format recent turns for full-context prompts."""
         formatted: list[str] = []
         for turn in recent_turns:
-            role = turn.get("role", "unknown").upper()
-            content = turn.get("content", "")
-            if self._include_metadata:
+            if isinstance(turn, dict):
+                role = turn.get("role", "unknown").upper()
+                content = turn.get("content", "")
                 timestamp = turn.get("timestamp", "N/A")
+            else:
+                # Handle TurnData objects
+                role = getattr(turn, "role", "unknown").upper()
+                content = getattr(turn, "content", "")
+                timestamp = getattr(turn, "timestamp", "N/A")
+
+            if self._include_metadata:
                 formatted.append(f"[{timestamp}] {role}: {content}")
             else:
                 formatted.append(f"{role}: {content}")

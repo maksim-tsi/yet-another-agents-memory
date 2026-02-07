@@ -19,7 +19,7 @@ def history_to_contents(history: list[glm.Content]) -> list[dict]:
 def count_tokens_by_curl(text: str | None = None, history: list[glm.Content] | None = None) -> int:
     assert text is not None or history is not None
     api_key = os.getenv("GOOGLE_API_KEY")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:countTokens?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:countTokens?key={api_key}"
     headers = {"Content-Type": "application/json"}
     contents = [{"parts": [{"text": text}]}] if history is None else history_to_contents(history)
     r = requests.post(url, headers=headers, data=json.dumps({"contents": contents}))
@@ -28,7 +28,7 @@ def count_tokens_by_curl(text: str | None = None, history: list[glm.Content] | N
 
 def reply_by_curl(history: list[glm.Content]) -> str:
     api_key = os.getenv("GOOGLE_API_KEY")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     contents = [
         {"role": msg.role, "parts": [{"text": p.text} for p in msg.parts]} for msg in history
@@ -75,7 +75,7 @@ class GeminiProInterface(ChatSession):
     def __post_init__(self) -> None:
         super().__post_init__()
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-        self.model = genai.GenerativeModel("gemini-1.5-pro-latest")
+        self.model = genai.GenerativeModel("gemini-2.5-flash-lite")
         self.reset()
 
     def reply(self, user_message: str, agent_response: str | None = None) -> str:
