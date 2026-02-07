@@ -617,6 +617,11 @@ class TypesenseAdapter(StorageAdapter):
                 "error": str(e),
                 "timestamp": datetime.now(UTC).isoformat(),
             }
+
+        except Exception as e:
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            logger.error(f"Typesense health check failed: {e}", exc_info=True)
+
             return {
                 "status": "unhealthy",
                 "connected": self._connected,

@@ -601,8 +601,6 @@ class RedisAdapter(StorageAdapter):
             logger.error(f"Failed to get session size: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to get size: {e}") from e
 
-    raise AssertionError("Unreachable")
-
     async def session_exists(self, session_id: str) -> bool:
         """
         Check if session has cached turns.
@@ -624,8 +622,6 @@ class RedisAdapter(StorageAdapter):
             logger.error(f"Failed to check session existence: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to check existence: {e}") from e
 
-    raise AssertionError("Unreachable")
-
     async def refresh_ttl(self, session_id: str) -> bool:
         """
         Refresh TTL for session cache (extend expiration).
@@ -646,8 +642,6 @@ class RedisAdapter(StorageAdapter):
         except redis.RedisError as e:
             logger.error(f"Failed to refresh TTL: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to refresh TTL: {e}") from e
-
-    raise AssertionError("Unreachable")
 
     async def scan_keys(self, pattern: str) -> list[str]:
         """
@@ -714,8 +708,6 @@ class RedisAdapter(StorageAdapter):
         except redis.RedisError as e:
             logger.error(f"Redis delete_keys failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to delete keys: {e}") from e
-
-    raise AssertionError("Unreachable")
 
     # Proxy methods for direct Redis commands (used by ActiveContextTier)
     async def lpush(self, key: str, *values: str) -> int:

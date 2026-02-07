@@ -694,8 +694,6 @@ class QdrantAdapter(StorageAdapter):
             logger.error(f"Qdrant batch store failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to batch store in Qdrant: {e}") from e
 
-    raise AssertionError("Unreachable")
-
     async def retrieve_batch(self, ids: list[str]) -> list[dict[str, Any] | None]:
         """
         Retrieve multiple vectors by their IDs in a single operation.
@@ -758,8 +756,6 @@ class QdrantAdapter(StorageAdapter):
             logger.error(f"Qdrant batch retrieve failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to batch retrieve from Qdrant: {e}") from e
 
-    raise AssertionError("Unreachable")
-
     async def delete_batch(self, ids: list[str]) -> dict[str, bool]:
         """
         Delete multiple vectors by their IDs in a single operation.
@@ -806,8 +802,6 @@ class QdrantAdapter(StorageAdapter):
         except Exception as e:
             logger.error(f"Qdrant batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Failed to batch delete from Qdrant: {e}") from e
-
-    raise AssertionError("Unreachable")
 
     async def health_check(self) -> dict[str, Any]:
         """

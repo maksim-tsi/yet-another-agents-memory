@@ -551,8 +551,6 @@ class Neo4jAdapter(StorageAdapter):
             logger.error(f"Neo4j batch store failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch store failed: {e}") from e
 
-    raise AssertionError("Unreachable")
-
     async def retrieve_batch(self, ids: list[str]) -> list[dict[str, Any] | None]:
         """
         Retrieve multiple entities by their IDs in a single query.
@@ -597,8 +595,6 @@ class Neo4jAdapter(StorageAdapter):
         except Exception as e:
             logger.error(f"Neo4j batch retrieve failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch retrieve failed: {e}") from e
-
-    raise AssertionError("Unreachable")
 
     async def delete_batch(self, ids: list[str]) -> dict[str, bool]:
         """
@@ -650,8 +646,6 @@ class Neo4jAdapter(StorageAdapter):
         except Exception as e:
             logger.error(f"Neo4j batch delete failed: {e}", exc_info=True)
             raise StorageQueryError(f"Batch delete failed: {e}") from e
-
-    raise AssertionError("Unreachable")
 
     async def health_check(self) -> dict[str, Any]:
         """
