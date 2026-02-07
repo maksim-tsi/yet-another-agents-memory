@@ -6,7 +6,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -39,7 +39,7 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        return cast(dict[str, Any], json.load(handle))
 
 
 def _tail_file(path: Path, max_lines: int = 200) -> list[str]:
@@ -262,6 +262,7 @@ dist_dir = BASE_DIR.joinpath("frontend/dist")
 if dist_dir.exists():
     app.mount("/", StaticFiles(directory=dist_dir, html=True), name="static")
 else:
+
     @app.get("/")
     def root() -> JSONResponse:
         return JSONResponse(

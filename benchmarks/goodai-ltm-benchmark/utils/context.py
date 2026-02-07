@@ -1,7 +1,9 @@
+from typing import Any
+
 from colorama import Fore, Style
 
 
-def render_context(context):
+def render_context(context: list[dict[str, Any]]) -> None:
     for ctx in context:
         if ctx["role"] == "user":
             print(Fore.YELLOW + f"USER:\n{ctx['content']}\n")
@@ -11,7 +13,7 @@ def render_context(context):
     print(Style.RESET_ALL)
 
 
-def flatten_context(context):
+def flatten_context(context: list[dict[str, Any]]) -> str:
     string = ""
     for ctx in context:
         string += ctx["content"]
@@ -19,7 +21,9 @@ def flatten_context(context):
     return string
 
 
-def search_context(context, content=None, timestamp=None):
+def search_context(
+    context: list[dict[str, Any]], content: str | None = None, timestamp: str | None = None
+) -> int:
     for idx, c in enumerate(context):
         if content and c["content"] != content:
             continue

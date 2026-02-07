@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import google.generativeai as genai
-import requests  # type: ignore[import-untyped]
+import requests
 from google.ai import generativelanguage as glm
 
 from model_interfaces.interface import ChatSession
@@ -72,7 +72,7 @@ class GeminiProInterface(ChatSession):
     def history_path(self) -> Path:
         return self.save_path.joinpath("history.dat")
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         self.model = genai.GenerativeModel("gemini-1.5-pro-latest")
@@ -92,14 +92,14 @@ class GeminiProInterface(ChatSession):
         time.sleep(0.1)
         return agent_response
 
-    def reset(self, history=None):
+    def reset(self, history: list[glm.Content] | None = None) -> None:
         self.chat = self.model.start_chat(history=history or [])
 
-    def save(self):
+    def save(self) -> None:
         with open(self.history_path, "bw") as fd:
             pickle.dump(self.chat.history, fd)
 
-    def load(self):
+    def load(self) -> None:
         with open(self.history_path, "br") as fd:
             self.reset(pickle.load(fd))
 

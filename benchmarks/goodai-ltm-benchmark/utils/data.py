@@ -16,7 +16,7 @@ def get_gdrive_file(dataset_name: str, file_id: str, filepath: str) -> Path:
     return path
 
 
-def get_file(dataset_name: str, url: str, filepath: str, checksum=None) -> Path:
+def get_file(dataset_name: str, url: str, filepath: str, checksum: str | None = None) -> Path:
     path = get_data_path(dataset_name, filepath)
     if not path.exists():
         download_file(url, path)
@@ -25,21 +25,21 @@ def get_file(dataset_name: str, url: str, filepath: str, checksum=None) -> Path:
     return path
 
 
-def download_gdrive_file(file_id: str, destination: str | Path):
+def download_gdrive_file(file_id: str, destination: str | Path) -> None:
     import gdown
 
     url = f"https://drive.google.com/uc?id={file_id}"
     gdown.download(url, str(destination))
 
 
-def download_file(url: str, file: Path):
+def download_file(url: str, file: Path) -> None:
     from urllib.request import urlretrieve
 
     import tqdm
 
     pbar = tqdm.tqdm(unit="B", unit_scale=True, desc=f"Downloading {file.name}")
 
-    def update_hook(block_number, read_size, total_size):
+    def update_hook(block_number: int, read_size: int, total_size: int) -> None:
         pbar.total = total_size
         pbar.update(read_size)
 
@@ -47,7 +47,7 @@ def download_file(url: str, file: Path):
     pbar.clear()
 
 
-def check_file_hash(file: Path, hashcode: str):
+def check_file_hash(file: Path, hashcode: str) -> None:
     import hashlib
 
     sha256_hash = hashlib.sha256()

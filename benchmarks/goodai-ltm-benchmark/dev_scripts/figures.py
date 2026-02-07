@@ -1,12 +1,13 @@
 from collections import defaultdict
+from typing import Any
 
 import matplotlib.pyplot as plt
 from reporting.generate import get_summary_data
 
 
-def main():
+def main() -> None:
     run_names = [(f"Benchmark 3 - {span}k", span) for span in [120, 200, 500]]
-    x_labels = [f"{span}k" for _, span in run_names]
+    x_labels = ["{span}k" for _, span in run_names]
     # TODO: Rename all result dirs that have "gpt-4-turbo" or "claude-3-opus" to the exact name.
     # TODO: See if that is already fixed for new results.
     aliases = {
@@ -34,7 +35,7 @@ def main():
     )
 
     # Collect data from files
-    data = dict()
+    data: dict[str, Any] = dict()
     for name, _short in agent_names:
         print(name)
         data[name] = agent_data = defaultdict(list)

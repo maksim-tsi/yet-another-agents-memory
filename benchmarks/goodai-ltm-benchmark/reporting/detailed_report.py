@@ -24,11 +24,11 @@ from reporting.generate import gather_results, generate_report
     default=True,
     help="Show the report in a new browser tab.",
 )
-def main(run_name: str, agent_name: str, output: str, show: bool):
+def main(run_name: str, agent_name: str, output: str, show: bool) -> None:
     _main(run_name, agent_name, output, show)
 
 
-def _main(run_name: str, agent_name: str, output: str, show: bool = True):
+def _main(run_name: str, agent_name: str, output: str, show: bool = True) -> None:
     _benchmark_data, results = gather_results(run_name, agent_name)
     report_path = generate_report(results, output_name=output)
     if show:

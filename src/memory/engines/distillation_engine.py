@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from ...storage.metrics.collector import MetricsCollector
 from ...utils.llm_client import LLMClient

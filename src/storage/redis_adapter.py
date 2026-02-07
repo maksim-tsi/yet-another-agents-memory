@@ -326,6 +326,8 @@ class RedisAdapter(StorageAdapter):
                 logger.error(f"JSON encoding failed: {e}", exc_info=True)
                 raise StorageDataError(f"Failed to encode data: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     def _make_key(self, session_id: str) -> str:
         """
         Generate Redis key for session with Hash Tag for Cluster safety.
@@ -405,6 +407,8 @@ class RedisAdapter(StorageAdapter):
             except (ValueError, IndexError) as e:
                 logger.error(f"Invalid ID format: {e}", exc_info=True)
                 raise StorageDataError(f"Invalid ID: {id}") from e
+
+        raise AssertionError("Unreachable")
 
     async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """
@@ -491,6 +495,8 @@ class RedisAdapter(StorageAdapter):
                 logger.error(f"JSON decoding failed: {e}", exc_info=True)
                 raise StorageDataError(f"Failed to decode data: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def delete(self, id: str) -> bool:
         """
         Delete entire session cache or specific turn.
@@ -531,6 +537,8 @@ class RedisAdapter(StorageAdapter):
             except redis.RedisError as e:
                 logger.error(f"Redis delete failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to delete from Redis: {e}") from e
+
+        raise AssertionError("Unreachable")
 
     async def _delete_turn(self, id: str) -> bool:
         """Delete specific turn from session list"""

@@ -210,6 +210,8 @@ class QdrantAdapter(StorageAdapter):
                 logger.error(f"Qdrant store failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to store in Qdrant: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def upsert(self, data: dict[str, Any]) -> str:
         """Alias for store to match adapter expectations."""
         return await self.store(data)
@@ -260,6 +262,8 @@ class QdrantAdapter(StorageAdapter):
             except Exception as e:
                 logger.error(f"Qdrant retrieve failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to retrieve from Qdrant: {e}") from e
+
+        raise AssertionError("Unreachable")
 
     async def search(
         self,
@@ -367,6 +371,8 @@ class QdrantAdapter(StorageAdapter):
                 logger.error(f"Qdrant search failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to search Qdrant: {e}") from e
 
+        raise AssertionError("Unreachable")
+
     async def delete(
         self,
         id: str | None = None,
@@ -409,6 +415,8 @@ class QdrantAdapter(StorageAdapter):
             except Exception as e:
                 logger.error(f"Qdrant delete failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to delete from Qdrant: {e}") from e
+
+        raise AssertionError("Unreachable")
 
     async def scroll(
         self,
@@ -487,6 +495,8 @@ class QdrantAdapter(StorageAdapter):
             except Exception as e:
                 logger.error(f"Qdrant scroll failed: {e}", exc_info=True)
                 raise StorageQueryError(f"Failed to scroll Qdrant: {e}") from e
+
+        raise AssertionError("Unreachable")
 
     def _build_qdrant_filter(self, filter_dict: dict[str, Any]) -> Filter | None:
         """

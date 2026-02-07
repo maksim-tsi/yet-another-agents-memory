@@ -93,7 +93,7 @@ class ProspectiveMemoryDataset(DatasetInterface):
         )
 
     def continual_evaluation_callback(
-        self, scheduler, example: TestExample, task_log: list[str]
+        self, scheduler: Any, example: TestExample, task_log: list[str]
     ) -> tuple[int, int, list[str], bool]:
         # Find where we asked in the master log and how many steps we need to look into the future
         question = example.script[-1]

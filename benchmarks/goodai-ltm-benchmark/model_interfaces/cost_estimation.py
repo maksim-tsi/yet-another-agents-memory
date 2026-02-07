@@ -26,7 +26,7 @@ class CostEstimationChatSession(ChatSession):
     def name(self) -> str:
         return f"{super().name} - {self.max_prompt_size} - {self.cost_in_token:.2e} - {self.cost_out_token:.2e}"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.system_prompt = "You are a helpful assistant."
         assert self.max_prompt_size > count_tokens_for_model(text=self.system_prompt)
@@ -36,7 +36,7 @@ class CostEstimationChatSession(ChatSession):
         assert count_tokens_for_model(text=self.dummy_response) == self.avg_response_len
         self.reset()
 
-    def add_to_context(self, user_message: str):
+    def add_to_context(self, user_message: str) -> None:
         ctx_user_msg = make_user_message(user_message)
         self.context.append(ctx_user_msg)
         self.context_tokens += count_tokens_for_model(context=[ctx_user_msg])
@@ -51,12 +51,12 @@ class CostEstimationChatSession(ChatSession):
         self.context.append(make_assistant_message(self.dummy_response))
         return self.dummy_response
 
-    def reset(self):
+    def reset(self) -> None:
         self.context = [make_system_message(self.system_prompt)]
         self.context_tokens = count_tokens_for_model(context=self.context)
 
-    def save(self):
+    def save(self) -> None:
         pass
 
-    def load(self):
+    def load(self) -> None:
         pass

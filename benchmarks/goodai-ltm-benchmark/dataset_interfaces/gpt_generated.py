@@ -29,7 +29,7 @@ class GPTGenerated(DatasetInterface, ABC):
     generation_model: str = GPT_CHEAPEST
     max_attempts: int = 10
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.generation_file is None:
             raise ValueError("GPTGenerated datasets require a file path to read from.")
 

@@ -1,6 +1,7 @@
 import json
 from collections.abc import Callable
 from random import Random
+from typing import Any
 
 import tiktoken
 from model_interfaces.interface import ChatSession
@@ -10,17 +11,17 @@ from utils.constants import DATA_DIR
 TRIVIA_CACHE = None
 
 
-def get_trivia():
+def get_trivia() -> list[dict[str, Any]]:
     global TRIVIA_CACHE
     if TRIVIA_CACHE is None:
         with open(DATA_DIR.joinpath("trivia/trivia.json"), encoding="utf8") as file:
             TRIVIA_CACHE = json.load(file)["Data"]
-    return TRIVIA_CACHE
+    return list(TRIVIA_CACHE)
 
 
 def filler_no_response_tokens_shakespeare(
-    rnd: Random, num_tokens: int, encoding_name="cl100k_base"
-):
+    rnd: Random, num_tokens: int, encoding_name: str = "cl100k_base"
+) -> list[str]:
     filler_messages = []
     current_tokens = 0
     encoding = tiktoken.get_encoding(encoding_name)
@@ -43,7 +44,7 @@ def filler_no_response_tokens_shakespeare(
 
 def filler_no_response_tokens_trivia(
     rnd: Random, num_tokens: int, max_message_size: int, token_len_function: Callable[[str], int]
-):
+) -> tuple[str, str]:
     data = get_trivia()
     message = (
         "Here are some trivia questions and answers for you to process."
@@ -68,7 +69,7 @@ def filler_no_response_tokens_trivia(
     return "".join(messages), str(answers)
 
 
-def filler_task_characters(rnd: Random, agent: ChatSession, num_characters: int):
+def filler_task_characters(rnd: Random, agent: ChatSession, num_characters: int) -> None:
     # We need a book of some kind - lets do the complete works of shakespeare
     current_characters = 0
     with open(DATA_DIR.joinpath("shakespeare/shakespeare.txt"), "rb") as f:

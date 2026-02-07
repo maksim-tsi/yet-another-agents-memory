@@ -1,7 +1,11 @@
+from typing import Any
+
 from colorama import Fore, Style
 
 
-def ask_yesno(info: str = "", question: str = "Do you wish to continue?", default_yes=True) -> bool:
+def ask_yesno(
+    info: str = "", question: str = "Do you wish to continue?", default_yes: bool = True
+) -> bool:
     while True:
         action_str = "[y]/n" if default_yes else "y/[n]"
         action = input(f"{info} {question} {action_str}: ").lower().strip()
@@ -12,7 +16,7 @@ def ask_yesno(info: str = "", question: str = "Do you wish to continue?", defaul
                 return action == "y"
 
 
-def colour_print(colour: str, *args, end="\n", sep=" ", **kwargs):
+def colour_print(colour: str, *args: Any, end: str = "\n", sep: str = " ", **kwargs: Any) -> None:
     colour = colour.upper()
     if colour.startswith("LIGHT"):
         colour += "_EX"

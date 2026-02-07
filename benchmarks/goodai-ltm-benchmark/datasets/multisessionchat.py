@@ -61,7 +61,7 @@ def dialog_as_task(dialog: list[dict[str, str]]) -> dict[str, str]:
     )
 
 
-def fix_ids(dialog: list[dict[str, str]]):
+def fix_ids(dialog: list[dict[str, str]]) -> None:
     switch_ids = {"Speaker 1": "Speaker 2", "Speaker 2": "Speaker 1"}
     for i, msg in enumerate(dialog):
         if msg["id"] in switch_ids:

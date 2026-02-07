@@ -17,7 +17,7 @@ class DelayedRecallDataset(GPTGenerated):
         "Forget all of the facts given to you about the fictional world before this message."
     )
 
-    def generate_examples(self, num_examples) -> list[TestExample]:
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         example_list = super().generate_examples(num_examples)
         for example in example_list:
             example.script[0] = (
