@@ -117,7 +117,7 @@ class UnifiedMemorySystem:
             l4_tier=self.l4_tier,
             llm_provider=self.llm_client,
             config=self.config.get("distillation", {}),
-            # telemetry_stream=self.telemetry_stream # Distillation engine update planned separately
+            telemetry_stream=self.telemetry_stream,
         )
 
     async def initialize(self) -> None:
