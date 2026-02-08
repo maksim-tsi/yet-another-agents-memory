@@ -88,6 +88,7 @@ Successfully implemented and verified the **Memory Inspector** feature, adding "
 |------|------------------|
 | `src/memory/engines/promotion_engine.py` | `significance_scored`, `fact_promoted` |
 | `src/memory/engines/consolidation_engine.py` | `consolidation_started`, `facts_clustered`, `episode_created`, `consolidation_completed` |
+| `src/memory/engines/distillation_engine.py` | `distillation_started`, `knowledge_created`, `distillation_completed` |
 | `src/memory/engines/fact_extractor.py` | Populates `justification` from LLM |
 
 ### Files Created
@@ -173,6 +174,22 @@ if self.telemetry_stream:
 
 ---
 
+## DistillationEngine Telemetry (L3→L4)
+
+**Commit:** `c313e61`
+
+The `DistillationEngine` synthesizes knowledge documents from Episodes in Episodic Memory (L3) and stores them in Semantic Memory (L4).
+
+### Telemetry Events
+
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `distillation_started` | After episodes retrieved | `episode_count`, `threshold`, `force_process` |
+| `knowledge_created` | After L4 store | `knowledge_id`, `knowledge_type`, `title`, `episode_count` |
+| `distillation_completed` | End of processing | `processed_episodes`, `created_documents`, `elapsed_ms` |
+
+---
+
 ## Testing & Verification
 
 ### Integration Test Results
@@ -220,7 +237,7 @@ The `test_glass_box_telemetry_flow` test verifies:
 | Task | Priority | Status |
 |------|----------|--------|
 | ~~Instrument `ConsolidationEngine` with telemetry~~ | Medium | ✅ **Done** - commit `42772dd` |
-| Instrument `DistillationEngine` with telemetry | Medium | Planned |
+| ~~Instrument `DistillationEngine` with telemetry~~ | Medium | ✅ **Done** - commit `c313e61` |
 | Add tier-level store/retrieve telemetry | Low | Optional |
 | Build Memory Inspector UI (visualization) | Medium | Future |
 
