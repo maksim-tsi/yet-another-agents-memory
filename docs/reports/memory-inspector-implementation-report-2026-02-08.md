@@ -87,6 +87,7 @@ Successfully implemented and verified the **Memory Inspector** feature, adding "
 | File | Telemetry Events |
 |------|------------------|
 | `src/memory/engines/promotion_engine.py` | `significance_scored`, `fact_promoted` |
+| `src/memory/engines/consolidation_engine.py` | `consolidation_started`, `facts_clustered`, `episode_created`, `consolidation_completed` |
 | `src/memory/engines/fact_extractor.py` | Populates `justification` from LLM |
 
 ### Files Created
@@ -126,6 +127,48 @@ class UnifiedMemorySystem:
         
         # Initialize engines with telemetry
         self.promotion_engine = PromotionEngine(..., telemetry_stream=self.telemetry_stream)
+```
+
+---
+
+## ConsolidationEngine Telemetry (L2→L3)
+
+**Commit:** `42772dd`
+
+The `ConsolidationEngine` consolidates facts from Working Memory (L2) into Episodes for Episodic Memory (L3). Telemetry was added to track the full consolidation pipeline.
+
+### Telemetry Events
+
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `consolidation_started` | Start of `process_session` | `session_id`, `start_time`, `end_time` |
+| `facts_clustered` | After grouping facts by time windows | `total_facts`, `cluster_count`, `time_window_hours` |
+| `episode_created` | After successful L3 store | `episode_id`, `fact_count`, `summary`, `importance_score` |
+| `consolidation_completed` | End of processing | `facts_retrieved`, `episodes_created`, `errors` |
+
+### Implementation
+
+```python
+# In ConsolidationEngine.__init__
+def __init__(self, ..., telemetry_stream: Any | None = None):
+    ...
+    self.telemetry_stream = telemetry_stream
+
+# In process_session - emit consolidation_started
+if self.telemetry_stream:
+    await self.telemetry_stream.publish(
+        event_type="consolidation_started",
+        session_id=session_id,
+        data={"start_time": start_time.isoformat(), "end_time": end_time.isoformat()},
+    )
+
+# After episode stored in L3 - emit episode_created
+if self.telemetry_stream:
+    await self.telemetry_stream.publish(
+        event_type="episode_created",
+        session_id=session_id,
+        data={"episode_id": episode.episode_id, "fact_count": len(cluster), ...},
+    )
 ```
 
 ---
@@ -176,7 +219,7 @@ The `test_glass_box_telemetry_flow` test verifies:
 
 | Task | Priority | Status |
 |------|----------|--------|
-| Instrument `ConsolidationEngine` with telemetry | Medium | Planned |
+| ~~Instrument `ConsolidationEngine` with telemetry~~ | Medium | ✅ **Done** - commit `42772dd` |
 | Instrument `DistillationEngine` with telemetry | Medium | Planned |
 | Add tier-level store/retrieve telemetry | Low | Optional |
 | Build Memory Inspector UI (visualization) | Medium | Future |
