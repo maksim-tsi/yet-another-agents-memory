@@ -21,13 +21,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol, cast
 from uuid import uuid4
 
+from src.llm.client import LLMClient
+from src.llm.providers.base import BaseProvider
 from src.memory.engines.base_engine import BaseEngine
 from src.memory.lifecycle_stream import LifecycleStreamConsumer
 from src.memory.models import Episode, EpisodeStoreInput, Fact
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
-from src.utils.llm_client import LLMClient
-from src.utils.providers import BaseProvider
 
 logger = logging.getLogger(__name__)
 

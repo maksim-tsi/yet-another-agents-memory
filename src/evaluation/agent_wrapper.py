@@ -24,12 +24,14 @@ from src.agents.full_context_agent import FullContextAgent
 from src.agents.memory_agent import MemoryAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.rag_agent import RAGAgent
+from src.llm.client import LLMClient, ProviderConfig, ensure_phoenix_instrumentation
+from src.llm.providers.gemini import GeminiProvider
+from src.llm.providers.groq import GroqProvider
+from src.llm.providers.mistral import MistralProvider
 from src.memory.models import TurnData
 from src.memory.tiers import ActiveContextTier, WorkingMemoryTier
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.redis_adapter import RedisAdapter
-from src.utils.llm_client import LLMClient, ProviderConfig, ensure_phoenix_instrumentation
-from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
 
 logger = logging.getLogger(__name__)
 
@@ -441,7 +443,17 @@ async def _store_turn(
         timestamp=timestamp,
         metadata=metadata,
     )
-    await state.l1_tier.store(turn)
+    try:
+        await state.l1_tier.store(turn)
+    except Exception as exc:
+        if "duplicate key value violates unique constraint" in str(exc):
+            logger.warning(
+                "Ignored duplicate turn submission: session_id=%s, turn_id=%s",
+                message.session_id,
+                stored_turn_id,
+            )
+        else:
+            raise
 
 
 def _estimate_tokens(text: str) -> int:

@@ -20,9 +20,9 @@ from typing import Any, cast
 
 import yaml
 
+from ...llm.client import LLMClient
+from ...llm.providers.base import BaseProvider
 from ...storage.metrics.collector import MetricsCollector
-from ...utils.llm_client import LLMClient
-from ...utils.providers import BaseProvider
 from ..models import KnowledgeDocument
 from ..tiers.semantic_memory_tier import SemanticMemoryTier
 

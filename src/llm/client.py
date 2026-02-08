@@ -4,15 +4,6 @@ This module defines an orchestrating LLM client that can register multiple
 provider wrappers, execute fallback-aware generations, and surface simple
 health indicators for the lifecycle engines that will promote facts across
 tiers.
-
-The implementation keeps the core logic simple while still exposing enough APIs
-for Phase 2A/2B controllers to scale: configurable provider order, timeout
-control, and health checks.
-
-Phoenix/OpenTelemetry Instrumentation:
-    If PHOENIX_COLLECTOR_ENDPOINT is set, auto-instrumentors are activated
-    at module load time for LLM call observability. This enables embedding
-    dimension verification and latency debugging in the Arize Phoenix UI.
 """
 
 from __future__ import annotations
@@ -23,6 +14,8 @@ import os
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, cast
+
+from src.llm.providers.base import BaseProvider, LLMResponse, ProviderHealth
 
 logger = logging.getLogger(__name__)
 
@@ -37,17 +30,7 @@ _PHOENIX_PROJECT_NAME: str | None = None
 
 # Phoenix/OpenTelemetry auto-instrumentation (optional)
 def _init_phoenix_instrumentation() -> None:
-    """Initialize Phoenix/OpenTelemetry instrumentation if configured.
-
-    Environment Variables:
-        PHOENIX_COLLECTOR_ENDPOINT: OTLP collector URL (e.g., http://192.168.107.172:6006/v1/traces)
-        PHOENIX_PROJECT_NAME: Project name for trace grouping (default: mlm-mas-dev)
-
-    Project Naming Convention:
-        - mlm-mas-dev: Development environment
-        - mlm-mas-test: Testing/CI environment
-        - mlm-mas-prod: Production environment
-    """
+    """Initialize Phoenix/OpenTelemetry instrumentation if configured."""
     endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
     if not endpoint:
         logger.debug(
@@ -122,27 +105,6 @@ def ensure_phoenix_instrumentation() -> None:
 ensure_phoenix_instrumentation()
 
 
-@dataclass(frozen=True)
-class ProviderHealth:
-    """Runtime health report returned by each provider wrapper."""
-
-    name: str
-    healthy: bool
-    details: str | None = None
-    last_error: str | None = None
-
-
-@dataclass
-class LLMResponse:
-    """Standardized response returned from every provider."""
-
-    text: str
-    provider: str
-    model: str | None = None
-    usage: dict[str, Any] | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
 @dataclass
 class ProviderConfig:
     """Configuration metadata used to prioritize and time-bound providers."""
@@ -154,21 +116,6 @@ class ProviderConfig:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class BaseProvider:
-    """Abstract provider wrapper interface for the orchestrating client."""
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    async def generate(self, prompt: str, model: str | None = None, **kwargs: Any) -> LLMResponse:
-        """Generate text for the supplied prompt."""
-        raise NotImplementedError()
-
-    async def health_check(self) -> ProviderHealth:
-        """Return a lightweight health signal that lifecycle engines can inspect."""
-        return ProviderHealth(name=self.name, healthy=True, details="Provider configured")
-
-
 class LLMClient:
     """Multi-provider orchestrator with fallback support and health diagnostics."""
 
@@ -178,6 +125,7 @@ class LLMClient:
         "gemini-3-pro-preview": ["google-pro", "google", "gemini"],
         "gemini-2.5-flash": ["google", "gemini"],
         "gemini-embedding-001": ["google", "gemini"],
+        "text-embedding-004": ["google", "gemini"],
         "openai/gpt-oss-120b": ["groq"],
         "mistral-large": ["mistral"],
     }
@@ -266,6 +214,25 @@ class LLMClient:
 
         raise last_exc or RuntimeError("No healthy LLM provider available")
 
+    async def get_embedding(
+        self, text: str, model: str | None = None, provider: str | None = None
+    ) -> list[float]:
+        """Get embedding for text from specified or default provider."""
+        # Simple routing for now - default to gemini if available, otherwise first available
+        target_provider = None
+
+        if provider and provider in self._providers:
+            target_provider = self._providers[provider]
+        elif "gemini" in self._providers:
+            target_provider = self._providers["gemini"]
+        elif self._providers:
+            target_provider = next(iter(self._providers.values()))
+
+        if not target_provider:
+            raise RuntimeError("No LLM provider available for embeddings")
+
+        return await target_provider.get_embedding(text, model=model)
+
     def _annotate_span(self, agent_metadata: dict[str, Any] | None) -> None:
         """Attach agent metadata to the active trace span if available."""
         if not agent_metadata:
@@ -322,4 +289,11 @@ class LLMClient:
         return order
 
 
-__all__ = ["BaseProvider", "LLMClient", "LLMResponse", "ProviderConfig", "ProviderHealth"]
+__all__ = [
+    "BaseProvider",
+    "LLMClient",
+    "LLMResponse",
+    "ProviderConfig",
+    "ProviderHealth",
+    "ensure_phoenix_instrumentation",
+]

@@ -7,8 +7,8 @@ from typing import Any
 
 from src.agents.base_agent import BaseAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
+from src.llm.client import LLMClient
 from src.memory.models import ContextBlock
-from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 

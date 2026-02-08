@@ -13,11 +13,11 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
 
+from src.llm.client import LLMClient
 from src.memory.schemas.topic_segmentation import (
     TOPIC_SEGMENTATION_SCHEMA,
     TOPIC_SEGMENTATION_SYSTEM_INSTRUCTION,
 )
-from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 

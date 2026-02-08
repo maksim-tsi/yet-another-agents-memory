@@ -13,8 +13,8 @@ from src.agents.base_agent import BaseAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.runtime import AgentState
 from src.agents.tools.unified_tools import UNIFIED_TOOLS
+from src.llm.client import LLMClient
 from src.memory.models import ContextBlock, TurnData
-from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 

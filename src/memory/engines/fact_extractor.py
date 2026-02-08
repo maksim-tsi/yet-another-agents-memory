@@ -14,12 +14,12 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from src.llm.client import LLMClient
 from src.memory.models import Fact, FactCategory, FactType
 from src.memory.schemas.fact_extraction import (
     FACT_EXTRACTION_SCHEMA,
     FACT_EXTRACTION_SYSTEM_INSTRUCTION,
 )
-from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
