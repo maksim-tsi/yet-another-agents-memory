@@ -100,13 +100,13 @@ class LocationsDirectionsDataset(LocationsDataset):
                 direction = d.get("direction")
                 if not isinstance(direction, str):
                     raise ValueError(f"Expected direction to be a string, got {direction!r}")
-                assert (
-                    direction.lower() in allowed_directions
-                ), f"Direction {direction!r} is unknown."
+                assert direction.lower() in allowed_directions, (
+                    f"Direction {direction!r} is unknown."
+                )
                 d["direction"] = DIRECTIONS[allowed_directions.index(direction.lower())]
-                assert (
-                    isinstance(d["kilometers"], int) and d["kilometers"] > 0
-                ), f"{d['kilometers']} is not a positive int."
+                assert isinstance(d["kilometers"], int) and d["kilometers"] > 0, (
+                    f"{d['kilometers']} is not a positive int."
+                )
                 d["distance"] = d.pop("kilometers")
                 structured.append(
                     {

@@ -140,9 +140,9 @@ class TestWorkingMemoryTierStore:
             warnings.simplefilter("always")
             await tier.store(fact_data)
 
-        assert any(
-            issubclass(warning.category, DeprecationWarning) for warning in captured
-        ), "Expected DeprecationWarning for dict input"
+        assert any(issubclass(warning.category, DeprecationWarning) for warning in captured), (
+            "Expected DeprecationWarning for dict input"
+        )
 
         await tier.cleanup()
 

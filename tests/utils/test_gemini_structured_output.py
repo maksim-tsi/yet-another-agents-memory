@@ -190,12 +190,12 @@ Impact scoring:
     fact_contents = [f["content"].lower() for f in result["facts"]]
 
     # Check for key facts from conversation
-    assert any(
-        "shanghai" in content or "shipment" in content for content in fact_contents
-    ), "Should extract fact about Shanghai shipment"
-    assert any(
-        "friday" in content or "deadline" in content for content in fact_contents
-    ), "Should extract fact about Friday deadline"
+    assert any("shanghai" in content or "shipment" in content for content in fact_contents), (
+        "Should extract fact about Shanghai shipment"
+    )
+    assert any("friday" in content or "deadline" in content for content in fact_contents), (
+        "Should extract fact about Friday deadline"
+    )
     assert any(
         "fasttrack" in content or "customs broker" in content for content in fact_contents
     ), "Should extract fact about FastTrack Logistics"
@@ -251,12 +251,12 @@ async def test_gemini_structured_output_compatibility():
     assert items_props, "Should have fact properties defined"
 
     # Validate enum constraints
-    assert (
-        "anyOf" in items_props["type"] or "enum" in items_props["type"]
-    ), "type field should have enum constraint"
-    assert (
-        "anyOf" in items_props["category"] or "enum" in items_props["category"]
-    ), "category field should have enum constraint"
+    assert "anyOf" in items_props["type"] or "enum" in items_props["type"], (
+        "type field should have enum constraint"
+    )
+    assert "anyOf" in items_props["category"] or "enum" in items_props["category"], (
+        "category field should have enum constraint"
+    )
 
     # Validate numeric constraints (they may be nested in anyOf for Optional fields)
     certainty_schema = items_props["certainty"]

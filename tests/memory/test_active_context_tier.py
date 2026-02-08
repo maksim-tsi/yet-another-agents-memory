@@ -213,9 +213,9 @@ class TestActiveContextTierStore:
             warnings.simplefilter("always")
             await tier.store(turn_data)
 
-        assert any(
-            issubclass(warning.category, DeprecationWarning) for warning in captured
-        ), "Expected DeprecationWarning for dict input"
+        assert any(issubclass(warning.category, DeprecationWarning) for warning in captured), (
+            "Expected DeprecationWarning for dict input"
+        )
 
         await tier.cleanup()
 

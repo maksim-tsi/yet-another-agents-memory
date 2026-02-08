@@ -121,9 +121,9 @@ class TestRunner:
     def load(self) -> None:
         if not self.runstats_path.exists():
             return
-        assert (
-            self.agent_benchmark_duration == 0
-        ), "Attempted to load test scheduler in a non-initial state."
+        assert self.agent_benchmark_duration == 0, (
+            "Attempted to load test scheduler in a non-initial state."
+        )
         master_log = self._require_master_log()
         with open(self.runstats_path) as fd:
             d = json.load(fd)
@@ -147,9 +147,9 @@ class TestRunner:
         if self.config.debug:
             colour_print("green", f"Time jump by {t_jump}")
         target_date = datetime.now() + t_jump
-        assert (
-            target_date > datetime.now()
-        ), "Can only move forward in time. Going back is problematic."
+        assert target_date > datetime.now(), (
+            "Can only move forward in time. Going back is problematic."
+        )
         self.travel_to_dt(target_date)
 
     def reset_time(self) -> None:
@@ -448,9 +448,9 @@ class TestRunner:
         # Set up the tests that are to be iterated through, fast forwarding where appropriate
         tests = self.setup_iterator(test_group)
 
-        assert len(tests) == len(
-            test_group
-        ), f"There are tests with identical IDs: {[t.unique_id for t in test_group]}"
+        assert len(tests) == len(test_group), (
+            f"There are tests with identical IDs: {[t.unique_id for t in test_group]}"
+        )
         while len(tests) > 0:
             run_id = self.pick_next_test_id(tests)
             example = tests[run_id]
@@ -592,9 +592,9 @@ class TestRunner:
             self.update_result(example, result, master_log)
 
             if deregister:
-                assert (
-                    example.finished
-                ), "Callback has been deregistered, but example is not set as finished!"
+                assert example.finished, (
+                    "Callback has been deregistered, but example is not set as finished!"
+                )
                 deregistered_cb.append((callback, example))
 
         for tup in deregistered_cb:

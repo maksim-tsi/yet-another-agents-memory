@@ -48,7 +48,7 @@ class TurnData(BaseModel):
     turn_id: str = Field(..., min_length=1, max_length=200)
     session_id: str = Field(..., min_length=1, max_length=200)
     role: Literal["user", "assistant", "system"]
-    content: str = Field(..., min_length=1, max_length=10000)
+    content: str = Field(..., min_length=1, max_length=200000)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = Field(default_factory=dict)
 

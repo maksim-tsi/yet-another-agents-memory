@@ -32,6 +32,12 @@ class MemoryAgent(BaseAgent):
         super().__init__(agent_id=agent_id, memory_system=memory_system, config=config)
         self._llm_client = llm_client
         self._model = self._config.get("model", "gemini-2.5-flash-lite")
+        if "system_instruction" not in self._config:
+            self._config["system_instruction"] = (
+                "You are the MAS Memory Agent. You have access to a user's long-term memory. "
+                "Always answer the user's questions based on the provided context. "
+                "Be direct and helpful."
+            )
         self._min_ciar = float(self._config.get("min_ciar", 0.6))
         self._max_turns = int(self._config.get("max_turns", 20))
         self._max_facts = int(self._config.get("max_facts", 10))
@@ -238,6 +244,7 @@ class MemoryAgent(BaseAgent):
             prompt,
             model=self._model,
             agent_metadata=agent_metadata,
+            system_instruction=self._config.get("system_instruction"),
         )
         return llm_response.text
 
@@ -248,6 +255,9 @@ class MemoryAgent(BaseAgent):
         if context_text:
             sections.append("## Context\n" + context_text)
         sections.append(f"## User\n{user_input}")
+        sections.append(
+            "## Instruction\nAnswer the user's latest request directly. Do not reply with 'Understood'."
+        )
         sections.append("## Assistant")
         return "\n\n".join(sections)
 
