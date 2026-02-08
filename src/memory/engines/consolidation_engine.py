@@ -35,8 +35,7 @@ logger = logging.getLogger(__name__)
 class EmbeddingProvider(Protocol):
     async def get_embedding(
         self, text: str, model: str | None = None, output_dimensionality: int = 768
-    ) -> list[float]:
-        ...
+    ) -> list[float]: ...
 
 
 class ConsolidationEngine(BaseEngine):

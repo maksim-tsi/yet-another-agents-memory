@@ -283,10 +283,10 @@ class MemoryAgent(BaseAgent):
     def _get_message_role(self, message: Any) -> str:
         """Normalize role/type for dict or LangChain message objects."""
         if isinstance(message, dict):
-            return message.get("role", "")
+            return str(message.get("role", ""))
         role = getattr(message, "role", None)
         if role:
-            return role
+            return str(role)
         msg_type = getattr(message, "type", None)
         if msg_type in {"human", "user"}:
             return "user"
@@ -297,16 +297,21 @@ class MemoryAgent(BaseAgent):
     def _get_message_content(self, message: Any) -> str:
         """Extract content from dict or LangChain message objects."""
         if isinstance(message, dict):
-            return message.get("content", "")
-        return getattr(message, "content", "")
+            return str(message.get("content", ""))
+        return str(getattr(message, "content", ""))
 
-    def _format_recent_turns(self, recent_turns: list[dict[str, Any]]) -> list[str]:
+    def _format_recent_turns(self, recent_turns: list[dict[str, Any] | Any]) -> list[str]:
         """Format recent turns for prompt context."""
         formatted: list[str] = []
         for turn in recent_turns:
-            role = turn.get("role", "unknown").upper()
-            content = turn.get("content", "")
-            formatted.append(f"{role}: {content}")
+            if isinstance(turn, dict):
+                role = turn.get("role", "unknown")
+                content = turn.get("content", "")
+            else:
+                role = getattr(turn, "role", "unknown")
+                content = getattr(turn, "content", "")
+
+            formatted.append(f"{role.upper()}: {content}")
         return formatted
 
     def _format_context(self, state: AgentState) -> str:

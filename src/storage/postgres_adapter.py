@@ -270,8 +270,9 @@ class PostgresAdapter(StorageAdapter):
         query = sql.SQL("""
             INSERT INTO working_memory 
             (session_id, fact_type, content, confidence, source_turn_ids, 
-             created_at, updated_at, ttl_expires_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+             created_at, updated_at, ttl_expires_at,
+             ciar_score, certainty, impact, recency_boost, age_decay)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """)
 
@@ -292,6 +293,11 @@ class PostgresAdapter(StorageAdapter):
                     datetime.now(UTC),
                     datetime.now(UTC),
                     data["ttl_expires_at"],
+                    data.get("ciar_score", 0.0),
+                    data.get("certainty", 0.7),
+                    data.get("impact", 0.5),
+                    data.get("recency_boost", 1.0),
+                    data.get("age_decay", 1.0),
                 ),
             )
             result = await cur.fetchone()
@@ -411,6 +417,13 @@ class PostgresAdapter(StorageAdapter):
                     "updated_at",
                     "ttl_expires_at",
                     "content_tsv",
+                    "ciar_score",
+                    "certainty",
+                    "impact",
+                    "recency_boost",
+                    "last_accessed",
+                    "access_count",
+                    "age_decay",
                 },
             }
 
