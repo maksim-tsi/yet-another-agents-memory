@@ -110,7 +110,7 @@ class UnifiedMemorySystem:
             l3_tier=self.l3_tier,
             llm_provider=self.llm_client,
             config=self.config.get("consolidation", {}),
-            # telemetry_stream=self.telemetry_stream # Consolidation engine update planned separately
+            telemetry_stream=self.telemetry_stream,
         )
         self.distillation_engine = DistillationEngine(
             l3_tier=self.l3_tier,
