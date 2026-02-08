@@ -229,6 +229,7 @@ class PostgresAdapter(StorageAdapter):
             INSERT INTO active_context 
             (session_id, turn_id, content, metadata, created_at, ttl_expires_at)
             VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (session_id, turn_id) DO NOTHING
             RETURNING id
         """)
 
@@ -247,10 +248,29 @@ class PostgresAdapter(StorageAdapter):
             result = await cur.fetchone()
             # Explicit commit to persist insert; pool connections default to non-autocommit
             await conn.commit()
+
             if result:
                 record_id = str(result[0])
             else:
-                raise StorageQueryError("Failed to insert record")
+                # If no result returned, it means a conflict occurred (duplicate).
+                # We need to fetch the existing ID to return it.
+                logger.warning(
+                    f"Duplicate turn detected for session {data['session_id']}, turn {data['turn_id']}. "
+                    "Fetching existing ID."
+                )
+                fetch_query = sql.SQL("""
+                    SELECT id FROM active_context 
+                    WHERE session_id = %s AND turn_id = %s
+                """)
+                await cur.execute(fetch_query, (data["session_id"], data["turn_id"]))
+                existing_result = await cur.fetchone()
+                if existing_result:
+                    record_id = str(existing_result[0])
+                else:
+                    # Should be rare/impossible unless deleted concurrently
+                    raise StorageQueryError(
+                        "Failed to insert record and failed to retrieve existing duplicate"
+                    )
 
         logger.debug(f"Stored active_context record: {record_id}")
         return record_id

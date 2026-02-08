@@ -41,7 +41,7 @@ class GeminiProvider(BaseProvider):
             config_params = {
                 "temperature": kwargs.get("temperature", 0.0),
                 "max_output_tokens": kwargs.get("max_output_tokens", 8192),
-                "automatic_function_calling": {"disable": True},
+                "automatic_function_calling": {"disable": True, "maximum_remote_calls": None},
             }
 
             # Add system instruction if provided

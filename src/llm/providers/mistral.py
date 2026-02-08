@@ -18,7 +18,7 @@ class MistralProvider(BaseProvider):
         self.client = Mistral(api_key=api_key)
 
     async def generate(self, prompt: str, model: str | None = None, **kwargs) -> LLMResponse:
-        model = model or "mistral-small-2506"
+        model = model or "mistral-medium-2508"
 
         def sync_call():
             response = self.client.chat.complete(
@@ -53,7 +53,7 @@ class MistralProvider(BaseProvider):
 
             def sync_call():
                 return self.client.chat.complete(
-                    model="mistral-small-2506",
+                    model="mistral-medium-2508",
                     messages=[{"role": "user", "content": "Ping"}],
                     temperature=0.0,
                     max_tokens=1,

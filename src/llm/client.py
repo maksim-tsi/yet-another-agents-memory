@@ -9,6 +9,7 @@ tiers.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import logging
 import os
 from collections.abc import Iterable, Sequence
@@ -46,32 +47,45 @@ def _init_phoenix_instrumentation() -> None:
     project_name = os.environ.get("PHOENIX_PROJECT_NAME", default_project)
 
     try:
-        from phoenix.otel import register
-
-        # Register tracer provider with Phoenix collector
-        tracer_provider = register(
-            project_name=project_name,
-            endpoint=endpoint,
-            auto_instrument=True,  # Auto-detect and instrument installed packages
-        )
-
-        logger.info(
-            "Phoenix instrumentation enabled: project=%s, endpoint=%s", project_name, endpoint
-        )
-
         global _PHOENIX_INITIALIZED
         global _PHOENIX_PROJECT_NAME
+        # Mark as initialized immediately to prevent retries on partial failures
         _PHOENIX_INITIALIZED = True
         _PHOENIX_PROJECT_NAME = project_name
 
+        # Register tracer provider with Phoenix collector
+        # Check if tracer provider is already registered to avoid "Overriding of current TracerProvider" warning
+        from opentelemetry import trace
+        from phoenix.otel import register
+
+        if isinstance(trace.get_tracer_provider(), trace.ProxyTracerProvider):
+            # Only register if no real provider is set
+            tracer_provider = register(
+                project_name=project_name,
+                endpoint=endpoint,
+                auto_instrument=True,  # Auto-detect and instrument installed packages
+            )
+
+            logger.info(
+                "Phoenix instrumentation enabled: project=%s, endpoint=%s", project_name, endpoint
+            )
+        else:
+            logger.debug("Phoenix instrumentation skipped: TracerProvider already set")
+            tracer_provider = trace.get_tracer_provider()  # type: ignore
+
         # Explicitly instrument Google GenAI if auto_instrument missed it
         try:
-            from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
+            # Check if google.genai is actually installed first to avoid "Could not import" warning from instrumentor
+            if importlib.util.find_spec("google.genai"):
+                from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
 
-            instrumentor = GoogleGenAIInstrumentor()
-            if not getattr(instrumentor, "_is_instrumented_by_opentelemetry", False):
-                instrumentor.instrument(tracer_provider=tracer_provider)
-                logger.info("Google GenAI instrumentation enabled (explicit)")
+                instrumentor = GoogleGenAIInstrumentor()
+                if not getattr(instrumentor, "_is_instrumented_by_opentelemetry", False):
+                    instrumentor.instrument(tracer_provider=tracer_provider)
+                    logger.info("Google GenAI instrumentation enabled (explicit)")
+            else:
+                logger.debug("google.genai module not found; skipping instrumentation")
+
         except ImportError:
             logger.debug(
                 "openinference-instrumentation-google-genai not installed; "
@@ -228,7 +242,44 @@ class LLMClient:
             if not provider or not config.enabled:
                 continue
             try:
-                coro = provider.generate(prompt, model=model, **kwargs)
+                # If model is specified but not relevant to this provider (fallback scenario),
+                # drop it so the provider uses its default.
+                # Simple heuristic: if the model name suggests a different provider family, drop it.
+                effective_model = model
+                if model:
+                    is_mistral_provider = "mistral" in provider_name.lower()
+                    is_groq_provider = "groq" in provider_name.lower()
+                    is_gemini_provider = (
+                        "gemini" in provider_name.lower() or "google" in provider_name.lower()
+                    )
+
+                    # Specific checks to drop incompatible models
+                    should_drop = False
+                    if (
+                        (
+                            is_groq_provider
+                            and ("gemini" in model.lower() or "mistral" in model.lower())
+                        )
+                        or (
+                            is_mistral_provider
+                            and ("gemini" in model.lower() or "gpt" in model.lower())
+                        )
+                        or (
+                            is_gemini_provider
+                            and ("mistral" in model.lower() or "gpt" in model.lower())
+                        )
+                    ):
+                        should_drop = True
+
+                    if should_drop:
+                        effective_model = None
+                        logger.debug(
+                            "Dropping incompatible model '%s' for provider '%s'",
+                            model,
+                            provider_name,
+                        )
+
+                coro = provider.generate(prompt, model=effective_model, **kwargs)
                 response: LLMResponse
                 if asyncio.iscoroutine(coro):
                     response = cast(
