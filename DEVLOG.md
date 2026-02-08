@@ -16,6 +16,69 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-08 - Glass Box Telemetry Implementation ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented comprehensive Glass Box telemetry across all memory engines to enable full observability of the memory lifecycle. Created `UnifiedMemorySystem` facade with feature flags. All engines now emit telemetry events via `LifecycleStreamProducer` to Redis Streams.
+
+**✅ What's Complete:**
+
+1. **UnifiedMemorySystem** (`src/memory/system.py`):
+   - Central facade orchestrating L1-L4 tiers and engines
+   - Feature flags: `enable_promotion`, `enable_consolidation`, `enable_distillation`, `enable_telemetry`
+   - Wires `telemetry_stream` to all engines
+
+2. **Engine Telemetry Events:**
+
+   | Engine | Events |
+   |--------|--------|
+   | `PromotionEngine` | `significance_scored`, `fact_promoted` |
+   | `ConsolidationEngine` | `consolidation_started`, `facts_clustered`, `episode_created`, `consolidation_completed` |
+   | `DistillationEngine` | `distillation_started`, `knowledge_created`, `distillation_completed` |
+
+3. **Data Model Updates** (`src/memory/models.py`):
+   - Added `justification: str | None` to `Fact` for LLM reasoning transparency
+   - Made `last_accessed` optional to handle DB null values
+
+4. **Integration Test** (`tests/integration/test_memory_inspector.py`):
+   - End-to-end telemetry verification via Redis Streams consumer
+   - Validates event emission during promotion flow
+
+5. **Documentation:**
+   - README.md and DEVLOG.md added to `src/memory/`, `src/memory/schemas/`, `src/memory/tiers/`, `src/memory/engines/`
+   - Implementation report: `docs/reports/memory-inspector-implementation-report-2026-02-08.md`
+
+**Commits:**
+- `42772dd`: Instrument ConsolidationEngine with telemetry
+- `c313e61`: Instrument DistillationEngine with telemetry
+- `d391005`: Documentation updates
+- `fad9806`: Add README/DEVLOG to memory directories
+
+**Test Results:**
+```
+Memory Lifecycle Tests: 4 passed, 6 skipped
+Memory Inspector Test: 1 passed
+Full Integration Suite: 24 passed, 6 skipped
+```
+
+**Files Modified/Created:**
+```
+MOD: src/memory/system.py
+MOD: src/memory/engines/promotion_engine.py
+MOD: src/memory/engines/consolidation_engine.py
+MOD: src/memory/engines/distillation_engine.py
+MOD: src/memory/models.py
+NEW: tests/integration/test_memory_inspector.py
+NEW: src/memory/README.md, DEVLOG.md
+NEW: src/memory/engines/README.md, DEVLOG.md
+NEW: src/memory/tiers/README.md, DEVLOG.md
+NEW: src/memory/schemas/README.md, DEVLOG.md
+```
+
+---
+
 ### 2026-02-04 - Mypy Remediation Batches 1–7 Completion 📊
 
 **Status:** ✅ Complete
