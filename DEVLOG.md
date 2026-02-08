@@ -16,6 +16,39 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-08 - Tier-Level Telemetry (L1-L4) ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Instrumented all memory tiers (Active Context, Working Memory, Episodic Memory, Semantic Memory) to emit `TIER_ACCESS` events for Glass Box observability. This enables tracking of physical execution metrics (hits, misses, latency) at the tier level, complementing the engine-level telemetry.
+
+**✅ What's Complete:**
+
+1. **Base Infrastructure:**
+   - Added `_emit_tier_access()` to `BaseTier` for standardized event emission.
+   - Added `_tier_name()` abstract method.
+
+2. **Tier Instrumentation:**
+   - **L1 Active Context**: `store`, `retrieve`, `retrieve_session`, `delete`
+   - **L2 Working Memory**: `store`, `retrieve`, `query`, `search_facts`, `delete`
+   - **L3 Episodic Memory**: `store`, `retrieve`, `search_similar`, `query`, `delete`
+   - **L4 Semantic Memory**: `store`, `retrieve`, `search`, `delete`
+
+3. **Verification:**
+   - **Integration Test**: `tests/integration/test_tier_telemetry.py` verifies events from all tiers via Redis Stream.
+   - **Fixes**: creating separate `_tier_name` implementations and fixing L2 Postgres `fact_id` mapping.
+
+**Files Modified:**
+- `src/memory/tiers/base_tier.py`
+- `src/memory/tiers/active_context_tier.py`
+- `src/memory/tiers/working_memory_tier.py`
+- `src/memory/tiers/episodic_memory_tier.py`
+- `src/memory/tiers/semantic_memory_tier.py`
+- `tests/integration/test_tier_telemetry.py` (created)
+
+---
+
 ### 2026-02-08 - Glass Box Telemetry Implementation ✅
 
 **Status:** ✅ Complete

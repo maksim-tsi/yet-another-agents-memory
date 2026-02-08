@@ -15,6 +15,7 @@ Key Features:
 
 import json
 import logging
+import time
 import warnings
 from collections import deque
 from datetime import UTC, datetime, timedelta
@@ -128,6 +129,10 @@ class WorkingMemoryTier(BaseTier[Fact]):
             f"ttl_days={self.ttl_days}"
         )
 
+    def _tier_name(self) -> str:
+        """Return tier identifier for telemetry."""
+        return "L2_Working"
+
     async def store(self, data: Fact | dict[str, Any]) -> str:
         """
         Store a fact in L2 Working Memory.
@@ -165,6 +170,8 @@ class WorkingMemoryTier(BaseTier[Fact]):
                 else:
                     fact = data
 
+                start_time = time.perf_counter()
+
                 # Check CIAR threshold
                 if fact.ciar_score < self.ciar_threshold:
                     logger.debug(
@@ -185,6 +192,21 @@ class WorkingMemoryTier(BaseTier[Fact]):
 
                 self._cache_fact(fact)
                 logger.debug(f"Fact {fact.fact_id} stored successfully in L2")
+
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="STORE",
+                    session_id=fact.session_id,
+                    status="HIT",
+                    latency_ms=latency_ms,
+                    item_count=1,
+                    metadata={
+                        "fact_id": fact.fact_id,
+                        "fact_type": fact.fact_type,
+                        "ciar_score": fact.ciar_score,
+                    },
+                )
+
                 return fact.fact_id
 
             except ValidationError:
@@ -223,13 +245,22 @@ class WorkingMemoryTier(BaseTier[Fact]):
             Fact object or None if not found
         """
         async with OperationTimer(self.metrics, "l2_retrieve"):
+            start_time = time.perf_counter()
             try:
                 result = await self.postgres.query(
-                    table="working_memory", filters={"fact_id": fact_id}, limit=1
+                    table="working_memory", filters={"id": fact_id}, limit=1
                 )
 
                 if not result:
                     logger.debug(f"Fact {fact_id} not found in L2")
+                    latency_ms = (time.perf_counter() - start_time) * 1000
+                    await self._emit_tier_access(
+                        operation="RETRIEVE",
+                        session_id="unknown",
+                        status="MISS",
+                        latency_ms=latency_ms,
+                        metadata={"fact_id": fact_id},
+                    )
                     return None
 
                 # Convert to Fact model
@@ -237,6 +268,10 @@ class WorkingMemoryTier(BaseTier[Fact]):
                 # Parse metadata if it's a string
                 if isinstance(fact_data.get("metadata"), str):
                     fact_data["metadata"] = json.loads(fact_data["metadata"])
+
+                # Backfill fact_id when underlying storage returns generic id
+                if "fact_id" not in fact_data and "id" in fact_data:
+                    fact_data["fact_id"] = str(fact_data["id"])
 
                 fact = Fact(**fact_data)
 
@@ -246,6 +281,20 @@ class WorkingMemoryTier(BaseTier[Fact]):
                 logger.debug(
                     f"Retrieved fact {fact_id} (access_count={fact.access_count}, "
                     f"CIAR={fact.ciar_score})"
+                )
+
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="RETRIEVE",
+                    session_id=fact.session_id,
+                    status="HIT",
+                    latency_ms=latency_ms,
+                    item_count=1,
+                    metadata={
+                        "fact_id": fact.fact_id,
+                        "fact_type": fact.fact_type,
+                        "ciar_score": fact.ciar_score,
+                    },
                 )
                 return fact
 
@@ -277,6 +326,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
             List of matching facts (newest/highest CIAR first)
         """
         async with OperationTimer(self.metrics, "l2_query"):
+            start_time = time.perf_counter()
             try:
                 # Build query filters
                 query_filters = filters.copy() if filters else {}
@@ -306,7 +356,6 @@ class WorkingMemoryTier(BaseTier[Fact]):
                 )
 
                 for row in results:
-                    # Parse metadata if it's a string
                     if isinstance(row.get("metadata"), str):
                         row["metadata"] = json.loads(row["metadata"])
 
@@ -331,6 +380,19 @@ class WorkingMemoryTier(BaseTier[Fact]):
                         break
 
                 logger.debug(f"Query returned {len(facts)} facts")
+
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="QUERY",
+                    session_id=filters.get("session_id", "unknown") if filters else "unknown",
+                    status="HIT",
+                    latency_ms=latency_ms,
+                    item_count=len(facts),
+                    metadata={
+                        "filters": str(filters)[:100] if filters else None,
+                        "min_ciar": min_ciar,
+                    },
+                )
                 return facts
 
             except Exception as e:
@@ -411,6 +473,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
             ```
         """
         async with OperationTimer(self.metrics, "l2_search_facts"):
+            start_time = time.perf_counter()
             try:
                 min_ciar_threshold = min_ciar if min_ciar is not None else self.ciar_threshold
 
@@ -443,11 +506,28 @@ class WorkingMemoryTier(BaseTier[Fact]):
                     if isinstance(fact_data.get("metadata"), str):
                         fact_data["metadata"] = json.loads(fact_data["metadata"])
 
+                    # Backfill fact_id when underlying storage returns generic id
+                    if "fact_id" not in fact_data and "id" in fact_data:
+                        fact_data["fact_id"] = str(fact_data["id"])
+
                     facts.append(Fact(**fact_data))
 
                 logger.info(
                     f"L2 search found {len(facts)} facts for query '{query}' "
                     f"(session={session_id}, min_ciar={min_ciar_threshold})"
+                )
+
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="QUERY",
+                    session_id=session_id,
+                    status="HIT",
+                    latency_ms=latency_ms,
+                    item_count=len(facts),
+                    metadata={
+                        "query": query[:50],
+                        "min_ciar": min_ciar_threshold,
+                    },
                 )
 
                 return facts
@@ -528,6 +608,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
             True if deleted, False if not found
         """
         async with OperationTimer(self.metrics, "l2_delete"):
+            start_time = time.perf_counter()
             try:
                 if isinstance(self.postgres, PostgresAdapter):
                     result = await self.postgres.delete_by_filters(
@@ -543,6 +624,15 @@ class WorkingMemoryTier(BaseTier[Fact]):
                     logger.debug(f"Deleted fact {fact_id} from L2")
                 else:
                     logger.debug(f"Fact {fact_id} not found for deletion")
+
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="DELETE",
+                    session_id="unknown",
+                    status="HIT" if result else "MISS",
+                    latency_ms=latency_ms,
+                    metadata={"fact_id": fact_id},
+                )
 
                 return result
 
@@ -664,7 +754,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
             # Update in database
             await self.postgres.update(
                 "working_memory",
-                filters={"fact_id": fact.fact_id},
+                filters={"id": fact.fact_id},
                 data={
                     "last_accessed": fact.last_accessed,
                     "access_count": fact.access_count,

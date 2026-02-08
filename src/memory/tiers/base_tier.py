@@ -120,6 +120,49 @@ class BaseTier[TModel: BaseModel](ABC):
             except Exception as e:
                 logger.warning(f"Failed to emit telemetry event {event_type}: {e}")
 
+    async def _emit_tier_access(
+        self,
+        operation: str,
+        session_id: str,
+        status: str,
+        latency_ms: float,
+        item_count: int = 0,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Emit standardized TIER_ACCESS event for physical execution tracking.
+
+        Args:
+            operation: Operation type (STORE, RETRIEVE, QUERY, DELETE)
+            session_id: Session ID associated with the event
+            status: Outcome (HIT, MISS, ERROR)
+            latency_ms: Operation latency in milliseconds
+            item_count: Number of items processed
+            metadata: Tier-specific context (truncated to avoid large payloads)
+        """
+        await self.emit_telemetry(
+            event_type="tier_access",
+            session_id=session_id,
+            data={
+                "tier": self._tier_name(),
+                "operation": operation,
+                "status": status,
+                "latency_ms": round(latency_ms, 3),
+                "item_count": item_count,
+                "metadata": metadata or {},
+            },
+        )
+
+    @abstractmethod
+    def _tier_name(self) -> str:
+        """
+        Return tier identifier for telemetry events.
+
+        Returns:
+            Tier name (e.g., 'L1_Active', 'L2_Working', 'L3_Episodic', 'L4_Semantic')
+        """
+        pass
+
     @abstractmethod
     async def store(self, data: TModel | dict[str, Any]) -> str:
         """

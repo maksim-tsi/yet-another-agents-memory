@@ -238,8 +238,54 @@ The `test_glass_box_telemetry_flow` test verifies:
 |------|----------|--------|
 | ~~Instrument `ConsolidationEngine` with telemetry~~ | Medium | ✅ **Done** - commit `42772dd` |
 | ~~Instrument `DistillationEngine` with telemetry~~ | Medium | ✅ **Done** - commit `c313e61` |
-| Add tier-level store/retrieve telemetry | Low | Optional |
+| Add tier-level store/retrieve telemetry | High | 🔄 **In Progress** - L1 Done, L2-L4 Planned |
 | Build Memory Inspector UI (visualization) | Medium | Future |
+
+---
+
+## Tier-Level Telemetry Implementation
+
+**Status:** In Progress (L1 Complete)
+
+To support **AIMS'25** efficiency claims, we are instrumenting all memory tiers (L1-L4) with `TIER_ACCESS` events to capture physical execution metrics.
+
+### Event Schema
+
+Standardized `tier_access` event structure for all tiers:
+
+```json
+{
+  "type": "tier_access",
+  "session_id": "session-123",
+  "data": {
+    "tier": "L1_Active",
+    "operation": "STORE",  // STORE, RETRIEVE, QUERY, DELETE
+    "status": "HIT",       // HIT, MISS, ERROR
+    "latency_ms": 1.25,
+    "item_count": 1,
+    "metadata": {          // Tier-specific context
+      "turn_id": "turn-456",
+      "source": "redis"
+    }
+  }
+}
+```
+
+### Coverage Plan
+
+| Tier | Operations Instrumented | Metrics Captured | Context |
+|------|-------------------------|------------------|---------|
+| **L1 (Active)** | `store`, `retrieve`, `retrieve_session`, `delete` | Latency, Hit/Miss (Redis vs Postgres) | `turn_id`, `source` |
+| **L2 (Working)** | `store`, `retrieve`, `query`, `search`, `delete` | Latency, Item Count | `fact_type`, `ciar_score` |
+| **L3 (Episodic)** | `store`, `retrieve`, `search`, `query`, `delete` | Latency, Similarity Score | `episode_id`, `modality` |
+| **L4 (Semantic)** | `store`, `retrieve`, `search`, `delete` | Latency, Confidence | `knowledge_type` |
+
+### Progress
+
+- **Base Infrastructure:** ✅ Added `_emit_tier_access()` helper to `BaseTier`
+- **L1 Active Context:** ✅ Fully instrumented (Redis + Postgres paths)
+- **L2 Working Memory:** 🔄 In Progress
+- **L3/L4:** 📅 Planned
 
 ---
 

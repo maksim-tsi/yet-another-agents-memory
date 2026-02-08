@@ -13,6 +13,7 @@ Architecture:
 
 import json
 import logging
+import time
 import warnings
 from datetime import UTC, datetime
 from typing import Any
@@ -114,6 +115,10 @@ class ActiveContextTier(BaseTier[TurnData]):
             f"ttl_hours={self.ttl_hours}, postgres_backup={self.enable_postgres_backup}"
         )
 
+    def _tier_name(self) -> str:
+        """Return tier identifier for telemetry."""
+        return "L1_Active"
+
     async def store(self, data: TurnData | dict[str, Any]) -> str:
         """
         Store a conversational turn in L1.
@@ -156,6 +161,8 @@ class ActiveContextTier(BaseTier[TurnData]):
                 timestamp = turn.timestamp
 
                 logger.debug(f"Storing turn {turn_id} in session {session_id}")
+
+                start_time = time.perf_counter()
 
                 # Prepare turn data
                 turn_data = {
@@ -200,6 +207,16 @@ class ActiveContextTier(BaseTier[TurnData]):
                     await self.postgres.insert("active_context", postgres_data)
                     logger.debug(f"Stored turn {turn_id} in PostgreSQL backup")
 
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="STORE",
+                    session_id=session_id,
+                    status="HIT",
+                    latency_ms=latency_ms,
+                    item_count=1,
+                    metadata={"turn_id": turn_id, "role": turn.role},
+                )
+
                 # Metrics are tracked by OperationTimer
                 return turn_id
 
@@ -224,10 +241,19 @@ class ActiveContextTier(BaseTier[TurnData]):
             TurnData or None if not found
         """
         async with OperationTimer(self.metrics, "l1_retrieve"):
+            start_time = time.perf_counter()
             try:
                 logger.debug(f"Retrieving turn {turn_id} from L1")
 
                 if not self.enable_postgres_backup:
+                    latency_ms = (time.perf_counter() - start_time) * 1000
+                    await self._emit_tier_access(
+                        operation="RETRIEVE",
+                        session_id="unknown",
+                        status="MISS",
+                        latency_ms=latency_ms,
+                        metadata={"turn_id": turn_id},
+                    )
                     return None
 
                 postgres_result = await self.postgres.query(
@@ -238,6 +264,14 @@ class ActiveContextTier(BaseTier[TurnData]):
 
                 if not postgres_result:
                     logger.debug(f"Turn {turn_id} not found in L1")
+                    latency_ms = (time.perf_counter() - start_time) * 1000
+                    await self._emit_tier_access(
+                        operation="RETRIEVE",
+                        session_id="unknown",
+                        status="MISS",
+                        latency_ms=latency_ms,
+                        metadata={"turn_id": turn_id},
+                    )
                     return None
 
                 row = postgres_result[0]
@@ -254,6 +288,16 @@ class ActiveContextTier(BaseTier[TurnData]):
                         "timestamp": row["timestamp"],
                         "metadata": metadata,
                     }
+                )
+
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="RETRIEVE",
+                    session_id=turn.session_id,
+                    status="HIT",
+                    latency_ms=latency_ms,
+                    item_count=1,
+                    metadata={"turn_id": turn_id},
                 )
 
                 return turn
@@ -279,6 +323,7 @@ class ActiveContextTier(BaseTier[TurnData]):
             List of recent turns (newest first) or None if not found
         """
         async with OperationTimer(self.metrics, "l1_retrieve_session"):
+            start_time = time.perf_counter()
             try:
                 redis_key = f"{self.REDIS_KEY_PREFIX}{session_id}"
 
@@ -295,6 +340,16 @@ class ActiveContextTier(BaseTier[TurnData]):
                                 turn_payload["session_id"] = session_id
                             turns.append(TurnData.model_validate(turn_payload))
                         logger.debug(f"Retrieved {len(turns)} turns from Redis (hot)")
+
+                        latency_ms = (time.perf_counter() - start_time) * 1000
+                        await self._emit_tier_access(
+                            operation="QUERY",
+                            session_id=session_id,
+                            status="HIT",
+                            latency_ms=latency_ms,
+                            item_count=len(turns),
+                            metadata={"source": "redis"},
+                        )
                         return turns
                 except Exception as redis_error:
                     logger.warning(
@@ -348,10 +403,26 @@ class ActiveContextTier(BaseTier[TurnData]):
                         except Exception as rebuild_error:
                             logger.warning(f"Failed to rebuild Redis cache: {rebuild_error}")
 
+                        latency_ms = (time.perf_counter() - start_time) * 1000
+                        await self._emit_tier_access(
+                            operation="QUERY",
+                            session_id=session_id,
+                            status="HIT",
+                            latency_ms=latency_ms,
+                            item_count=len(turns),
+                            metadata={"source": "postgres"},
+                        )
                         return turns
 
                 # Not found in either storage
                 logger.debug(f"Session {session_id} not found in L1")
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="QUERY",
+                    session_id=session_id,
+                    status="MISS",
+                    latency_ms=latency_ms,
+                )
                 return None
 
             except Exception as e:
@@ -431,6 +502,7 @@ class ActiveContextTier(BaseTier[TurnData]):
             True if deleted, False if not found
         """
         async with OperationTimer(self.metrics, "l1_delete"):
+            start_time = time.perf_counter()
             try:
                 redis_key = f"{self.REDIS_KEY_PREFIX}{session_id}"
                 deleted = False
@@ -457,6 +529,14 @@ class ActiveContextTier(BaseTier[TurnData]):
                     if bool(postgres_result):
                         deleted = True
                         logger.debug(f"Deleted session {session_id} from PostgreSQL")
+
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="DELETE",
+                    session_id=session_id,
+                    status="HIT" if deleted else "MISS",
+                    latency_ms=latency_ms,
+                )
 
                 return deleted
 
