@@ -138,6 +138,43 @@ class LLMClient:
             for config in provider_configs:
                 self._configs[config.name] = config
 
+    @classmethod
+    def from_env(cls) -> LLMClient:
+        """Build an LLMClient with providers configured from environment variables."""
+        # Delayed imports to avoid circular dependencies
+        from src.llm.providers.gemini import GeminiProvider
+        from src.llm.providers.groq import GroqProvider
+        from src.llm.providers.mistral import MistralProvider
+
+        ensure_phoenix_instrumentation()
+
+        client = cls(
+            provider_configs=[
+                ProviderConfig(name="gemini", timeout=30.0, priority=0),
+                ProviderConfig(name="groq", timeout=30.0, priority=1),
+                ProviderConfig(name="mistral", timeout=30.0, priority=2),
+            ]
+        )
+
+        google_key = os.environ.get("GOOGLE_API_KEY")
+        if google_key:
+            client.register_provider(GeminiProvider(api_key=google_key))
+        else:
+            logger.warning("GOOGLE_API_KEY not set; Gemini provider disabled.")
+
+        groq_key = os.environ.get("GROQ_API_KEY")
+        if groq_key:
+            client.register_provider(GroqProvider(api_key=groq_key))
+
+        mistral_key = os.environ.get("MISTRAL_API_KEY")
+        if mistral_key:
+            client.register_provider(MistralProvider(api_key=mistral_key))
+
+        if not client.available_providers():
+            logger.warning("No LLM providers configured; responses will be fallback messages.")
+
+        return client
+
     def register_provider(
         self, provider: BaseProvider, config: ProviderConfig | None = None
     ) -> None:

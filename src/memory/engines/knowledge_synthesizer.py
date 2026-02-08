@@ -45,7 +45,7 @@ class KnowledgeSynthesizer:
     def __init__(
         self,
         semantic_tier: SemanticMemoryTier,
-        llm_provider: BaseProvider,
+        llm_provider: BaseProvider | LLMClient | None = None,
         domain_config_path: str | None = None,
         similarity_threshold: float = 0.85,
         cache_ttl_seconds: int = 3600,
@@ -63,8 +63,13 @@ class KnowledgeSynthesizer:
             metrics_enabled: Enable metrics collection
         """
         self.semantic_tier = semantic_tier
-        self.llm_client: LLMClient = LLMClient()
-        self.llm_client.register_provider(llm_provider)
+        if isinstance(llm_provider, LLMClient):
+            self.llm_client = llm_provider
+        elif llm_provider is None:
+            self.llm_client = LLMClient.from_env()
+        else:
+            self.llm_client = LLMClient()
+            self.llm_client.register_provider(llm_provider)
         self.similarity_threshold = similarity_threshold
         self.cache_ttl_seconds = cache_ttl_seconds
 

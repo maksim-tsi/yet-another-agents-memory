@@ -39,8 +39,8 @@ class FactExtractor:
         model_name: Name of the LLM model to use.
     """
 
-    def __init__(self, llm_client: LLMClient, model_name: str | None = None):
-        self.llm_client: LLMClient = llm_client
+    def __init__(self, llm_client: LLMClient | None = None, model_name: str | None = None):
+        self.llm_client: LLMClient = llm_client or LLMClient.from_env()
         self.model_name = model_name or "gemini-3-flash-preview"
 
     async def extract_facts(self, text: str, metadata: dict[str, Any] | None = None) -> list[Fact]:

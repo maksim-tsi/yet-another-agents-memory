@@ -76,7 +76,7 @@ class ConsolidationEngine(BaseEngine):
             self.llm = LLMClient()
             self.llm.register_provider(gemini_provider)
         else:
-            raise ValueError("llm_provider or gemini_provider must be provided")
+            self.llm = LLMClient.from_env()
         self.stream_consumer = stream_consumer
         self.config = config or {}
         self.time_window_hours = self.config.get(
