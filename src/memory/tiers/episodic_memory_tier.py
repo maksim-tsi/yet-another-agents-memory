@@ -42,9 +42,10 @@ class EpisodicMemoryTier(BaseTier[Episode]):
         neo4j_adapter: Neo4jAdapter,
         metrics_collector: MetricsCollector | None = None,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         storage_adapters = {"qdrant": qdrant_adapter, "neo4j": neo4j_adapter}
-        super().__init__(storage_adapters, metrics_collector, config)
+        super().__init__(storage_adapters, metrics_collector, config, telemetry_stream)
 
         self.qdrant = qdrant_adapter
         self.neo4j = neo4j_adapter

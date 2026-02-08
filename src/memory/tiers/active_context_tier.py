@@ -79,6 +79,7 @@ class ActiveContextTier(BaseTier[TurnData]):
         postgres_adapter: PostgresAdapter,
         metrics_collector: MetricsCollector | None = None,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         """
         Initialize L1 Active Context Tier.
@@ -91,9 +92,10 @@ class ActiveContextTier(BaseTier[TurnData]):
                 - window_size: Max turns per session (default: 20)
                 - ttl_hours: TTL in hours (default: 24)
                 - enable_postgres_backup: Store in PostgreSQL (default: True)
+            telemetry_stream: Optional stream for emitting events
         """
         storage_adapters = {"redis": redis_adapter, "postgres": postgres_adapter}
-        super().__init__(storage_adapters, metrics_collector, config)
+        super().__init__(storage_adapters, metrics_collector, config, telemetry_stream)
 
         self.redis = redis_adapter
         self.postgres = postgres_adapter

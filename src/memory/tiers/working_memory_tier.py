@@ -81,6 +81,7 @@ class WorkingMemoryTier(BaseTier[Fact]):
         postgres_adapter: PostgresAdapter,
         metrics_collector: MetricsCollector | None = None,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         """
         Initialize L2 Working Memory Tier.
@@ -93,9 +94,10 @@ class WorkingMemoryTier(BaseTier[Fact]):
                 - ttl_days: TTL in days (default: 7)
                 - recency_boost_alpha: Boost factor per access (default: 0.05)
                 - age_decay_lambda: Decay rate per day (default: 0.1)
+            telemetry_stream: Optional stream for emitting events
         """
         storage_adapters = {"postgres": postgres_adapter}
-        super().__init__(storage_adapters, metrics_collector, config)
+        super().__init__(storage_adapters, metrics_collector, config, telemetry_stream)
 
         self.postgres = postgres_adapter
         # Ensure adapter targets the working_memory table for all operations

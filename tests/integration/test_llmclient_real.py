@@ -2,8 +2,10 @@ import os
 
 import pytest
 
-from src.utils.llm_client import LLMClient, ProviderConfig
-from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
+from src.llm.client import LLMClient, ProviderConfig
+from src.llm.providers.gemini import GeminiProvider
+from src.llm.providers.groq import GroqProvider
+from src.llm.providers.mistral import MistralProvider
 
 
 @pytest.mark.integration

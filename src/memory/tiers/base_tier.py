@@ -76,6 +76,7 @@ class BaseTier[TModel: BaseModel](ABC):
         storage_adapters: Mapping[str, StorageAdapter],
         metrics_collector: MetricsCollector | None = None,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         """
         Initialize base tier.
@@ -86,6 +87,7 @@ class BaseTier[TModel: BaseModel](ABC):
             metrics_collector: Optional metrics collector for observability
             config: Tier-specific configuration parameters
                 Example: {'window_size': 20, 'ttl_hours': 24}
+            telemetry_stream: Optional LifecycleStreamProducer for "Glass Box" events
 
         Raises:
             TierConfigurationError: If configuration is invalid
@@ -96,11 +98,27 @@ class BaseTier[TModel: BaseModel](ABC):
         self.storage_adapters = storage_adapters
         self.metrics = metrics_collector or MetricsCollector()
         self.config = config or {}
+        self.telemetry_stream = telemetry_stream
         self._initialized = False
 
         logger.info(
             f"Initialized {self.__class__.__name__} with storage: {list(storage_adapters.keys())}"
         )
+
+    async def emit_telemetry(self, event_type: str, session_id: str, data: dict[str, Any]) -> None:
+        """
+        Emit a telemetry event if the stream is configured.
+
+        Args:
+            event_type: Type of event (e.g., "tier_access", "promotion")
+            session_id: Session ID associated with the event
+            data: Event payload
+        """
+        if self.telemetry_stream:
+            try:
+                await self.telemetry_stream.publish(event_type, session_id, data)
+            except Exception as e:
+                logger.warning(f"Failed to emit telemetry event {event_type}: {e}")
 
     @abstractmethod
     async def store(self, data: TModel | dict[str, Any]) -> str:

@@ -34,9 +34,10 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
         typesense_adapter: TypesenseAdapter,
         metrics_collector: MetricsCollector | None = None,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         storage_adapters = {"typesense": typesense_adapter}
-        super().__init__(storage_adapters, metrics_collector, config)
+        super().__init__(storage_adapters, metrics_collector, config, telemetry_stream)
 
         self.typesense = typesense_adapter
         self.collection_name = (

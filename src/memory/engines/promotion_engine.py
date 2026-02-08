@@ -49,6 +49,7 @@ class PromotionEngine(BaseEngine):
         fact_extractor: FactExtractor,
         ciar_scorer: CIARScorer,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         super().__init__()
         self.l1 = l1_tier
@@ -57,6 +58,7 @@ class PromotionEngine(BaseEngine):
         self.extractor = fact_extractor
         self.scorer = ciar_scorer
         self.config = config or {}
+        self.telemetry_stream = telemetry_stream
         mock_types = (Mock, MagicMock, AsyncMock)
         self._uses_mocks = any(
             isinstance(dep, mock_types) or dep.__class__.__module__.startswith("unittest.mock")
@@ -184,6 +186,22 @@ class PromotionEngine(BaseEngine):
                     # The segment provides certainty and impact from LLM analysis
                     segment_score = await self._score_segment(segment)
 
+                    if self.telemetry_stream:
+                        await self.telemetry_stream.publish(
+                            event_type="significance_scored",
+                            session_id=session_id,
+                            data={
+                                "segment_id": segment.segment_id,
+                                "topic": segment.topic,
+                                "ciar_score": segment_score,
+                                "threshold": self.promotion_threshold,
+                                "decision": "PROMOTE"
+                                if segment_score >= self.promotion_threshold
+                                else "IGNORE",
+                                "justification": segment.justification,
+                            },
+                        )
+
                     if segment_score < self.promotion_threshold:
                         logger.debug(
                             f"Segment '{segment.topic}' scored {segment_score:.3f}, "
@@ -217,6 +235,7 @@ class PromotionEngine(BaseEngine):
                             source_type="segment_fallback",
                             topic_segment_id=segment.segment_id,
                             topic_label=segment.topic,
+                            justification="Fallback promotion from segment summary",
                         )
                         facts = [fallback_fact]
                     inc("facts_extracted", len(facts))
@@ -252,6 +271,20 @@ class PromotionEngine(BaseEngine):
 
                         # Store in L2
                         await self.l2.store(fact)
+
+                        if self.telemetry_stream:
+                            await self.telemetry_stream.publish(
+                                event_type="fact_promoted",
+                                session_id=session_id,
+                                data={
+                                    "fact_id": fact.fact_id,
+                                    "content": fact.content,
+                                    "ciar_score": fact.ciar_score,
+                                    "justification": fact.justification,
+                                    "source_segment": segment.topic,
+                                },
+                            )
+
                         inc("facts_promoted")
 
                 except Exception as e:
@@ -309,6 +342,13 @@ class PromotionEngine(BaseEngine):
         # For fresh segments: age_decay = 1.0, recency_boost = 1.0
         # CIAR = (Certainty x Impact) x Age x Recency
         ciar_score = (segment.certainty * segment.impact) * 1.0 * 1.0
+
+        # [TELEMETRY] Emit significance scoring event
+        if self.telemetry_stream:
+            # We don't have session_id here easily without passing it down,
+            # but for now we can rely on the caller or refactor _score_segment to accept metadata
+            pass
+
         return round(ciar_score, 4)
 
     def _format_segment_for_extraction(

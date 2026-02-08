@@ -109,10 +109,11 @@ class Fact(BaseModel):
 
     # Metadata
     metadata: dict[str, Any] = Field(default_factory=dict)
+    justification: str | None = None  # Explanation for extraction/promotion logic
 
     # Timestamps
     extracted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_accessed: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_accessed: datetime | None = Field(default_factory=lambda: datetime.now(UTC))
     access_count: int = Field(default=0, ge=0)
 
     model_config = {"use_enum_values": True}
@@ -193,6 +194,7 @@ class Fact(BaseModel):
             "extracted_at": self.extracted_at,
             "last_accessed": self.last_accessed,
             "access_count": self.access_count,
+            "justification": self.justification,
         }
 
 

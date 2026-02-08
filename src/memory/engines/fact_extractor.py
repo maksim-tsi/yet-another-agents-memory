@@ -102,6 +102,7 @@ class FactExtractor:
                         ciar_score=0.0,  # Will be calculated later
                         age_decay=1.0,
                         recency_boost=1.0,
+                        justification=rf.get("justification"),
                     )
                     facts.append(fact)
                 except ValidationError as ve:
@@ -135,6 +136,7 @@ class FactExtractor:
                     ciar_score=0.0,
                     age_decay=1.0,
                     recency_boost=1.0,
+                    justification="Regex extraction: Email pattern match",
                 )
             )
 
@@ -156,6 +158,7 @@ class FactExtractor:
                     ciar_score=0.0,
                     age_decay=1.0,
                     recency_boost=1.0,
+                    justification="Regex extraction: Preference pattern match",
                 )
             )
 

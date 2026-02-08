@@ -57,6 +57,9 @@ class TopicSegment(BaseModel):
     temporal_context: str | None = Field(
         default="", description="Temporal markers like dates, times, deadlines"
     )
+    justification: str | None = Field(
+        default=None, description="Explanation for segment significance"
+    )
 
 
 class TopicSegmenter:
