@@ -306,9 +306,9 @@ class TestMemoryLifecycleFlow:
 
         # Verify overlap (at least one episode in both)
         common_episodes = qdrant_episode_ids & neo4j_episode_ids
-        assert len(common_episodes) > 0, (
-            f"No common episodes between Qdrant ({len(qdrant_episode_ids)}) and Neo4j ({len(neo4j_episode_ids)})"
-        )
+        assert (
+            len(common_episodes) > 0
+        ), f"No common episodes between Qdrant ({len(qdrant_episode_ids)}) and Neo4j ({len(neo4j_episode_ids)})"
 
         # Record results
         report_collector.add_result(
@@ -403,25 +403,25 @@ class TestMemoryLifecycleFlow:
 
         # Verify knowledge documents created
         assert len(knowledge_docs) > 0, "No knowledge documents found in Typesense"
-        assert stats.get("knowledge_documents_created", 0) > 0, (
-            "Distillation engine reported 0 documents"
-        )
+        assert (
+            stats.get("knowledge_documents_created", 0) > 0
+        ), "Distillation engine reported 0 documents"
 
         # Verify provenance tracking
         for doc in knowledge_docs:
             source_episode_ids = doc.get("source_episode_ids", [])
-            assert len(source_episode_ids) > 0, (
-                f"Knowledge doc {doc.get('id')} missing source_episode_ids"
-            )
+            assert (
+                len(source_episode_ids) > 0
+            ), f"Knowledge doc {doc.get('id')} missing source_episode_ids"
 
             # Verify episode IDs are valid (exist in L3)
             for episode_id in source_episode_ids:
                 # Check episode exists in Neo4j
                 verify_query = "MATCH (e:Episode {episode_id: $eid}) RETURN e.episode_id"
                 result = await neo4j_adapter.execute_query(verify_query, {"eid": episode_id})
-                assert len(result) > 0, (
-                    f"Episode {episode_id} not found in Neo4j (broken provenance)"
-                )
+                assert (
+                    len(result) > 0
+                ), f"Episode {episode_id} not found in Neo4j (broken provenance)"
 
         # Record results
         report_collector.add_result(

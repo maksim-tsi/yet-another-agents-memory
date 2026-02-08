@@ -177,9 +177,9 @@ class TestEpisodicMemoryTierStore:
             )
 
         assert episode_id == "ep_001"
-        assert any(issubclass(warning.category, DeprecationWarning) for warning in captured), (
-            "Expected DeprecationWarning for dict input"
-        )
+        assert any(
+            issubclass(warning.category, DeprecationWarning) for warning in captured
+        ), "Expected DeprecationWarning for dict input"
 
     @pytest.mark.asyncio
     async def test_store_episode_validates_embedding_size(self, episodic_tier, sample_episode):

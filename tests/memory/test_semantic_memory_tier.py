@@ -110,9 +110,9 @@ class TestSemanticMemoryTierStore:
 
         assert knowledge_id == "know_002"
         semantic_tier.typesense.index_document.assert_called_once()
-        assert any(issubclass(warning.category, DeprecationWarning) for warning in captured), (
-            "Expected DeprecationWarning for dict input"
-        )
+        assert any(
+            issubclass(warning.category, DeprecationWarning) for warning in captured
+        ), "Expected DeprecationWarning for dict input"
 
     @pytest.mark.asyncio
     async def test_store_validates_data(self, semantic_tier):

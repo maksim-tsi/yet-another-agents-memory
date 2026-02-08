@@ -51,9 +51,9 @@ class MasterLog:
         self, message: str, timestamp: datetime, test_id: str = "", is_question: bool = False
     ) -> None:
         event_type = EventType.SEND_MESSAGE if test_id != "" else EventType.SEND_FILL
-        assert not (is_question and event_type == EventType.SEND_FILL), (
-            "Filler is tagged as a question."
-        )
+        assert not (
+            is_question and event_type == EventType.SEND_FILL
+        ), "Filler is tagged as a question."
         event = LogEvent(
             event_type, timestamp, test_id, {"message": message, "is_question": is_question}
         )
@@ -68,9 +68,9 @@ class MasterLog:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         event_type = EventType.RESPONSE_MESSAGE if test_id != "" else EventType.RESPONSE_FILL
-        assert not (is_question and event_type == EventType.RESPONSE_FILL), (
-            "Response to filler is tagged as a question."
-        )
+        assert not (
+            is_question and event_type == EventType.RESPONSE_FILL
+        ), "Response to filler is tagged as a question."
         data = {"message": message, "is_question": is_question}
         if metadata:
             data["metadata"] = metadata
