@@ -486,7 +486,7 @@ def build_config(args: argparse.Namespace) -> WrapperConfig:
 def main(argv: Iterable[str] | None = None) -> None:
     """Entrypoint for running the FastAPI wrapper via Uvicorn."""
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     args = parse_args(argv)
     config = build_config(args)
     app = create_app(config)

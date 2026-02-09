@@ -174,7 +174,10 @@ class MemoryAgent(BaseAgent):
         state = self._ensure_state_defaults(state)
         user_input = self._extract_user_message(state)
         context_text = self._format_context(state)
-        prompt = self._build_prompt(context_text=context_text, user_input=user_input)
+        turn_id = int(state.get("turn_id", 0))
+        prompt = self._build_prompt(
+            context_text=context_text, user_input=user_input, turn_id=turn_id
+        )
         response_text = await self._generate_response(
             prompt,
             agent_metadata=self._build_agent_metadata(state),
@@ -248,7 +251,7 @@ class MemoryAgent(BaseAgent):
         )
         return llm_response.text
 
-    def _build_prompt(self, context_text: str, user_input: str) -> str:
+    def _build_prompt(self, context_text: str, user_input: str, turn_id: int = 0) -> str:
         sections = [
             "You are the MAS Memory Agent. Use the provided context to answer the user.",
         ]
@@ -256,19 +259,26 @@ class MemoryAgent(BaseAgent):
             sections.append("## Context\n" + context_text)
 
         # [SESSION STATE] - Fix #1
-        turn_count = len(self.history) // 2 + 1 if hasattr(self, "history") else 0
         current_time = datetime.now(UTC).strftime("%H:%M")
         sections.append(
-            f"## Session State\n- Current Turn: {turn_count}\n- Current Time: {current_time}"
+            f"## Session State\n- Current Turn: {turn_id}\n- Current Time: {current_time}"
         )
 
         sections.append(f"## User\n{user_input}")
 
+        # [DEBUG] Log the full prompt to understand context visibility
+        logger.debug("Generated Prompt:\n%s", "\n".join(sections))
+
         sections.append(
             "## Instruction\n"
             "1. Answer the user's latest request directly.\n"
-            "2. If an [ACTIVE STANDING ORDER] applies to this specific turn/condition, execute it.\n"
-            "3. Format Guardian: If the user requests a specific format (e.g., JSON), satisfy that format FIRST. Append any instruction execution outside the structured block."
+            "2. REVIEW ## Recent Conversation history. Look for any instructions given in recent turns (e.g., 'in 2 turns', 'count response X'). These are MANDATORY.\n"
+            "3. If an [ACTIVE STANDING ORDER] applies to this specific turn/condition, execute it.\n"
+            "4. CONFLICT RESOLUTION: If the User requests a specific format (e.g., JSON) AND you have a pending instruction to execute:\n"
+            "   - MATCH the user's requested format (e.g., JSON block).\n"
+            "   - THEN, on a NEW LINE, execute the pending instruction (e.g., append the quote).\n"
+            "   - This specific exception allows you to append text outside the JSON/format block.\n"
+            "5. Do NOT explicitly confirm 'Instruction executed' or 'I have stored this' unless asked."
         )
         sections.append("## Assistant")
         return "\n\n".join(sections)
@@ -325,7 +335,8 @@ class MemoryAgent(BaseAgent):
     def _format_recent_turns(self, recent_turns: list[dict[str, Any] | Any]) -> list[str]:
         """Format recent turns for prompt context."""
         formatted: list[str] = []
-        for turn in recent_turns:
+        # Reverse turns to present chronological order (Oldest -> Newest)
+        for turn in reversed(recent_turns):
             if isinstance(turn, dict):
                 role = turn.get("role", "unknown")
                 content = turn.get("content", "")
