@@ -24,12 +24,11 @@ from src.agents.full_context_agent import FullContextAgent
 from src.agents.memory_agent import MemoryAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.rag_agent import RAGAgent
+from src.llm.client import LLMClient
 from src.memory.models import TurnData
 from src.memory.tiers import ActiveContextTier, WorkingMemoryTier
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.redis_adapter import RedisAdapter
-from src.utils.llm_client import LLMClient, ProviderConfig, ensure_phoenix_instrumentation
-from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
 
 logger = logging.getLogger(__name__)
 
@@ -182,39 +181,6 @@ SESSION_PREFIXES = {
 }
 
 
-def build_llm_client() -> LLMClient:
-    """Build an LLMClient with providers configured from environment variables."""
-
-    ensure_phoenix_instrumentation()
-
-    client = LLMClient(
-        provider_configs=[
-            ProviderConfig(name="gemini", timeout=30.0, priority=0),
-            ProviderConfig(name="groq", timeout=30.0, priority=1),
-            ProviderConfig(name="mistral", timeout=30.0, priority=2),
-        ]
-    )
-
-    google_key = os.environ.get("GOOGLE_API_KEY")
-    if google_key:
-        client.register_provider(GeminiProvider(api_key=google_key))
-    else:
-        logger.warning("GOOGLE_API_KEY not set; Gemini provider disabled.")
-
-    groq_key = os.environ.get("GROQ_API_KEY")
-    if groq_key:
-        client.register_provider(GroqProvider(api_key=groq_key))
-
-    mistral_key = os.environ.get("MISTRAL_API_KEY")
-    if mistral_key:
-        client.register_provider(MistralProvider(api_key=mistral_key))
-
-    if not client.available_providers():
-        logger.warning("No LLM providers configured; responses will be fallback messages.")
-
-    return client
-
-
 def _read_env_or_raise(key: str) -> str:
     value = os.environ.get(key)
     if not value:
@@ -274,7 +240,7 @@ async def initialize_state(config: WrapperConfig) -> AgentWrapperState:
         l2_tier=l2_tier,
     )
 
-    llm_client = build_llm_client()
+    llm_client = LLMClient.from_env()
     agent_cls = AGENT_TYPES[config.agent_type]
     agent = agent_cls(
         agent_id=f"mas-{config.agent_type}",
@@ -441,7 +407,17 @@ async def _store_turn(
         timestamp=timestamp,
         metadata=metadata,
     )
-    await state.l1_tier.store(turn)
+    try:
+        await state.l1_tier.store(turn)
+    except Exception as exc:
+        if "duplicate key value violates unique constraint" in str(exc):
+            logger.warning(
+                "Ignored duplicate turn submission: session_id=%s, turn_id=%s",
+                message.session_id,
+                stored_turn_id,
+            )
+        else:
+            raise
 
 
 def _estimate_tokens(text: str) -> int:

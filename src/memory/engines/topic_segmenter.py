@@ -13,11 +13,11 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
 
+from src.llm.client import LLMClient
 from src.memory.schemas.topic_segmentation import (
     TOPIC_SEGMENTATION_SCHEMA,
     TOPIC_SEGMENTATION_SYSTEM_INSTRUCTION,
 )
-from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,9 @@ class TopicSegment(BaseModel):
     temporal_context: str | None = Field(
         default="", description="Temporal markers like dates, times, deadlines"
     )
+    justification: str | None = Field(
+        default=None, description="Explanation for segment significance"
+    )
 
 
 class TopicSegmenter:
@@ -81,12 +84,12 @@ class TopicSegmenter:
 
     def __init__(
         self,
-        llm_client: LLMClient,
+        llm_client: LLMClient | None = None,
         model_name: str | None = None,
         min_turns: int = DEFAULT_MIN_TURNS,
         max_turns: int = DEFAULT_MAX_TURNS,
     ):
-        self.llm_client: LLMClient = llm_client
+        self.llm_client: LLMClient = llm_client or LLMClient.from_env()
         self.model_name = model_name or self.DEFAULT_MODEL
         self.min_turns = min_turns
         self.max_turns = max_turns

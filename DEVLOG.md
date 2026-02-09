@@ -16,6 +16,133 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-09 - Intelligent Instruction Handling ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented a robust, memory-driven instruction handling system to replace brittle hardcoded prompt constraints. The agent now intelligently recognizes, stores, contextualizes, and prioritizes delayed/conditional instructions.
+
+**✅ What's Complete:**
+
+1.  **Data Model Updates:**
+    -   Added `FactType.INSTRUCTION` ("behavioral constraints, delayed commands") to `src/memory/models.py`.
+    -   Updated `FACT_EXTRACTION_SCHEMA` in `src/memory/schemas/fact_extraction.py` to support `instruction` type.
+
+2.  **Agent Logic Enhancements (`MemoryAgent`):**
+    -   **Session State Injection:** Added `[SESSION STATE]` (Turn Count, Time) to system prompt so the agent knows *when* to execute instructions.
+    -   **Active Orders Section:** Added `[ACTIVE STANDING ORDERS]` to separate instructions from general facts.
+    -   **Format Guardian:** Explicitly prioritized User Query format over instruction constraints to prevent "format wars".
+
+3.  **Verification:**
+    -   Created `tests/integration/test_instruction_recall.py`.
+    -   Verified schema extraction and prompt injection logic.
+    -   Detailed implementation report: `docs/reports/intelligent-instruction-implementation-20260209.md`.
+
+**Files Modified:**
+-   `src/memory/models.py`
+-   `src/memory/schemas/fact_extraction.py`
+-   `src/agents/memory_agent.py`
+-   `tests/integration/test_instruction_recall.py` (created)
+
+---
+
+### 2026-02-08 - Tier-Level Telemetry (L1-L4) ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Instrumented all memory tiers (Active Context, Working Memory, Episodic Memory, Semantic Memory) to emit `TIER_ACCESS` events for Glass Box observability. This enables tracking of physical execution metrics (hits, misses, latency) at the tier level, complementing the engine-level telemetry.
+
+**✅ What's Complete:**
+
+1. **Base Infrastructure:**
+   - Added `_emit_tier_access()` to `BaseTier` for standardized event emission.
+   - Added `_tier_name()` abstract method.
+
+2. **Tier Instrumentation:**
+   - **L1 Active Context**: `store`, `retrieve`, `retrieve_session`, `delete`
+   - **L2 Working Memory**: `store`, `retrieve`, `query`, `search_facts`, `delete`
+   - **L3 Episodic Memory**: `store`, `retrieve`, `search_similar`, `query`, `delete`
+   - **L4 Semantic Memory**: `store`, `retrieve`, `search`, `delete`
+
+3. **Verification:**
+   - **Integration Test**: `tests/integration/test_tier_telemetry.py` verifies events from all tiers via Redis Stream.
+   - **Fixes**: creating separate `_tier_name` implementations and fixing L2 Postgres `fact_id` mapping.
+
+**Files Modified:**
+- `src/memory/tiers/base_tier.py`
+- `src/memory/tiers/active_context_tier.py`
+- `src/memory/tiers/working_memory_tier.py`
+- `src/memory/tiers/episodic_memory_tier.py`
+- `src/memory/tiers/semantic_memory_tier.py`
+- `tests/integration/test_tier_telemetry.py` (created)
+
+---
+
+### 2026-02-08 - Glass Box Telemetry Implementation ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented comprehensive Glass Box telemetry across all memory engines to enable full observability of the memory lifecycle. Created `UnifiedMemorySystem` facade with feature flags. All engines now emit telemetry events via `LifecycleStreamProducer` to Redis Streams.
+
+**✅ What's Complete:**
+
+1. **UnifiedMemorySystem** (`src/memory/system.py`):
+   - Central facade orchestrating L1-L4 tiers and engines
+   - Feature flags: `enable_promotion`, `enable_consolidation`, `enable_distillation`, `enable_telemetry`
+   - Wires `telemetry_stream` to all engines
+
+2. **Engine Telemetry Events:**
+
+   | Engine | Events |
+   |--------|--------|
+   | `PromotionEngine` | `significance_scored`, `fact_promoted` |
+   | `ConsolidationEngine` | `consolidation_started`, `facts_clustered`, `episode_created`, `consolidation_completed` |
+   | `DistillationEngine` | `distillation_started`, `knowledge_created`, `distillation_completed` |
+
+3. **Data Model Updates** (`src/memory/models.py`):
+   - Added `justification: str | None` to `Fact` for LLM reasoning transparency
+   - Made `last_accessed` optional to handle DB null values
+
+4. **Integration Test** (`tests/integration/test_memory_inspector.py`):
+   - End-to-end telemetry verification via Redis Streams consumer
+   - Validates event emission during promotion flow
+
+5. **Documentation:**
+   - README.md and DEVLOG.md added to `src/memory/`, `src/memory/schemas/`, `src/memory/tiers/`, `src/memory/engines/`
+   - Implementation report: `docs/reports/memory-inspector-implementation-report-2026-02-08.md`
+
+**Commits:**
+- `42772dd`: Instrument ConsolidationEngine with telemetry
+- `c313e61`: Instrument DistillationEngine with telemetry
+- `d391005`: Documentation updates
+- `fad9806`: Add README/DEVLOG to memory directories
+
+**Test Results:**
+```
+Memory Lifecycle Tests: 4 passed, 6 skipped
+Memory Inspector Test: 1 passed
+Full Integration Suite: 24 passed, 6 skipped
+```
+
+**Files Modified/Created:**
+```
+MOD: src/memory/system.py
+MOD: src/memory/engines/promotion_engine.py
+MOD: src/memory/engines/consolidation_engine.py
+MOD: src/memory/engines/distillation_engine.py
+MOD: src/memory/models.py
+NEW: tests/integration/test_memory_inspector.py
+NEW: src/memory/README.md, DEVLOG.md
+NEW: src/memory/engines/README.md, DEVLOG.md
+NEW: src/memory/tiers/README.md, DEVLOG.md
+NEW: src/memory/schemas/README.md, DEVLOG.md
+```
+
+---
+
 ### 2026-02-04 - Mypy Remediation Batches 1–7 Completion 📊
 
 **Status:** ✅ Complete
@@ -197,6 +324,41 @@ L1/L2 tiers, wired wrapper session prefixing, and registered MAS agents in the b
 - GoodAI interface proxy implemented in [benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py](benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py).
 - MAS agents registered in [benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py](benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py).
 - L1/L2 retrieval compatibility fixes in [memory_system.py](memory_system.py).
+
+### 2026-02-07 - GoodAI Benchmark WebUI Stabilization 📊
+
+**Status:** ✅ Complete
+
+**Summary:**
+Stabilized the GoodAI Benchmark WebUI for non-interactive execution, wrapper diagnostics, and run tracking. The backend now enforces unique run identities, injects auto-approval for definition reuse by default, and exposes wrapper health with last-error extraction. The frontend adds operator guidance, wrapper status visualization, and auto-selection of active runs. Benchmark runs now capture stdout/stderr and Python logging records into per-run console logs.
+
+**Key Findings:**
+- Wrapper startup required the root `.venv` interpreter to resolve Redis/Postgres dependencies.
+- Run progress stalling was caused by interactive prompts and non-unique run IDs.
+- Consistent console logging is necessary for post-hoc diagnosis of partial runs.
+
+**✅ What's Complete:**
+- Wrapper health endpoint and last-error surfacing in [benchmarks/goodai-ltm-benchmark/webui/server.py](benchmarks/goodai-ltm-benchmark/webui/server.py).
+- Run auto-approval toggle and inline operator guidance in [benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx](benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx).
+- Frontend styling updates in [benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css](benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css).
+- Consistent console logging for benchmark runs in [benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py](benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py).
+- Wrapper startup helper in [scripts/start_benchmark_wrappers.sh](scripts/start_benchmark_wrappers.sh).
+
+**❌ What's Missing:**
+- Automated wrapper restart controls in the WebUI.
+- Pre-run database connectivity validation.
+
+**Current Project Completion:**
+- **Phase 5**: ~80% 🚧 (no scope change recorded in this activity)
+
+**Evidence from Codebase:**
+```bash
+benchmarks/goodai-ltm-benchmark/webui/server.py
+benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx
+benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css
+benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py
+scripts/start_benchmark_wrappers.sh
+```
 
 **❌ What's Missing:**
 - Wrapper database isolation locks (Redis/Neo4j/Qdrant) and adapter-level instrumentation.

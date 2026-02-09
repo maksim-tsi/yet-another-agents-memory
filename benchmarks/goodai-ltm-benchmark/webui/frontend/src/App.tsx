@@ -39,6 +39,17 @@ type IndexSummary = {
   examples?: Array<{ dataset: string; example_id: string; questions: number }>;
 };
 
+type WrapperStatus = {
+  agent_type: string;
+  label: string;
+  port: number;
+  running: boolean;
+  health?: Record<string, any>;
+  error?: string;
+  last_error?: string | null;
+  log_path?: string;
+};
+
 export default function App() {
   const [presets, setPresets] = useState<PresetsResponse | null>(null);
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -48,6 +59,7 @@ export default function App() {
   const [logLines, setLogLines] = useState<string[]>([]);
   const [selectedLog, setSelectedLog] = useState<string>("");
   const [indexSummary, setIndexSummary] = useState<IndexSummary | null>(null);
+  const [wrapperStatuses, setWrapperStatuses] = useState<WrapperStatus[]>([]);
 
   const [llmPresetId, setLlmPresetId] = useState<string>("");
   const [agentId, setAgentId] = useState<string>("");
@@ -56,6 +68,7 @@ export default function App() {
   const [runId, setRunId] = useState<string>("");
   const [testFilter, setTestFilter] = useState<string>("");
   const [stuckTimeout, setStuckTimeout] = useState<number>(15);
+  const [reuseDefinitions, setReuseDefinitions] = useState<boolean>(true);
 
   useEffect(() => {
     fetch("/api/presets")
@@ -74,8 +87,20 @@ export default function App() {
         .then((res) => res.json())
         .then((data) => {
           setRuns(data.runs || []);
-          if (!selectedRunId && data.runs?.[0]) {
-            setSelectedRunId(data.runs[0].run_id);
+          const runsList = data.runs || [];
+          if (runsList.length === 0) {
+            return;
+          }
+          const runningRun = runsList.find((run: RunSummary) => run.status === "running");
+          const selectedExists = runsList.some(
+            (run: RunSummary) => run.run_id === selectedRunId
+          );
+          if (runningRun && selectedRunId !== runningRun.run_id) {
+            setSelectedRunId(runningRun.run_id);
+            return;
+          }
+          if (!selectedRunId || !selectedExists) {
+            setSelectedRunId(runsList[0].run_id);
           }
         });
     loadRuns();
@@ -118,6 +143,17 @@ export default function App() {
       .catch(() => setIndexSummary(null));
   }, [presets, benchmarkId]);
 
+  useEffect(() => {
+    const loadWrappers = () =>
+      fetch("/api/wrappers/status")
+        .then((res) => res.json())
+        .then((data) => setWrapperStatuses(data.wrappers || []))
+        .catch(() => setWrapperStatuses([]));
+    loadWrappers();
+    const timer = setInterval(loadWrappers, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   const selectedLlm = useMemo(
     () => presets?.llm_presets.find((p) => p.id === llmPresetId),
     [presets, llmPresetId]
@@ -126,6 +162,17 @@ export default function App() {
     () => presets?.benchmark_presets.find((p) => p.id === benchmarkId),
     [presets, benchmarkId]
   );
+
+  const buildRunName = (agentLabel: string) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    return `MAS ${agentLabel} ${timestamp}`;
+  };
+
+  const resolveAgentLabel = () => {
+    const preset = presets?.agent_presets.find((p) => p.id === agentId);
+    if (preset?.label) return preset.label;
+    return agentId || selectedLlm?.agent_name || "Agent";
+  };
 
   const startWrapper = async () => {
     if (!selectedLlm?.wrapper_agent_type || !selectedLlm.wrapper_port) return;
@@ -142,16 +189,24 @@ export default function App() {
 
   const startRun = async () => {
     if (!selectedBenchmark || !selectedLlm) return;
+    const effectiveRunName =
+      runName.trim() && runName !== "MAS Run"
+        ? runName
+        : buildRunName(resolveAgentLabel());
+    if (effectiveRunName !== runName) {
+      setRunName(effectiveRunName);
+    }
     await fetch("/api/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         config_path: selectedBenchmark.config_path,
         agent_name: agentId || selectedLlm.agent_name,
-        run_name: runName,
+        run_name: effectiveRunName,
         run_id: runId || undefined,
         stuck_timeout: stuckTimeout,
-        test_filter: testFilter || undefined
+        test_filter: testFilter || undefined,
+        auto_approve: reuseDefinitions
       })
     });
   };
@@ -190,6 +245,9 @@ export default function App() {
                 </option>
               ))}
             </select>
+            <p className="advice">
+              Selects the provider/model bundle for baseline or MAS wrapper runs.
+            </p>
           </div>
           <div className="field">
             <label>Agent</label>
@@ -200,6 +258,9 @@ export default function App() {
                 </option>
               ))}
             </select>
+            <p className="advice">
+              Choose MAS variants (full/rag/full-context) or baseline agents to compare.
+            </p>
           </div>
           <div className="field">
             <label>Benchmark Scope</label>
@@ -211,14 +272,23 @@ export default function App() {
               ))}
             </select>
             <p className="hint">{selectedBenchmark?.description}</p>
+            <p className="advice">
+              Use smaller configs for quick checks; full suites for paper-grade runs.
+            </p>
           </div>
           <div className="field">
             <label>Run Name</label>
             <input value={runName} onChange={(e) => setRunName(e.target.value)} />
+            <p className="advice">
+              Leave default to auto-generate unique names; set manually for grouping.
+            </p>
           </div>
           <div className="field">
             <label>Run ID (optional)</label>
             <input value={runId} onChange={(e) => setRunId(e.target.value)} />
+            <p className="advice">
+              Use only if you need deterministic IDs for automation or resuming runs.
+            </p>
           </div>
           <div className="field">
             <label>Single Test Filter</label>
@@ -227,6 +297,24 @@ export default function App() {
               onChange={(e) => setTestFilter(e.target.value)}
               placeholder="dataset:example_id"
             />
+            <p className="advice">Target a single example while debugging behavior.</p>
+          </div>
+          <div className="field">
+            <label>Reuse Existing Definitions</label>
+            <div className="toggle">
+              <input
+                id="reuse-definitions"
+                type="checkbox"
+                checked={reuseDefinitions}
+                onChange={(e) => setReuseDefinitions(e.target.checked)}
+              />
+              <label htmlFor="reuse-definitions">
+                Skip regeneration and auto-approve prompts
+              </label>
+            </div>
+            <p className="advice">
+              Disable if you want fresh test definitions (longer setup, no reuse).
+            </p>
           </div>
           <div className="field">
             <label>Stuck Timeout (minutes)</label>
@@ -235,6 +323,9 @@ export default function App() {
               value={stuckTimeout}
               onChange={(e) => setStuckTimeout(parseInt(e.target.value, 10))}
             />
+            <p className="advice">
+              Increase for long-context models or slow infrastructure.
+            </p>
           </div>
           <div className="button-row">
             <button className="primary" onClick={startRun}>
@@ -245,6 +336,32 @@ export default function App() {
                 Start Wrapper
               </button>
             )}
+          </div>
+          <p className="advice">
+            Start Wrapper is only needed when running MAS agents; baselines skip it.
+          </p>
+          <div className="wrapper-status">
+            <h3>Wrapper Health</h3>
+            {wrapperStatuses.length === 0 && <p className="hint">No wrapper data.</p>}
+            {wrapperStatuses.map((wrapper) => (
+              <div key={wrapper.port} className="wrapper-row">
+                <div>
+                  <strong>{wrapper.label}</strong>
+                  <span className={wrapper.running ? "status-ok" : "status-bad"}>
+                    {wrapper.running ? "healthy" : "down"}
+                  </span>
+                </div>
+                <div className="wrapper-meta">
+                  <span>:{wrapper.port}</span>
+                  {wrapper.last_error && (
+                    <span className="status-error">{wrapper.last_error}</span>
+                  )}
+                  {!wrapper.last_error && !wrapper.running && wrapper.error && (
+                    <span className="status-error">{wrapper.error}</span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

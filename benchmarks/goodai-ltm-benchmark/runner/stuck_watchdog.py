@@ -32,6 +32,4 @@ class StuckWatchdog:
         self.run_error_path.parent.mkdir(parents=True, exist_ok=True)
         with self.run_error_path.open("w", encoding="utf-8") as handle:
             json.dump(payload, handle, indent=2)
-        raise RuntimeError(
-            "Benchmark stalled: no activity within the configured timeout window."
-        )
+        raise RuntimeError("Benchmark stalled: no activity within the configured timeout window.")

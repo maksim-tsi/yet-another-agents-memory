@@ -4,25 +4,19 @@ This module defines an orchestrating LLM client that can register multiple
 provider wrappers, execute fallback-aware generations, and surface simple
 health indicators for the lifecycle engines that will promote facts across
 tiers.
-
-The implementation keeps the core logic simple while still exposing enough APIs
-for Phase 2A/2B controllers to scale: configurable provider order, timeout
-control, and health checks.
-
-Phoenix/OpenTelemetry Instrumentation:
-    If PHOENIX_COLLECTOR_ENDPOINT is set, auto-instrumentors are activated
-    at module load time for LLM call observability. This enables embedding
-    dimension verification and latency debugging in the Arize Phoenix UI.
 """
 
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import logging
 import os
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, cast
+
+from src.llm.providers.base import BaseProvider, LLMResponse, ProviderHealth
 
 logger = logging.getLogger(__name__)
 
@@ -37,17 +31,7 @@ _PHOENIX_PROJECT_NAME: str | None = None
 
 # Phoenix/OpenTelemetry auto-instrumentation (optional)
 def _init_phoenix_instrumentation() -> None:
-    """Initialize Phoenix/OpenTelemetry instrumentation if configured.
-
-    Environment Variables:
-        PHOENIX_COLLECTOR_ENDPOINT: OTLP collector URL (e.g., http://192.168.107.172:6006/v1/traces)
-        PHOENIX_PROJECT_NAME: Project name for trace grouping (default: mlm-mas-dev)
-
-    Project Naming Convention:
-        - mlm-mas-dev: Development environment
-        - mlm-mas-test: Testing/CI environment
-        - mlm-mas-prod: Production environment
-    """
+    """Initialize Phoenix/OpenTelemetry instrumentation if configured."""
     endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
     if not endpoint:
         logger.debug(
@@ -63,32 +47,45 @@ def _init_phoenix_instrumentation() -> None:
     project_name = os.environ.get("PHOENIX_PROJECT_NAME", default_project)
 
     try:
-        from phoenix.otel import register
-
-        # Register tracer provider with Phoenix collector
-        tracer_provider = register(
-            project_name=project_name,
-            endpoint=endpoint,
-            auto_instrument=True,  # Auto-detect and instrument installed packages
-        )
-
-        logger.info(
-            "Phoenix instrumentation enabled: project=%s, endpoint=%s", project_name, endpoint
-        )
-
         global _PHOENIX_INITIALIZED
         global _PHOENIX_PROJECT_NAME
+        # Mark as initialized immediately to prevent retries on partial failures
         _PHOENIX_INITIALIZED = True
         _PHOENIX_PROJECT_NAME = project_name
 
+        # Register tracer provider with Phoenix collector
+        # Check if tracer provider is already registered to avoid "Overriding of current TracerProvider" warning
+        from opentelemetry import trace
+        from phoenix.otel import register
+
+        if isinstance(trace.get_tracer_provider(), trace.ProxyTracerProvider):
+            # Only register if no real provider is set
+            tracer_provider = register(
+                project_name=project_name,
+                endpoint=endpoint,
+                auto_instrument=True,  # Auto-detect and instrument installed packages
+            )
+
+            logger.info(
+                "Phoenix instrumentation enabled: project=%s, endpoint=%s", project_name, endpoint
+            )
+        else:
+            logger.debug("Phoenix instrumentation skipped: TracerProvider already set")
+            tracer_provider = trace.get_tracer_provider()  # type: ignore
+
         # Explicitly instrument Google GenAI if auto_instrument missed it
         try:
-            from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
+            # Check if google.genai is actually installed first to avoid "Could not import" warning from instrumentor
+            if importlib.util.find_spec("google.genai"):
+                from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
 
-            instrumentor = GoogleGenAIInstrumentor()
-            if not getattr(instrumentor, "_is_instrumented_by_opentelemetry", False):
-                instrumentor.instrument(tracer_provider=tracer_provider)
-                logger.info("Google GenAI instrumentation enabled (explicit)")
+                instrumentor = GoogleGenAIInstrumentor()
+                if not getattr(instrumentor, "_is_instrumented_by_opentelemetry", False):
+                    instrumentor.instrument(tracer_provider=tracer_provider)
+                    logger.info("Google GenAI instrumentation enabled (explicit)")
+            else:
+                logger.debug("google.genai module not found; skipping instrumentation")
+
         except ImportError:
             logger.debug(
                 "openinference-instrumentation-google-genai not installed; "
@@ -122,27 +119,6 @@ def ensure_phoenix_instrumentation() -> None:
 ensure_phoenix_instrumentation()
 
 
-@dataclass(frozen=True)
-class ProviderHealth:
-    """Runtime health report returned by each provider wrapper."""
-
-    name: str
-    healthy: bool
-    details: str | None = None
-    last_error: str | None = None
-
-
-@dataclass
-class LLMResponse:
-    """Standardized response returned from every provider."""
-
-    text: str
-    provider: str
-    model: str | None = None
-    usage: dict[str, Any] | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
 @dataclass
 class ProviderConfig:
     """Configuration metadata used to prioritize and time-bound providers."""
@@ -154,21 +130,6 @@ class ProviderConfig:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class BaseProvider:
-    """Abstract provider wrapper interface for the orchestrating client."""
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    async def generate(self, prompt: str, model: str | None = None, **kwargs: Any) -> LLMResponse:
-        """Generate text for the supplied prompt."""
-        raise NotImplementedError()
-
-    async def health_check(self) -> ProviderHealth:
-        """Return a lightweight health signal that lifecycle engines can inspect."""
-        return ProviderHealth(name=self.name, healthy=True, details="Provider configured")
-
-
 class LLMClient:
     """Multi-provider orchestrator with fallback support and health diagnostics."""
 
@@ -178,6 +139,7 @@ class LLMClient:
         "gemini-3-pro-preview": ["google-pro", "google", "gemini"],
         "gemini-2.5-flash": ["google", "gemini"],
         "gemini-embedding-001": ["google", "gemini"],
+        "text-embedding-004": ["google", "gemini"],
         "openai/gpt-oss-120b": ["groq"],
         "mistral-large": ["mistral"],
     }
@@ -189,6 +151,43 @@ class LLMClient:
         if provider_configs:
             for config in provider_configs:
                 self._configs[config.name] = config
+
+    @classmethod
+    def from_env(cls) -> LLMClient:
+        """Build an LLMClient with providers configured from environment variables."""
+        # Delayed imports to avoid circular dependencies
+        from src.llm.providers.gemini import GeminiProvider
+        from src.llm.providers.groq import GroqProvider
+        from src.llm.providers.mistral import MistralProvider
+
+        ensure_phoenix_instrumentation()
+
+        client = cls(
+            provider_configs=[
+                ProviderConfig(name="gemini", timeout=30.0, priority=0),
+                ProviderConfig(name="groq", timeout=30.0, priority=1),
+                ProviderConfig(name="mistral", timeout=30.0, priority=2),
+            ]
+        )
+
+        google_key = os.environ.get("GOOGLE_API_KEY")
+        if google_key:
+            client.register_provider(GeminiProvider(api_key=google_key))
+        else:
+            logger.warning("GOOGLE_API_KEY not set; Gemini provider disabled.")
+
+        groq_key = os.environ.get("GROQ_API_KEY")
+        if groq_key:
+            client.register_provider(GroqProvider(api_key=groq_key))
+
+        mistral_key = os.environ.get("MISTRAL_API_KEY")
+        if mistral_key:
+            client.register_provider(MistralProvider(api_key=mistral_key))
+
+        if not client.available_providers():
+            logger.warning("No LLM providers configured; responses will be fallback messages.")
+
+        return client
 
     def register_provider(
         self, provider: BaseProvider, config: ProviderConfig | None = None
@@ -243,7 +242,44 @@ class LLMClient:
             if not provider or not config.enabled:
                 continue
             try:
-                coro = provider.generate(prompt, model=model, **kwargs)
+                # If model is specified but not relevant to this provider (fallback scenario),
+                # drop it so the provider uses its default.
+                # Simple heuristic: if the model name suggests a different provider family, drop it.
+                effective_model = model
+                if model:
+                    is_mistral_provider = "mistral" in provider_name.lower()
+                    is_groq_provider = "groq" in provider_name.lower()
+                    is_gemini_provider = (
+                        "gemini" in provider_name.lower() or "google" in provider_name.lower()
+                    )
+
+                    # Specific checks to drop incompatible models
+                    should_drop = False
+                    if (
+                        (
+                            is_groq_provider
+                            and ("gemini" in model.lower() or "mistral" in model.lower())
+                        )
+                        or (
+                            is_mistral_provider
+                            and ("gemini" in model.lower() or "gpt" in model.lower())
+                        )
+                        or (
+                            is_gemini_provider
+                            and ("mistral" in model.lower() or "gpt" in model.lower())
+                        )
+                    ):
+                        should_drop = True
+
+                    if should_drop:
+                        effective_model = None
+                        logger.debug(
+                            "Dropping incompatible model '%s' for provider '%s'",
+                            model,
+                            provider_name,
+                        )
+
+                coro = provider.generate(prompt, model=effective_model, **kwargs)
                 response: LLMResponse
                 if asyncio.iscoroutine(coro):
                     response = cast(
@@ -265,6 +301,25 @@ class LLMClient:
                 continue
 
         raise last_exc or RuntimeError("No healthy LLM provider available")
+
+    async def get_embedding(
+        self, text: str, model: str | None = None, provider: str | None = None
+    ) -> list[float]:
+        """Get embedding for text from specified or default provider."""
+        # Simple routing for now - default to gemini if available, otherwise first available
+        target_provider = None
+
+        if provider and provider in self._providers:
+            target_provider = self._providers[provider]
+        elif "gemini" in self._providers:
+            target_provider = self._providers["gemini"]
+        elif self._providers:
+            target_provider = next(iter(self._providers.values()))
+
+        if not target_provider:
+            raise RuntimeError("No LLM provider available for embeddings")
+
+        return await target_provider.get_embedding(text, model=model)
 
     def _annotate_span(self, agent_metadata: dict[str, Any] | None) -> None:
         """Attach agent metadata to the active trace span if available."""
@@ -322,4 +377,11 @@ class LLMClient:
         return order
 
 
-__all__ = ["BaseProvider", "LLMClient", "LLMResponse", "ProviderConfig", "ProviderHealth"]
+__all__ = [
+    "BaseProvider",
+    "LLMClient",
+    "LLMResponse",
+    "ProviderConfig",
+    "ProviderHealth",
+    "ensure_phoenix_instrumentation",
+]

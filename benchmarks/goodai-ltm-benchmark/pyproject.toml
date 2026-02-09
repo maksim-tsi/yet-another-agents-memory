@@ -10,6 +10,7 @@ packages = [
     {include = "dataset_interfaces"},
     {include = "utils"},
     {include = "reporting"},
+    {include = "datasets"},
 ]
 
 [tool.poetry.dependencies]
@@ -62,7 +63,7 @@ matplotlib = "3.8.4"
 # Download & Misc
 gdown = "4.7.1"
 browser-cookie3 = "*"
-google-generativeai = "^0.8.6"
+
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -81,7 +82,8 @@ dev = [
     "types-tqdm",
     "types-python-dateutil",
     "types-colorama",
-    "types-zstd"
+    "types-zstd",
+    "pytest-cov (>=7.0.0,<8.0.0)"
 ]
 
 [tool.mypy]

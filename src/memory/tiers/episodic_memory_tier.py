@@ -10,6 +10,7 @@ This enables both "find similar experiences" (Qdrant) and
 """
 
 import json
+import time
 import uuid
 import warnings
 from datetime import datetime
@@ -42,9 +43,10 @@ class EpisodicMemoryTier(BaseTier[Episode]):
         neo4j_adapter: Neo4jAdapter,
         metrics_collector: MetricsCollector | None = None,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         storage_adapters = {"qdrant": qdrant_adapter, "neo4j": neo4j_adapter}
-        super().__init__(storage_adapters, metrics_collector, config)
+        super().__init__(storage_adapters, metrics_collector, config, telemetry_stream)
 
         self.qdrant = qdrant_adapter
         self.neo4j = neo4j_adapter
@@ -58,6 +60,10 @@ class EpisodicMemoryTier(BaseTier[Episode]):
         # Ensure adapter uses the episodic collection name and vector size for all operations
         self.qdrant.collection_name = self.collection_name
         self.qdrant.vector_size = self.vector_size
+
+    def _tier_name(self) -> str:
+        """Return tier identifier for telemetry."""
+        return "L3_Episodic"
 
     async def initialize(self) -> None:
         """Initialize Qdrant collection and Neo4j constraints."""
@@ -111,6 +117,8 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             entities = payload.entities
             relationships = payload.relationships
 
+            start_time = time.perf_counter()
+
             # Validate and align embedding length
             if embedding is None or len(embedding) == 0:
                 raise ValueError(f"Embedding required with size {self.vector_size}")
@@ -143,6 +151,20 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             # 3. Update cross-references
             await self._link_indexes(episode)
 
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            await self._emit_tier_access(
+                operation="STORE",
+                session_id=episode.session_id,
+                status="HIT",
+                latency_ms=latency_ms,
+                item_count=1,
+                metadata={
+                    "episode_id": episode.episode_id,
+                    "fact_count": episode.fact_count,
+                    "modality": "dual",
+                },
+            )
+
             return episode.episode_id
         raise AssertionError("Unreachable: store should return or raise.")
 
@@ -157,6 +179,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             Episode object or None
         """
         async with OperationTimer(self.metrics, "l3_retrieve"):
+            start_time = time.perf_counter()
             query = """
             MATCH (e:Episode {episodeId: $episode_id})
             RETURN e
@@ -165,6 +188,14 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             result = await self.neo4j.execute_query(query, {"episode_id": episode_id})
 
             if not result:
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="RETRIEVE",
+                    session_id="unknown",
+                    status="MISS",
+                    latency_ms=latency_ms,
+                    metadata={"episode_id": episode_id},
+                )
                 return None
 
             props = result[0]["e"]
@@ -190,6 +221,16 @@ class EpisodicMemoryTier(BaseTier[Episode]):
                 graph_node_id=episode_id,
             )
 
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            await self._emit_tier_access(
+                operation="RETRIEVE",
+                session_id=episode.session_id,
+                status="HIT",
+                latency_ms=latency_ms,
+                item_count=1,
+                metadata={"episode_id": episode_id},
+            )
+
             return episode
         raise AssertionError("Unreachable: retrieve should return or raise.")
 
@@ -211,6 +252,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             List of similar episodes with similarity scores
         """
         async with OperationTimer(self.metrics, "l3_search_similar"):
+            start_time = time.perf_counter()
             # Search Qdrant
             results = await self.qdrant.search(
                 collection_name=self.collection_name,
@@ -221,6 +263,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
 
             # Convert to Episode objects
             episodes = []
+            max_similarity = 0.0
             for result in results:
                 payload = result["payload"]
                 episode = Episode(
@@ -245,8 +288,23 @@ class EpisodicMemoryTier(BaseTier[Episode]):
                     graph_node_id=payload.get("graph_node_id"),
                 )
                 # Attach similarity score
-                episode.metadata["similarity_score"] = result["score"]
+                score = result["score"]
+                episode.metadata["similarity_score"] = score
                 episodes.append(episode)
+                max_similarity = max(max_similarity, score)
+
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            await self._emit_tier_access(
+                operation="QUERY",
+                session_id=filters.get("session_id", "unknown") if filters else "unknown",
+                status="HIT",
+                latency_ms=latency_ms,
+                item_count=len(episodes),
+                metadata={
+                    "modality": "vector",
+                    "max_similarity": max_similarity,
+                },
+            )
 
             return episodes
         raise AssertionError("Unreachable: search_similar should return or raise.")
@@ -378,9 +436,18 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             True if deleted
         """
         async with OperationTimer(self.metrics, "l3_delete"):
+            start_time = time.perf_counter()
             # Get episode to find vector_id
             episode = await self.retrieve(episode_id)
             if not episode:
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="DELETE",
+                    session_id="unknown",
+                    status="MISS",
+                    latency_ms=latency_ms,
+                    metadata={"episode_id": episode_id},
+                )
                 return False
 
             # Delete from Qdrant
@@ -395,6 +462,15 @@ class EpisodicMemoryTier(BaseTier[Episode]):
             DETACH DELETE e
             """
             await self.neo4j.execute_query(delete_query, {"episode_id": episode_id})
+
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            await self._emit_tier_access(
+                operation="DELETE",
+                session_id=episode.session_id,
+                status="HIT",
+                latency_ms=latency_ms,
+                metadata={"episode_id": episode_id},
+            )
 
             return True
         raise AssertionError("Unreachable: delete should return or raise.")
@@ -412,6 +488,7 @@ class EpisodicMemoryTier(BaseTier[Episode]):
         Returns:
             List of episodes
         """
+        start_time = time.perf_counter()
         # Build Cypher query dynamically
         query = "MATCH (e:Episode)\nWHERE 1=1"
         params = {"limit": limit}
@@ -452,6 +529,19 @@ class EpisodicMemoryTier(BaseTier[Episode]):
                 importance_score=props["importanceScore"],
             )
             episodes.append(episode)
+
+        latency_ms = (time.perf_counter() - start_time) * 1000
+        await self._emit_tier_access(
+            operation="QUERY",
+            session_id=filters.get("session_id", "unknown") if filters else "unknown",
+            status="HIT",
+            latency_ms=latency_ms,
+            item_count=len(episodes),
+            metadata={
+                "modality": "graph",
+                "filters": str(filters)[:100] if filters else None,
+            },
+        )
 
         return episodes
 

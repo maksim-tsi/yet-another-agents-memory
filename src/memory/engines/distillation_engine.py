@@ -21,9 +21,9 @@ from typing import Any, cast
 
 import yaml
 
+from ...llm.client import LLMClient
+from ...llm.providers.base import BaseProvider
 from ...storage.metrics.collector import MetricsCollector
-from ...utils.llm_client import LLMClient
-from ...utils.providers import BaseProvider
 from ..models import Episode, KnowledgeDocument
 from ..tiers.episodic_memory_tier import EpisodicMemoryTier
 from ..tiers.semantic_memory_tier import SemanticMemoryTier
@@ -56,6 +56,7 @@ class DistillationEngine(BaseEngine):
         config: dict[str, Any] | None = None,
         l3_tier: EpisodicMemoryTier | None = None,
         l4_tier: SemanticMemoryTier | None = None,
+        telemetry_stream: Any | None = None,
         **_: Any,
     ):
         """
@@ -77,15 +78,15 @@ class DistillationEngine(BaseEngine):
         super().__init__(metrics_collector=collector)
         episodic_tier_resolved = episodic_tier or l3_tier
         semantic_tier_resolved = semantic_tier or l4_tier
-        if episodic_tier_resolved is None or semantic_tier_resolved is None or llm_provider is None:
-            raise ValueError(
-                "episodic_tier/l3_tier, semantic_tier/l4_tier, and llm_provider are required"
-            )
+        if episodic_tier_resolved is None or semantic_tier_resolved is None:
+            raise ValueError("episodic_tier/l3_tier and semantic_tier/l4_tier are required")
         self.episodic_tier: EpisodicMemoryTier = episodic_tier_resolved
         self.semantic_tier: SemanticMemoryTier = semantic_tier_resolved
         # Accept either a provider or a fully-configured LLMClient
-        if isinstance(llm_provider, LLMClient):
-            self.llm_client: LLMClient = llm_provider
+        if llm_provider is None:
+            self.llm_client: LLMClient = LLMClient.from_env()
+        elif isinstance(llm_provider, LLMClient):
+            self.llm_client = llm_provider
         else:
             self.llm_client = LLMClient()
             self.llm_client.register_provider(llm_provider)
@@ -98,6 +99,7 @@ class DistillationEngine(BaseEngine):
             f"DistillationEngine initialized with episode_threshold={episode_threshold}, "
             f"domain={self.domain_config.get('domain', {}).get('name', 'default')}"
         )
+        self.telemetry_stream = telemetry_stream
 
     def _load_domain_config(self, config_path: str | None) -> dict[str, Any]:
         """Load domain configuration from YAML file."""
@@ -193,6 +195,18 @@ class DistillationEngine(BaseEngine):
                     logger.warning("No episodes retrieved for distillation")
                     return {"status": "skipped", "reason": "no_episodes", "episode_count": 0}
 
+                # Emit distillation_started event
+                if self.telemetry_stream:
+                    await self.telemetry_stream.publish(
+                        event_type="distillation_started",
+                        session_id=session_id or "global",
+                        data={
+                            "episode_count": len(episodes),
+                            "threshold": self.episode_threshold,
+                            "force_process": force_process,
+                        },
+                    )
+
                 # Step 3: Generate knowledge documents for each type
                 knowledge_types = self.domain_config.get("knowledge_types", {})
                 created_docs = []
@@ -218,6 +232,19 @@ class DistillationEngine(BaseEngine):
                             )
                             logger.info(f"Created {knowledge_type} document: {doc_id}")
 
+                            # Emit knowledge_created event
+                            if self.telemetry_stream:
+                                await self.telemetry_stream.publish(
+                                    event_type="knowledge_created",
+                                    session_id=session_id or "global",
+                                    data={
+                                        "knowledge_id": doc_id,
+                                        "knowledge_type": knowledge_type,
+                                        "title": doc.title[:100] if doc.title else None,
+                                        "episode_count": len(episodes),
+                                    },
+                                )
+
                     except Exception as e:
                         logger.error(f"Failed to create {knowledge_type} document: {e}")
                         # Continue with other knowledge types
@@ -228,7 +255,7 @@ class DistillationEngine(BaseEngine):
                 else:
                     elapsed_ms = (time.perf_counter() - timer.start_time) * 1000
 
-                return {
+                result = {
                     "status": "success",
                     "processed_episodes": len(episodes),
                     "created_documents": len(created_docs),
@@ -236,6 +263,20 @@ class DistillationEngine(BaseEngine):
                     "documents": created_docs,
                     "elapsed_ms": elapsed_ms,
                 }
+
+                # Emit distillation_completed event
+                if self.telemetry_stream:
+                    await self.telemetry_stream.publish(
+                        event_type="distillation_completed",
+                        session_id=session_id or "global",
+                        data={
+                            "processed_episodes": len(episodes),
+                            "created_documents": len(created_docs),
+                            "elapsed_ms": elapsed_ms,
+                        },
+                    )
+
+                return result
 
             except Exception as e:
                 timer.success = False

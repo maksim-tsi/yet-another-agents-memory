@@ -76,6 +76,7 @@ class BaseTier[TModel: BaseModel](ABC):
         storage_adapters: Mapping[str, StorageAdapter],
         metrics_collector: MetricsCollector | None = None,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         """
         Initialize base tier.
@@ -86,6 +87,7 @@ class BaseTier[TModel: BaseModel](ABC):
             metrics_collector: Optional metrics collector for observability
             config: Tier-specific configuration parameters
                 Example: {'window_size': 20, 'ttl_hours': 24}
+            telemetry_stream: Optional LifecycleStreamProducer for "Glass Box" events
 
         Raises:
             TierConfigurationError: If configuration is invalid
@@ -96,11 +98,70 @@ class BaseTier[TModel: BaseModel](ABC):
         self.storage_adapters = storage_adapters
         self.metrics = metrics_collector or MetricsCollector()
         self.config = config or {}
+        self.telemetry_stream = telemetry_stream
         self._initialized = False
 
         logger.info(
             f"Initialized {self.__class__.__name__} with storage: {list(storage_adapters.keys())}"
         )
+
+    async def emit_telemetry(self, event_type: str, session_id: str, data: dict[str, Any]) -> None:
+        """
+        Emit a telemetry event if the stream is configured.
+
+        Args:
+            event_type: Type of event (e.g., "tier_access", "promotion")
+            session_id: Session ID associated with the event
+            data: Event payload
+        """
+        if self.telemetry_stream:
+            try:
+                await self.telemetry_stream.publish(event_type, session_id, data)
+            except Exception as e:
+                logger.warning(f"Failed to emit telemetry event {event_type}: {e}")
+
+    async def _emit_tier_access(
+        self,
+        operation: str,
+        session_id: str,
+        status: str,
+        latency_ms: float,
+        item_count: int = 0,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Emit standardized TIER_ACCESS event for physical execution tracking.
+
+        Args:
+            operation: Operation type (STORE, RETRIEVE, QUERY, DELETE)
+            session_id: Session ID associated with the event
+            status: Outcome (HIT, MISS, ERROR)
+            latency_ms: Operation latency in milliseconds
+            item_count: Number of items processed
+            metadata: Tier-specific context (truncated to avoid large payloads)
+        """
+        await self.emit_telemetry(
+            event_type="tier_access",
+            session_id=session_id,
+            data={
+                "tier": self._tier_name(),
+                "operation": operation,
+                "status": status,
+                "latency_ms": round(latency_ms, 3),
+                "item_count": item_count,
+                "metadata": metadata or {},
+            },
+        )
+
+    @abstractmethod
+    def _tier_name(self) -> str:
+        """
+        Return tier identifier for telemetry events.
+
+        Returns:
+            Tier name (e.g., 'L1_Active', 'L2_Working', 'L3_Episodic', 'L4_Semantic')
+        """
+        pass
 
     @abstractmethod
     async def store(self, data: TModel | dict[str, Any]) -> str:

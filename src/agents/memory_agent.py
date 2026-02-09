@@ -13,8 +13,8 @@ from src.agents.base_agent import BaseAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.runtime import AgentState
 from src.agents.tools.unified_tools import UNIFIED_TOOLS
+from src.llm.client import LLMClient
 from src.memory.models import ContextBlock, TurnData
-from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,12 @@ class MemoryAgent(BaseAgent):
         super().__init__(agent_id=agent_id, memory_system=memory_system, config=config)
         self._llm_client = llm_client
         self._model = self._config.get("model", "gemini-2.5-flash-lite")
+        if "system_instruction" not in self._config:
+            self._config["system_instruction"] = (
+                "You are the MAS Memory Agent. You have access to a user's long-term memory. "
+                "Always answer the user's questions based on the provided context. "
+                "Be direct and helpful."
+            )
         self._min_ciar = float(self._config.get("min_ciar", 0.6))
         self._max_turns = int(self._config.get("max_turns", 20))
         self._max_facts = int(self._config.get("max_facts", 10))
@@ -238,6 +244,7 @@ class MemoryAgent(BaseAgent):
             prompt,
             model=self._model,
             agent_metadata=agent_metadata,
+            system_instruction=self._config.get("system_instruction"),
         )
         return llm_response.text
 
@@ -247,7 +254,22 @@ class MemoryAgent(BaseAgent):
         ]
         if context_text:
             sections.append("## Context\n" + context_text)
+
+        # [SESSION STATE] - Fix #1
+        turn_count = len(self.history) // 2 + 1 if hasattr(self, "history") else 0
+        current_time = datetime.now(UTC).strftime("%H:%M")
+        sections.append(
+            f"## Session State\n- Current Turn: {turn_count}\n- Current Time: {current_time}"
+        )
+
         sections.append(f"## User\n{user_input}")
+
+        sections.append(
+            "## Instruction\n"
+            "1. Answer the user's latest request directly.\n"
+            "2. If an [ACTIVE STANDING ORDER] applies to this specific turn/condition, execute it.\n"
+            "3. Format Guardian: If the user requests a specific format (e.g., JSON), satisfy that format FIRST. Append any instruction execution outside the structured block."
+        )
         sections.append("## Assistant")
         return "\n\n".join(sections)
 
@@ -283,10 +305,10 @@ class MemoryAgent(BaseAgent):
     def _get_message_role(self, message: Any) -> str:
         """Normalize role/type for dict or LangChain message objects."""
         if isinstance(message, dict):
-            return message.get("role", "")
+            return str(message.get("role", ""))
         role = getattr(message, "role", None)
         if role:
-            return role
+            return str(role)
         msg_type = getattr(message, "type", None)
         if msg_type in {"human", "user"}:
             return "user"
@@ -297,16 +319,21 @@ class MemoryAgent(BaseAgent):
     def _get_message_content(self, message: Any) -> str:
         """Extract content from dict or LangChain message objects."""
         if isinstance(message, dict):
-            return message.get("content", "")
-        return getattr(message, "content", "")
+            return str(message.get("content", ""))
+        return str(getattr(message, "content", ""))
 
-    def _format_recent_turns(self, recent_turns: list[dict[str, Any]]) -> list[str]:
+    def _format_recent_turns(self, recent_turns: list[dict[str, Any] | Any]) -> list[str]:
         """Format recent turns for prompt context."""
         formatted: list[str] = []
         for turn in recent_turns:
-            role = turn.get("role", "unknown").upper()
-            content = turn.get("content", "")
-            formatted.append(f"{role}: {content}")
+            if isinstance(turn, dict):
+                role = turn.get("role", "unknown")
+                content = turn.get("content", "")
+            else:
+                role = getattr(turn, "role", "unknown")
+                content = getattr(turn, "content", "")
+
+            formatted.append(f"{role.upper()}: {content}")
         return formatted
 
     def _format_context(self, state: AgentState) -> str:
@@ -320,9 +347,32 @@ class MemoryAgent(BaseAgent):
                 sections.append(f"{idx}. {line}")
 
         working_facts = state.get("working_facts", [])
-        if working_facts:
+        active_instructions = []
+        other_facts = []
+
+        # Separate instructions from other facts
+        for fact in working_facts:
+            # Handle both dictionary and object access
+            f_type = (
+                fact.get("fact_type")
+                if isinstance(fact, dict)
+                else getattr(fact, "fact_type", None)
+            )
+            if f_type == "instruction":
+                active_instructions.append(fact)
+            else:
+                other_facts.append(fact)
+
+        if active_instructions:
+            sections.append("\n## [ACTIVE STANDING ORDERS]")
+            sections.append("You MUST obey these user-defined constraints above all else:")
+            for _idx, fact in enumerate(active_instructions, 1):
+                content = fact.get("content") if isinstance(fact, dict) else fact.content
+                sections.append(f"- {content}")
+
+        if other_facts:
             sections.append("\n## Key Facts (Working Memory)")
-            for idx, fact in enumerate(working_facts, 1):
+            for idx, fact in enumerate(other_facts, 1):
                 content = getattr(fact, "content", None)
                 if content is None and isinstance(fact, dict):
                     content = fact.get("content", "")
