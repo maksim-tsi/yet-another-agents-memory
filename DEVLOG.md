@@ -16,6 +16,37 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-09 - Intelligent Instruction Handling ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented a robust, memory-driven instruction handling system to replace brittle hardcoded prompt constraints. The agent now intelligently recognizes, stores, contextualizes, and prioritizes delayed/conditional instructions.
+
+**✅ What's Complete:**
+
+1.  **Data Model Updates:**
+    -   Added `FactType.INSTRUCTION` ("behavioral constraints, delayed commands") to `src/memory/models.py`.
+    -   Updated `FACT_EXTRACTION_SCHEMA` in `src/memory/schemas/fact_extraction.py` to support `instruction` type.
+
+2.  **Agent Logic Enhancements (`MemoryAgent`):**
+    -   **Session State Injection:** Added `[SESSION STATE]` (Turn Count, Time) to system prompt so the agent knows *when* to execute instructions.
+    -   **Active Orders Section:** Added `[ACTIVE STANDING ORDERS]` to separate instructions from general facts.
+    -   **Format Guardian:** Explicitly prioritized User Query format over instruction constraints to prevent "format wars".
+
+3.  **Verification:**
+    -   Created `tests/integration/test_instruction_recall.py`.
+    -   Verified schema extraction and prompt injection logic.
+    -   Detailed implementation report: `docs/reports/intelligent-instruction-implementation-20260209.md`.
+
+**Files Modified:**
+-   `src/memory/models.py`
+-   `src/memory/schemas/fact_extraction.py`
+-   `src/agents/memory_agent.py`
+-   `tests/integration/test_instruction_recall.py` (created)
+
+---
+
 ### 2026-02-08 - Tier-Level Telemetry (L1-L4) ✅
 
 **Status:** ✅ Complete

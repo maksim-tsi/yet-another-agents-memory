@@ -21,6 +21,7 @@ class FactType(StrEnum):
     MENTION = "mention"  # Casual mentions (low impact)
     RELATIONSHIP = "relationship"  # Entity relationships
     EVENT = "event"  # Temporal events
+    INSTRUCTION = "instruction"  # Behavioral constraints, delayed commands
 
 
 class FactCategory(StrEnum):

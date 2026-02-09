@@ -254,9 +254,21 @@ class MemoryAgent(BaseAgent):
         ]
         if context_text:
             sections.append("## Context\n" + context_text)
-        sections.append(f"## User\n{user_input}")
+
+        # [SESSION STATE] - Fix #1
+        turn_count = len(self.history) // 2 + 1 if hasattr(self, "history") else 0
+        current_time = datetime.now(UTC).strftime("%H:%M")
         sections.append(
-            "## Instruction\nAnswer the user's latest request directly. Do not reply with 'Understood'."
+            f"## Session State\n- Current Turn: {turn_count}\n- Current Time: {current_time}"
+        )
+
+        sections.append(f"## User\n{user_input}")
+
+        sections.append(
+            "## Instruction\n"
+            "1. Answer the user's latest request directly.\n"
+            "2. If an [ACTIVE STANDING ORDER] applies to this specific turn/condition, execute it.\n"
+            "3. Format Guardian: If the user requests a specific format (e.g., JSON), satisfy that format FIRST. Append any instruction execution outside the structured block."
         )
         sections.append("## Assistant")
         return "\n\n".join(sections)
@@ -335,9 +347,32 @@ class MemoryAgent(BaseAgent):
                 sections.append(f"{idx}. {line}")
 
         working_facts = state.get("working_facts", [])
-        if working_facts:
+        active_instructions = []
+        other_facts = []
+
+        # Separate instructions from other facts
+        for fact in working_facts:
+            # Handle both dictionary and object access
+            f_type = (
+                fact.get("fact_type")
+                if isinstance(fact, dict)
+                else getattr(fact, "fact_type", None)
+            )
+            if f_type == "instruction":
+                active_instructions.append(fact)
+            else:
+                other_facts.append(fact)
+
+        if active_instructions:
+            sections.append("\n## [ACTIVE STANDING ORDERS]")
+            sections.append("You MUST obey these user-defined constraints above all else:")
+            for _idx, fact in enumerate(active_instructions, 1):
+                content = fact.get("content") if isinstance(fact, dict) else fact.content
+                sections.append(f"- {content}")
+
+        if other_facts:
             sections.append("\n## Key Facts (Working Memory)")
-            for idx, fact in enumerate(working_facts, 1):
+            for idx, fact in enumerate(other_facts, 1):
                 content = getattr(fact, "content", None)
                 if content is None and isinstance(fact, dict):
                     content = fact.get("content", "")

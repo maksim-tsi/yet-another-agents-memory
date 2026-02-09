@@ -42,7 +42,7 @@ class TestMemoryInspector:
         real_llm_client,
     ) -> AsyncGenerator[UnifiedMemorySystem, None]:
         """Create a fully wired UnifiedMemorySystem."""
-        llm, provider = real_llm_client
+        llm, _provider = real_llm_client
 
         system = UnifiedMemorySystem(
             redis_client=redis_adapter,

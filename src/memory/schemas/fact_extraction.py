@@ -21,8 +21,9 @@ Guidelines:
 - constraint: Limitations or requirements
 - entity: Person, place, thing, or organization
 - mention: Reference to something
-- relationship: Connection between entities
-- event: Something that happened or will happen
+    - relationship: Connection between entities
+    - event: Something that happened or will happen
+    - instruction: Actionable commands, requests for future action, or conditional tasks (NOT immediate requests).
 
 Impact scoring:
 - High (0.7-1.0): Critical decisions, urgent requests, cancellation threats
@@ -46,7 +47,7 @@ FACT_EXTRACTION_SCHEMA = types.Schema(
                     ),
                     "type": types.Schema(
                         type=types.Type.STRING,
-                        description="Type of fact: preference (user likes/dislikes), constraint (limitation/requirement), entity (person/place/thing), mention (reference to something), relationship (connection between entities), event (something that happened).",
+                        description="Type of fact: preference (user likes/dislikes), constraint (limitation/requirement), entity (person/place/thing), mention (reference to something), relationship (connection between entities), event (something that happened), instruction (delayed/conditional command).",
                         enum=[
                             "preference",
                             "constraint",
@@ -54,6 +55,7 @@ FACT_EXTRACTION_SCHEMA = types.Schema(
                             "mention",
                             "relationship",
                             "event",
+                            "instruction",
                         ],
                     ),
                     "category": types.Schema(
