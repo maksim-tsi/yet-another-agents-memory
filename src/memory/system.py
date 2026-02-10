@@ -174,8 +174,10 @@ class UnifiedMemorySystem:
     async def run_promotion_cycle(self, session_id: str) -> dict[str, Any]:
         """Trigger L1->L2 promotion if enabled."""
         if not self.enable_promotion:
+            logger.info("DEBUG: Promotion cycle skipped (disabled)")
             return {"status": "skipped", "reason": "promotion_disabled"}
 
+        logger.info(f"DEBUG: UnifiedMemorySystem triggering promotion for {session_id}")
         return await self.promotion_engine.process_session(session_id)
 
     async def cleanup_session(self, session_id: str) -> None:

@@ -78,6 +78,10 @@ class FactExtractor:
             max_output_tokens=8192,
         )
 
+        # Temporary Debug Log
+        logger.info(f"DEBUG: Input text to extractor: {text[:100]}...")
+        logger.info(f"DEBUG: Raw LLM Extraction Response: {response.text}")
+
         try:
             # Parse JSON response (no markdown cleanup needed with structured output)
             data = json.loads(response.text)
