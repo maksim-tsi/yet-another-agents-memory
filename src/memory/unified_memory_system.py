@@ -1,41 +1,31 @@
 # file: memory_system.py
 
 import json
-import sys
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Literal
 
 import redis
 from pydantic import BaseModel, Field, ValidationError
 
-# Add scripts/archive to path for legacy imports
-_archive_path = str(Path(__file__).parent.parent.parent / "scripts" / "archive")
-if _archive_path not in sys.path:
-    sys.path.insert(0, _archive_path)
-# isort: off
-from knowledge_store_manager import KnowledgeStoreManager  # noqa: E402
-
-from src.memory.engines.consolidation_engine import ConsolidationEngine  # noqa: E402
-from src.memory.engines.distillation_engine import DistillationEngine  # noqa: E402
-from src.memory.engines.promotion_engine import PromotionEngine  # noqa: E402
-
-from src.memory.models import (  # noqa: E402
+from src.memory.engines.consolidation_engine import ConsolidationEngine
+from src.memory.engines.distillation_engine import DistillationEngine
+from src.memory.engines.promotion_engine import PromotionEngine
+from src.memory.knowledge_store_manager import KnowledgeStoreManager
+from src.memory.models import (
     ContextBlock,
     Episode,
     Fact,
     KnowledgeDocument,
     SearchWeights,
 )
-from src.memory.tiers import (  # noqa: E402
+from src.memory.tiers import (
     ActiveContextTier,
     EpisodicMemoryTier,
     SemanticMemoryTier,
     WorkingMemoryTier,
 )
-# isort: on
 
 # --- Data Schemas for Operating Memory (Data Contracts) ---
 

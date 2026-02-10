@@ -596,6 +596,7 @@
 │   │   │   ├── figures.py
 │   │   │   ├── gemini.py
 │   │   │   └── migr-reeval.py
+│   │   ├── Dockerfile
 │   │   ├── docs
 │   │   │   ├── improvement-plan.md
 │   │   │   ├── mypy-fix-plan.md
@@ -735,6 +736,8 @@
 │   └── domains
 │       └── container_logistics.yaml
 ├── DEVLOG.md
+├── docker-compose.yml
+├── Dockerfile
 ├── docs
 │   ├── ADR
 │   │   ├── 001-benchmarking-strategy.md
@@ -745,6 +748,7 @@
 │   │   ├── 006-free-tier-llm-strategy.md
 │   │   ├── 007-agent-integration-layer.md
 │   │   ├── 008-benchmark-and-inspector-adoption.md
+│   │   ├── 009-decoupling-benchmark-api-wall.md
 │   │   └── discussion-evaluation.md
 │   ├── agentrouter_cleanup_summary.md
 │   ├── benchmark_data_dictionary.md
@@ -842,6 +846,7 @@
 │   ├── model_validation_results.json
 │   ├── rate_limiter_full.jsonl
 │   └── README.md
+├── Makefile
 ├── migrations
 │   ├── 001_active_context.sql
 │   ├── 002_l2_tsvector_index.sql
@@ -1036,6 +1041,7 @@
 │   │   │   ├── semantic_memory_tier.py
 │   │   │   └── working_memory_tier.py
 │   │   └── unified_memory_system.py
+│   ├── server.py
 │   ├── storage
 │   │   ├── __init__.py
 │   │   ├── __pycache__
@@ -1068,10 +1074,12 @@
 │   │   └── typesense_adapter.py
 │   └── utils
 │       ├── __init__.py
-│       └── __pycache__
-│           ├── __init__.cpython-312.pyc
-│           ├── llm_client.cpython-312.pyc
-│           └── providers.cpython-312.pyc
+│       ├── __pycache__
+│       │   ├── __init__.cpython-312.pyc
+│       │   ├── llm_client.cpython-312.pyc
+│       │   └── providers.cpython-312.pyc
+│       ├── llm_client.py
+│       └── providers.py
 ├── tests
 │   ├── __init__.py
 │   ├── __pycache__
@@ -1233,6 +1241,7 @@
 │   │   │   ├── __init__.cpython-312.pyc
 │   │   │   └── test_archive_docs_to_typesense.cpython-312-pytest-9.0.2.pyc
 │   │   └── test_archive_docs_to_typesense.py
+│   ├── smoke_test_api.py
 │   ├── storage
 │   │   ├── __init__.py
 │   │   ├── __pycache__
@@ -1303,4 +1312,4 @@
 │   └── verify_llm_client_factory.py
 └── tree.txt
 
-265 directories, 1039 files
+265 directories, 1048 files
