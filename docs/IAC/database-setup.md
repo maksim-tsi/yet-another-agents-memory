@@ -187,6 +187,6 @@ systemctl status postgresql  # On the server
 
 ## References
 
-- Implementation Plan: `docs/plan/implementation-plan-20102025.md`
+- Implementation Plan: `docs/plan/implementation_master_plan_version-0.9.md`
 - Connectivity Cheatsheet: `docs/IAC/connectivity-cheatsheet.md`
 - Migration Files: `migrations/`

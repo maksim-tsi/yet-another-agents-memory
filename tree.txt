@@ -1,0 +1,1278 @@
+.
+├── AGENTS.MD
+├── benchmark_implementation.md
+├── benchmarks
+│   ├── configs
+│   │   ├── workload_large.yaml
+│   │   ├── workload_medium.yaml
+│   │   └── workload_small.yaml
+│   ├── goodai-ltm-benchmark
+│   │   ├── configurations
+│   │   │   ├── mas_300_run.yml
+│   │   │   ├── mas_dry_run_5.yml
+│   │   │   ├── mas_mixed_100.yml
+│   │   │   ├── mas_prospective_10.yml
+│   │   │   ├── mas_prospective_2.yml
+│   │   │   ├── mas_single_test.yml
+│   │   │   ├── mas_subset_32k.yml
+│   │   │   ├── mas_verification_run.yml
+│   │   │   └── published_benchmarks
+│   │   │       ├── benchmark-v3-120k.yml
+│   │   │       ├── benchmark-v3-1k.yml
+│   │   │       ├── benchmark-v3-200k.yml
+│   │   │       ├── benchmark-v3-32k.yml
+│   │   │       ├── benchmark-v3-500k.yml
+│   │   │       └── legacy
+│   │   │           ├── benchmark-10k.yml
+│   │   │           ├── benchmark-1k.yml
+│   │   │           ├── benchmark-v2-10k.yml
+│   │   │           └── benchmark-v2-1k.yml
+│   │   ├── data
+│   │   │   ├── ChapterBreak
+│   │   │   │   └── chapterbreak-goodai-selection.json
+│   │   │   ├── gpt_generation_prompts
+│   │   │   │   ├── 1-1_delayed_recall.json
+│   │   │   │   ├── 4-2_conflicting_personal_information_test.json
+│   │   │   │   ├── 5-2_instruction_recall.json
+│   │   │   │   └── 7-1_teaching_how_to_think.json
+│   │   │   ├── persistence
+│   │   │   │   ├── MAS Single Test - 2026-02-07 - MASFullSession - full
+│   │   │   │   │   └── session.json
+│   │   │   │   ├── MAS Single Test - 2026-02-07 (Full-Context) - MASFullContextSession - full_context
+│   │   │   │   │   └── session.json
+│   │   │   │   ├── MAS Single Test - 2026-02-07 (RAG) - MASRAGSession - rag
+│   │   │   │   │   └── session.json
+│   │   │   │   ├── MAS Single Test - Verification - MASFullSession - full
+│   │   │   │   │   └── session.json
+│   │   │   │   └── MAS Subset - 32k - MASFullSession - full
+│   │   │   │       └── session.json
+│   │   │   ├── Restaurant
+│   │   │   │   └── menu.json
+│   │   │   ├── shakespeare
+│   │   │   │   └── shakespeare.txt
+│   │   │   ├── tests
+│   │   │   │   ├── Benchmark 1 - 10k Filler
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Delayed Recall
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Instruction Recall
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 1 - 1k Filler
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Delayed Recall
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Instruction Recall
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 2 - 10k Filler
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── ChapterBreak
+│   │   │   │   │       │   ├── 12653258_1.def.json
+│   │   │   │   │       │   ├── 47583370_7.def.json
+│   │   │   │   │       │   └── 90051444_0.def.json
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Delayed Recall
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Instruction Recall
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Restaurant
+│   │   │   │   │       │   └── 0.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Spy Meeting
+│   │   │   │   │       │   └── 0.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 2 - 1k Filler
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── ChapterBreak
+│   │   │   │   │       │   ├── 12653258_1.def.json
+│   │   │   │   │       │   ├── 47583370_7.def.json
+│   │   │   │   │       │   └── 90051444_0.def.json
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Delayed Recall
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Instruction Recall
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Restaurant
+│   │   │   │   │       │   └── 0.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Spy Meeting
+│   │   │   │   │       │   └── 0.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 3 - 120k
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── ChapterBreak
+│   │   │   │   │       │   ├── 12653258_1.def.json
+│   │   │   │   │       │   ├── 47583370_7.def.json
+│   │   │   │   │       │   └── 90051444_0.def.json
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Restaurant
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Spy Meeting
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 3 - 1k
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Restaurant
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Spy Meeting
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 3 - 200k
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── ChapterBreak
+│   │   │   │   │       │   ├── 12653258_1.def.json
+│   │   │   │   │       │   ├── 47583370_7.def.json
+│   │   │   │   │       │   └── 90051444_0.def.json
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Restaurant
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Spy Meeting
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 3 - 32k
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── ChapterBreak
+│   │   │   │   │       │   ├── 12653258_1.def.json
+│   │   │   │   │       │   ├── 47583370_7.def.json
+│   │   │   │   │       │   └── 90051444_0.def.json
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Restaurant
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Spy Meeting
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 3 - 32k (isolated)
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── ChapterBreak
+│   │   │   │   │       │   ├── 12653258_1.def.json
+│   │   │   │   │       │   ├── 47583370_7.def.json
+│   │   │   │   │       │   └── 90051444_0.def.json
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Restaurant
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Spy Meeting
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── Benchmark 3 - 500k
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── ChapterBreak
+│   │   │   │   │       │   ├── 12653258_1.def.json
+│   │   │   │   │       │   ├── 47583370_7.def.json
+│   │   │   │   │       │   └── 90051444_0.def.json
+│   │   │   │   │       ├── Colours
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       ├── Jokes
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Locations Directions
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── NameList
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Prospective Memory
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Restaurant
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── SallyAnne
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Shopping
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       ├── Spy Meeting
+│   │   │   │   │       │   ├── 0.def.json
+│   │   │   │   │       │   ├── 1.def.json
+│   │   │   │   │       │   └── 2.def.json
+│   │   │   │   │       └── Trigger Response
+│   │   │   │   │           ├── 0.def.json
+│   │   │   │   │           ├── 1.def.json
+│   │   │   │   │           └── 2.def.json
+│   │   │   │   ├── MAS Single Test - 2026-02-07
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       └── Prospective Memory
+│   │   │   │   │           └── 0.def.json
+│   │   │   │   ├── MAS Single Test - 2026-02-07 (Full-Context)
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       └── Prospective Memory
+│   │   │   │   │           └── 0.def.json
+│   │   │   │   ├── MAS Single Test - 2026-02-07 (RAG)
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       └── Prospective Memory
+│   │   │   │   │           └── 0.def.json
+│   │   │   │   ├── MAS Single Test - Verification
+│   │   │   │   │   └── definitions
+│   │   │   │   │       ├── config.yml
+│   │   │   │   │       └── Prospective Memory
+│   │   │   │   │           └── 0.def.json
+│   │   │   │   └── MAS Subset - 32k
+│   │   │   │       └── definitions
+│   │   │   │           ├── config.yml
+│   │   │   │           ├── Prospective Memory
+│   │   │   │           │   ├── 0.def.json
+│   │   │   │           │   ├── 1.def.json
+│   │   │   │           │   └── 2.def.json
+│   │   │   │           └── Restaurant
+│   │   │   │               ├── 0.def.json
+│   │   │   │               ├── 1.def.json
+│   │   │   │               └── 2.def.json
+│   │   │   ├── tomi_data
+│   │   │   │   ├── test.trace
+│   │   │   │   ├── test.txt
+│   │   │   │   ├── train.trace
+│   │   │   │   ├── train.txt
+│   │   │   │   ├── val.trace
+│   │   │   │   └── val.txt
+│   │   │   └── trivia
+│   │   │       └── trivia.json
+│   │   ├── dataset_interfaces
+│   │   │   ├── __init__.py
+│   │   │   ├── factory.py
+│   │   │   ├── gpt_generated.py
+│   │   │   ├── interface.py
+│   │   │   └── tests
+│   │   │       └── test_match_evaluation.py
+│   │   ├── datasets
+│   │   │   ├── __init__.py
+│   │   │   ├── chapterbreak.py
+│   │   │   ├── colours.py
+│   │   │   ├── conficting_personal_information.py
+│   │   │   ├── delayed_recall.py
+│   │   │   ├── how_to_think.py
+│   │   │   ├── instruction_recall.py
+│   │   │   ├── jokes.py
+│   │   │   ├── kv.py
+│   │   │   ├── locations_directions.py
+│   │   │   ├── locations.py
+│   │   │   ├── multisessionchat.py
+│   │   │   ├── name_list.py
+│   │   │   ├── name.py
+│   │   │   ├── prospective_memory.py
+│   │   │   ├── README.md
+│   │   │   ├── restaurant.py
+│   │   │   ├── sally_ann.py
+│   │   │   ├── shopping.py
+│   │   │   ├── spy_meeting.py
+│   │   │   ├── test
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── test_locations.py
+│   │   │   └── trigger_response.py
+│   │   ├── dev_scripts
+│   │   │   ├── barplot.py
+│   │   │   ├── cbtest_ms.py
+│   │   │   ├── cbtest.py
+│   │   │   ├── diagnose_benchmark.sh
+│   │   │   ├── figures.py
+│   │   │   ├── gemini.py
+│   │   │   └── migr-reeval.py
+│   │   ├── docs
+│   │   │   ├── improvement-plan.md
+│   │   │   ├── mypy-fix-plan.md
+│   │   │   ├── visibility-analysis.md
+│   │   │   └── webui-implementation-report-2026-02-07.md
+│   │   ├── evaluate_all.py
+│   │   ├── evaluate.py
+│   │   ├── LICENSE
+│   │   ├── model_interfaces
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── interface.cpython-312.pyc
+│   │   │   │   └── mas_agents.cpython-312.pyc
+│   │   │   ├── base_ltm_agent.py
+│   │   │   ├── charlie_interface.py
+│   │   │   ├── cost_estimation.py
+│   │   │   ├── gemini_interface.py
+│   │   │   ├── huggingface_interface.py
+│   │   │   ├── human.py
+│   │   │   ├── interface.py
+│   │   │   ├── length_bias_agent.py
+│   │   │   ├── llm_interface.py
+│   │   │   ├── ltm_agent_wrapper.py
+│   │   │   ├── mas_agents.py
+│   │   │   ├── memgpt_interface.py
+│   │   │   ├── memgpt_proxy.py
+│   │   │   └── README.md
+│   │   ├── poetry.lock
+│   │   ├── pyproject.toml
+│   │   ├── README.md
+│   │   ├── reporting
+│   │   │   ├── __init__.py
+│   │   │   ├── comparative_report.png
+│   │   │   ├── comparative_report.py
+│   │   │   ├── detailed_report.py
+│   │   │   ├── generate_all_detailed_reports.py
+│   │   │   ├── generate.py
+│   │   │   ├── README.md
+│   │   │   ├── results.py
+│   │   │   ├── sally-anne.png
+│   │   │   └── templates
+│   │   │       ├── chart.js
+│   │   │       └── GoodAI_logo.png
+│   │   ├── requirements.txt
+│   │   ├── runall_bench.py
+│   │   ├── runner
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py
+│   │   │   ├── master_log.py
+│   │   │   ├── progress.py
+│   │   │   ├── README.md
+│   │   │   ├── run_benchmark.py
+│   │   │   ├── run_interactive.py
+│   │   │   ├── run_manifest.py
+│   │   │   ├── run_single.py
+│   │   │   ├── sanitizer.py
+│   │   │   ├── scheduler.py
+│   │   │   ├── stuck_watchdog.py
+│   │   │   └── turn_metrics.py
+│   │   ├── tests
+│   │   │   ├── conftest.py
+│   │   │   ├── test_benchmark_v2.py
+│   │   │   ├── test_scheduler.py
+│   │   │   └── test_visibility.py
+│   │   └── utils
+│   │       ├── __init__.py
+│   │       ├── __pycache__
+│   │       │   ├── __init__.cpython-312.pyc
+│   │       │   ├── constants.cpython-312.pyc
+│   │       │   └── llm.cpython-312.pyc
+│   │       ├── constants.py
+│   │       ├── context.py
+│   │       ├── data.py
+│   │       ├── files.py
+│   │       ├── filling_task.py
+│   │       ├── indexing.py
+│   │       ├── json_utils.py
+│   │       ├── llm.py
+│   │       ├── math.py
+│   │       ├── parse_numbered_list.py
+│   │       ├── text.py
+│   │       ├── timejump.py
+│   │       └── ui.py
+│   ├── QUICK_REFERENCE.md
+│   ├── README.md
+│   ├── reports
+│   │   ├── figures
+│   │   └── tables
+│   │       ├── latency_throughput_20251021_014555.md
+│   │       └── reliability_20251021_014555.md
+│   └── results
+│       ├── archive
+│       │   └── MAS Validation - Prospective Memory (10 Qs)
+│       │       ├── definitions
+│       │       │   ├── config.yml
+│       │       │   └── Prospective Memory
+│       │       │       ├── 0.def.json
+│       │       │       ├── 1.def.json
+│       │       │       ├── 2.def.json
+│       │       │       ├── 3.def.json
+│       │       │       ├── 4.def.json
+│       │       │       ├── 5.def.json
+│       │       │       ├── 6.def.json
+│       │       │       ├── 7.def.json
+│       │       │       ├── 8.def.json
+│       │       │       └── 9.def.json
+│       │       └── results
+│       │           └── GeminiProInterface
+│       │               ├── master_log.jsonl
+│       │               ├── Prospective Memory
+│       │               │   ├── 0_0.json
+│       │               │   ├── 1_0.json
+│       │               │   ├── 2_0.json
+│       │               │   ├── 3_0.json
+│       │               │   ├── 4_0.json
+│       │               │   ├── 5_0.json
+│       │               │   ├── 6_0.json
+│       │               │   ├── 7_0.json
+│       │               │   └── 8_0.json
+│       │               ├── run_meta.json
+│       │               ├── runstats.json
+│       │               └── turn_metrics.jsonl
+│       ├── processed
+│       │   └── summary_20251021_014555.json
+│       └── raw
+│           ├── benchmark_20251021_014513.json
+│           ├── benchmark_20251021_014701.json
+│           ├── benchmark_20251021_015802.json
+│           ├── benchmark_20251021_015921.json
+│           ├── benchmark_20251021_020246.json
+│           ├── benchmark_20251021_020754.json
+│           ├── benchmark_20251021_021457.json
+│           └── benchmark_20251021_021857.json
+├── check_l2_roundtrip.py
+├── check_tier_collection.py
+├── config
+│   ├── ciar_config.yaml
+│   └── domains
+│       └── container_logistics.yaml
+├── create_qdrant_index.py
+├── debug_qdrant_dump.py
+├── DEVLOG.md
+├── docs
+│   ├── ADR
+│   │   ├── 001-benchmarking-strategy.md
+│   │   ├── 002-storage-performance-benchmarking.md
+│   │   ├── 003-four-layers-memory.md
+│   │   ├── 004-ciar-scoring-formula.md
+│   │   ├── 005-multi-tier-llm-provider-strategy.md
+│   │   ├── 006-free-tier-llm-strategy.md
+│   │   ├── 007-agent-integration-layer.md
+│   │   ├── 008-benchmark-and-inspector-adoption.md
+│   │   └── discussion-evaluation.md
+│   ├── agentrouter_cleanup_summary.md
+│   ├── benchmark_data_dictionary.md
+│   ├── benchmark_sequence_diagrams.md
+│   ├── benchmark_use_cases.md
+│   ├── concept-01-benchmark-v2.md
+│   ├── concept-02-memory-inspector.md
+│   ├── dev-quickstart.md
+│   ├── environment-guide.md
+│   ├── IAC
+│   │   ├── connectivity-cheatsheet.md
+│   │   ├── database-setup.md
+│   │   ├── infra-deploy-report-19102025.md
+│   │   └── INFRASTRUCTURE_ACCESS_GUIDE.md
+│   ├── implementation_complete.md
+│   ├── integrations
+│   │   ├── goodai-benchmark-setup.md
+│   │   └── README.md
+│   ├── lessons-learned.md
+│   ├── llm_provider_guide.md
+│   ├── llm_provider_setup_complete.md
+│   ├── llm_provider_tests.md
+│   ├── metrics_implementation_summary.md
+│   ├── metrics_usage.md
+│   ├── plan
+│   │   ├── benchmark_v2_and_headless_pivot_version-0.9.md
+│   │   ├── enterprise-practices-rollout.md
+│   │   ├── implementation_master_plan_version-0.9.md
+│   │   ├── llm-provider-implementation-plan-12112025.md
+│   │   ├── memory-inspector-implementation-2026-02-08.md
+│   │   ├── phase-7-integration-tests-plan.md
+│   │   ├── phase2_3_engineering_plans_version-0.9.md
+│   │   └── phase5_execution_and_readiness_version-0.9.md
+│   ├── python_environment.md
+│   ├── reports
+│   │   ├── adr-003-architecture-review.md
+│   │   ├── archive
+│   │   │   └── goodai-bench-first-run-2026-01-29.html
+│   │   ├── code_review_consolidated_version-0.9_upto10feb2026.md
+│   │   ├── dependency_analysis_consolidated_version-0.9_upto10feb2026.md
+│   │   ├── fix-report-priority-2.md
+│   │   ├── goodai_ltm_benchmark_reports_version-0.9_upto10feb2026.md
+│   │   ├── goodai_ltm_benchmark_troubleshooting_upto10feb2026.md
+│   │   ├── implementation_consolidated_version-0.9_upto10feb2026.md
+│   │   ├── integration-tests-2025-11-12.md
+│   │   ├── intelligent-instruction-implementation-20260209.md
+│   │   ├── lifecycle_test_history_version-0.9.jsonl
+│   │   ├── memory_inspector_consolidated_version-0.9_upto10feb2026.md
+│   │   ├── metrics_program_overview_version-0.9_upto10feb2026.md
+│   │   ├── mypy-remediation-batch-completion-2026-02-04.md
+│   │   ├── neo4j-refactor-option-a-success.md
+│   │   ├── phase2_3_consolidated_version-0.9_upto10feb2026.md
+│   │   ├── preliminary_readiness_checks_version-0.7_upto10feb2026.md
+│   │   ├── priority_6_consolidated_version-0.9_upto10feb2026.md
+│   │   ├── promotion_engine_integration_status_2026-02-10.md
+│   │   ├── qdrant-scroll-vs-search-debugging-2026-01-03.md
+│   │   ├── README.md
+│   │   ├── smoke-tests-2025-10-20.md
+│   │   └── spec-implementation-alignment-report.md
+│   ├── requirements
+│   │   ├── req-01-benchmark-v2.md
+│   │   └── req-02-memory-inspector.md
+│   ├── research
+│   │   ├── consolidation_hooks_and_signals.md
+│   │   ├── gemini_3_models.md
+│   │   ├── mypy_google_issue.md
+│   │   ├── README.md
+│   │   ├── redis_global_local_stream.md
+│   │   ├── redis_stream_retention_policy.md
+│   │   ├── refactoring_memory_tiers_2_type_safe.md
+│   │   ├── refactoring_memory_tiers_research_analysis.md
+│   │   ├── rt1_langgraph_tool_integration_research.md
+│   │   ├── rt2_gemini_structured_output_reliability_research.md
+│   │   ├── rt3_redis_namespace_strategy_research.md
+│   │   ├── rt4_llm_context_injection_vs_retrieval.md
+│   │   └── rt5_ciar_scores_improve_agent_decision_making.md
+│   └── specs
+│       ├── fact-extractor-spec.md
+│       ├── spec-concept1-goodai-benchmark-v2.md
+│       ├── spec-concept2-mas-memory-inspector-prerequisites.md
+│       ├── spec-phase1-storage-layer.md
+│       ├── spec-phase2-memory-tiers.md
+│       ├── spec-phase3-agent-integration.md
+│       └── spec-phase3-research-questions.md
+├── ensure_episodes_collection.py
+├── examples
+│   ├── gemini_structured_output_test.md
+│   └── metrics_demo.py
+├── GEMINI.MD
+├── graph_store_client.py
+├── knowledge_store_manager.py
+├── LICENSE
+├── logs
+│   ├── agentrouter_test.json
+│   ├── fact_extraction_test.json
+│   ├── mas_full_memory_timeline.jsonl
+│   ├── model_validation_results.json
+│   ├── rate_limiter_full.jsonl
+│   └── README.md
+├── manual_l3_store.py
+├── memory_system.py
+├── migrations
+│   ├── 001_active_context.sql
+│   ├── 002_l2_tsvector_index.sql
+│   ├── 003_add_memory_metrics.sql
+│   └── README.md
+├── poetry.lock
+├── pyproject.toml
+├── README.md
+├── requirements-test.txt
+├── requirements.txt
+├── scripts
+│   ├── __pycache__
+│   │   ├── test_gemini.cpython-312.pyc
+│   │   ├── test_groq.cpython-312.pyc
+│   │   └── test_mistral.cpython-312.pyc
+│   ├── apply_migration.py
+│   ├── archive_docs_to_typesense.py
+│   ├── check_phoenix_connectivity.sh
+│   ├── compress_logs.py
+│   ├── demo_health_check.py
+│   ├── grade_phase5_readiness.py
+│   ├── grade_phase5_readiness.sh
+│   ├── llm_client_demo.py
+│   ├── llm_client_demo.README.md
+│   ├── poll_memory_state.py
+│   ├── README.md
+│   ├── run_benchmark_v2.py
+│   ├── run_mas_100_benchmark.sh
+│   ├── run_mas_300_benchmark.sh
+│   ├── run_memory_integration_tests.sh
+│   ├── run_prospective_validation.sh
+│   ├── run_redis_tests.sh
+│   ├── run_smoke_tests.sh
+│   ├── run_storage_benchmark.py
+│   ├── run_subset_experiments.sh
+│   ├── run_tests.sh
+│   ├── run_verification.sh
+│   ├── run_wrapper_tests.sh
+│   ├── setup_database.sh
+│   ├── start_benchmark_wrappers.sh
+│   ├── test_gemini_flash_lite.py
+│   ├── test_gemini.py
+│   ├── test_groq.py
+│   ├── test_llm_providers.py
+│   ├── test_mistral.py
+│   ├── validate_goodai_config.py
+│   ├── verify_infrastructure.sh
+│   ├── verify_metrics_implementation.py
+│   └── verify_typesense_docs.py
+├── search_store_client.py
+├── src
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   └── __init__.cpython-312.pyc
+│   ├── agents
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── base_agent.cpython-312.pyc
+│   │   │   ├── full_context_agent.cpython-312.pyc
+│   │   │   ├── memory_agent.cpython-312.pyc
+│   │   │   ├── models.cpython-312.pyc
+│   │   │   ├── rag_agent.cpython-312.pyc
+│   │   │   └── runtime.cpython-312.pyc
+│   │   ├── base_agent.py
+│   │   ├── full_context_agent.py
+│   │   ├── memory_agent.py
+│   │   ├── models.py
+│   │   ├── rag_agent.py
+│   │   ├── runtime.py
+│   │   └── tools
+│   │       ├── __init__.py
+│   │       ├── __pycache__
+│   │       │   ├── __init__.cpython-312.pyc
+│   │       │   ├── ciar_tools.cpython-312.pyc
+│   │       │   ├── synthesis_tools.cpython-312.pyc
+│   │       │   ├── tier_tools.cpython-312.pyc
+│   │       │   └── unified_tools.cpython-312.pyc
+│   │       ├── ciar_tools.py
+│   │       ├── synthesis_tools.py
+│   │       ├── tier_tools.py
+│   │       └── unified_tools.py
+│   ├── evaluation
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   └── agent_wrapper.cpython-312.pyc
+│   │   └── agent_wrapper.py
+│   ├── llm
+│   │   ├── client.py
+│   │   ├── providers
+│   │   │   ├── base.py
+│   │   │   ├── gemini.py
+│   │   │   ├── groq.py
+│   │   │   └── mistral.py
+│   │   └── README.md
+│   ├── memory
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── ciar_scorer.cpython-312.pyc
+│   │   │   ├── graph_templates.cpython-312.pyc
+│   │   │   ├── lifecycle_stream.cpython-312.pyc
+│   │   │   ├── lua_manager.cpython-312.pyc
+│   │   │   ├── models.cpython-312.pyc
+│   │   │   └── namespace.cpython-312.pyc
+│   │   ├── ciar_scorer.py
+│   │   ├── DEVLOG.md
+│   │   ├── engines
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── base_engine.cpython-312.pyc
+│   │   │   │   ├── consolidation_engine.cpython-312.pyc
+│   │   │   │   ├── distillation_engine.cpython-312.pyc
+│   │   │   │   ├── fact_extractor.cpython-312.pyc
+│   │   │   │   ├── knowledge_synthesizer.cpython-312.pyc
+│   │   │   │   ├── promotion_engine.cpython-312.pyc
+│   │   │   │   └── topic_segmenter.cpython-312.pyc
+│   │   │   ├── base_engine.py
+│   │   │   ├── consolidation_engine.py
+│   │   │   ├── DEVLOG.md
+│   │   │   ├── distillation_engine.py
+│   │   │   ├── fact_extractor.py
+│   │   │   ├── knowledge_synthesizer.py
+│   │   │   ├── promotion_engine.py
+│   │   │   ├── README.md
+│   │   │   └── topic_segmenter.py
+│   │   ├── graph_templates.py
+│   │   ├── lifecycle_stream.py
+│   │   ├── lua
+│   │   │   ├── atomic_promotion.lua
+│   │   │   ├── smart_append.lua
+│   │   │   └── workspace_update.lua
+│   │   ├── lua_manager.py
+│   │   ├── models.py
+│   │   ├── namespace.py
+│   │   ├── README.md
+│   │   ├── schemas
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── fact_extraction.cpython-312.pyc
+│   │   │   │   └── topic_segmentation.cpython-312.pyc
+│   │   │   ├── DEVLOG.md
+│   │   │   ├── fact_extraction.py
+│   │   │   ├── README.md
+│   │   │   └── topic_segmentation.py
+│   │   ├── system.py
+│   │   └── tiers
+│   │       ├── __init__.py
+│   │       ├── __pycache__
+│   │       │   ├── __init__.cpython-312.pyc
+│   │       │   ├── active_context_tier.cpython-312.pyc
+│   │       │   ├── base_tier.cpython-312.pyc
+│   │       │   ├── episodic_memory_tier.cpython-312.pyc
+│   │       │   ├── semantic_memory_tier.cpython-312.pyc
+│   │       │   └── working_memory_tier.cpython-312.pyc
+│   │       ├── active_context_tier.py
+│   │       ├── base_tier.py
+│   │       ├── DEVLOG.md
+│   │       ├── episodic_memory_tier.py
+│   │       ├── README.md
+│   │       ├── semantic_memory_tier.py
+│   │       └── working_memory_tier.py
+│   ├── storage
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── base.cpython-312.pyc
+│   │   │   ├── neo4j_adapter.cpython-312.pyc
+│   │   │   ├── postgres_adapter.cpython-312.pyc
+│   │   │   ├── qdrant_adapter.cpython-312.pyc
+│   │   │   ├── redis_adapter.cpython-312.pyc
+│   │   │   └── typesense_adapter.cpython-312.pyc
+│   │   ├── base.py
+│   │   ├── metrics
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── aggregator.cpython-312.pyc
+│   │   │   │   ├── collector.cpython-312.pyc
+│   │   │   │   ├── exporters.cpython-312.pyc
+│   │   │   │   ├── storage.cpython-312.pyc
+│   │   │   │   └── timer.cpython-312.pyc
+│   │   │   ├── aggregator.py
+│   │   │   ├── collector.py
+│   │   │   ├── exporters.py
+│   │   │   ├── storage.py
+│   │   │   └── timer.py
+│   │   ├── neo4j_adapter.py
+│   │   ├── postgres_adapter.py
+│   │   ├── qdrant_adapter.py
+│   │   ├── redis_adapter.py
+│   │   └── typesense_adapter.py
+│   └── utils
+│       ├── __init__.py
+│       └── __pycache__
+│           ├── __init__.cpython-312.pyc
+│           ├── llm_client.cpython-312.pyc
+│           └── providers.cpython-312.pyc
+├── tests
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── conftest.cpython-312-pytest-9.0.1.pyc
+│   │   ├── conftest.cpython-312-pytest-9.0.2.pyc
+│   │   ├── test_connectivity.cpython-312-pytest-9.0.1.pyc
+│   │   ├── test_connectivity.cpython-312-pytest-9.0.2.pyc
+│   │   ├── test_fact_extraction_with_real_data.cpython-312-pytest-9.0.1.pyc
+│   │   └── test_fact_extraction_with_real_data.cpython-312-pytest-9.0.2.pyc
+│   ├── agents
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── test_full_context_agent.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_full_context_agent.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_memory_agent.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_memory_agent.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_rag_agent.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_rag_agent.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_runtime.cpython-312-pytest-9.0.1.pyc
+│   │   │   └── test_runtime.cpython-312-pytest-9.0.2.pyc
+│   │   ├── test_full_context_agent.py
+│   │   ├── test_memory_agent.py
+│   │   ├── test_rag_agent.py
+│   │   ├── test_runtime.py
+│   │   └── tools
+│   │       ├── __init__.py
+│   │       ├── __pycache__
+│   │       │   ├── __init__.cpython-312.pyc
+│   │       │   ├── test_ciar_tools.cpython-312-pytest-9.0.1.pyc
+│   │       │   ├── test_ciar_tools.cpython-312-pytest-9.0.2.pyc
+│   │       │   ├── test_unified_tools.cpython-312-pytest-9.0.1.pyc
+│   │       │   └── test_unified_tools.cpython-312-pytest-9.0.2.pyc
+│   │       ├── test_ciar_tools.py
+│   │       └── test_unified_tools.py
+│   ├── benchmarks
+│   │   ├── __init__.py
+│   │   ├── bench_metrics_overhead.py
+│   │   ├── bench_redis_adapter.py
+│   │   ├── bench_storage_adapters.py
+│   │   ├── results_analyzer.py
+│   │   └── workload_generator.py
+│   ├── conftest.py
+│   ├── evaluation
+│   │   ├── __pycache__
+│   │   │   ├── test_agent_wrapper.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_agent_wrapper.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_mas_agents.cpython-312-pytest-9.0.1.pyc
+│   │   │   └── test_mas_agents.cpython-312-pytest-9.0.2.pyc
+│   │   ├── test_agent_wrapper.py
+│   │   └── test_mas_agents.py
+│   ├── fixtures
+│   │   └── embedding_test_data
+│   │       ├── distributed_systems.md
+│   │       ├── last_mile_delivery.html
+│   │       ├── mlops_practices.txt
+│   │       ├── quantum_computing.html
+│   │       ├── README.md
+│   │       ├── supply_chain_optimization.md
+│   │       └── warehouse_automation.txt
+│   ├── fixtures.py
+│   ├── integration
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── conftest.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── conftest.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_connectivity.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_connectivity.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_llmclient_real.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_llmclient_real.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_lock_renewal.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_lock_renewal.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_memory_lifecycle.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_memory_lifecycle.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_memory_perf.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_memory_perf.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_wrapper_agents_integration.cpython-312-pytest-9.0.1.pyc
+│   │   │   └── test_wrapper_agents_integration.cpython-312-pytest-9.0.2.pyc
+│   │   ├── conftest.py
+│   │   ├── perf_results.json
+│   │   ├── test_connectivity.py
+│   │   ├── test_gemini_provider.py
+│   │   ├── test_groq_provider.py
+│   │   ├── test_instruction_recall.py
+│   │   ├── test_llmclient_real.py
+│   │   ├── test_lock_renewal.py
+│   │   ├── test_memory_inspector.py
+│   │   ├── test_memory_lifecycle.py
+│   │   ├── test_memory_perf.py
+│   │   ├── test_mistral_provider.py
+│   │   ├── test_tier_telemetry.py
+│   │   └── test_wrapper_agents_integration.py
+│   ├── memory
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── conftest.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── conftest.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_active_context_tier.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_active_context_tier.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_ciar_scorer.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_ciar_scorer.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_distillation_engine.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_distillation_engine.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_episodic_memory_tier.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_episodic_memory_tier.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_knowledge_synthesizer.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_knowledge_synthesizer.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_lifecycle_stream.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_lifecycle_stream.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_lua_scripts.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_lua_scripts.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_namespace.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_namespace.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_semantic_memory_tier.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_semantic_memory_tier.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_working_memory_tier.cpython-312-pytest-9.0.1.pyc
+│   │   │   └── test_working_memory_tier.cpython-312-pytest-9.0.2.pyc
+│   │   ├── conftest.py
+│   │   ├── engines
+│   │   │   ├── __pycache__
+│   │   │   │   ├── test_base_engine.cpython-312-pytest-9.0.1.pyc
+│   │   │   │   ├── test_base_engine.cpython-312-pytest-9.0.2.pyc
+│   │   │   │   ├── test_consolidation_engine.cpython-312-pytest-9.0.1.pyc
+│   │   │   │   ├── test_consolidation_engine.cpython-312-pytest-9.0.2.pyc
+│   │   │   │   ├── test_fact_extractor.cpython-312-pytest-9.0.1.pyc
+│   │   │   │   ├── test_fact_extractor.cpython-312-pytest-9.0.2.pyc
+│   │   │   │   ├── test_promotion_engine.cpython-312-pytest-9.0.1.pyc
+│   │   │   │   ├── test_promotion_engine.cpython-312-pytest-9.0.2.pyc
+│   │   │   │   ├── test_topic_segmenter.cpython-312-pytest-9.0.1.pyc
+│   │   │   │   └── test_topic_segmenter.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_base_engine.py
+│   │   │   ├── test_consolidation_engine.py
+│   │   │   ├── test_fact_extractor.py
+│   │   │   ├── test_promotion_engine.py
+│   │   │   └── test_topic_segmenter.py
+│   │   ├── test_active_context_tier.py
+│   │   ├── test_ciar_scorer.py
+│   │   ├── test_distillation_engine.py
+│   │   ├── test_episodic_memory_tier.py
+│   │   ├── test_knowledge_synthesizer.py
+│   │   ├── test_lifecycle_stream.py
+│   │   ├── test_lua_scripts.py
+│   │   ├── test_namespace.py
+│   │   ├── test_semantic_memory_tier.py
+│   │   └── test_working_memory_tier.py
+│   ├── README.md
+│   ├── scripts
+│   │   ├── __init__.py
+│   │   └── test_archive_docs_to_typesense.py
+│   ├── storage
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── test_base.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_base.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_metrics.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_metrics.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_neo4j_adapter.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_neo4j_adapter.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_neo4j_metrics.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_neo4j_metrics.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_postgres_adapter.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_postgres_adapter.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_qdrant_adapter.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_qdrant_adapter.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_qdrant_metrics.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_qdrant_metrics.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_redis_adapter.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_redis_adapter.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_redis_metrics.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_redis_metrics.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_typesense_adapter.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_typesense_adapter.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_typesense_metrics.cpython-312-pytest-9.0.1.pyc
+│   │   │   └── test_typesense_metrics.cpython-312-pytest-9.0.2.pyc
+│   │   ├── README.md
+│   │   ├── test_base.py
+│   │   ├── test_metrics.py
+│   │   ├── test_neo4j_adapter.py
+│   │   ├── test_neo4j_metrics.py
+│   │   ├── test_postgres_adapter.py
+│   │   ├── test_qdrant_adapter.py
+│   │   ├── test_qdrant_metrics.py
+│   │   ├── test_redis_adapter.py
+│   │   ├── test_redis_metrics.py
+│   │   ├── test_typesense_adapter.py
+│   │   └── test_typesense_metrics.py
+│   ├── test_connectivity.py
+│   ├── test_fact_extraction_with_real_data.py
+│   ├── test_settings.yaml
+│   ├── utils
+│   │   ├── __pycache__
+│   │   │   ├── test_gemini_structured_output.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_gemini_structured_output.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_llm_client_demo_output.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_llm_client_demo_output.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_llm_client.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_llm_client.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_llmclient_with_adapters.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_llmclient_with_adapters.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_provider_health_checks.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_provider_health_checks.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_providers_gemini.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_providers_gemini.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_providers_groq.cpython-312-pytest-9.0.1.pyc
+│   │   │   ├── test_providers_groq.cpython-312-pytest-9.0.2.pyc
+│   │   │   ├── test_providers_mistral.cpython-312-pytest-9.0.1.pyc
+│   │   │   └── test_providers_mistral.cpython-312-pytest-9.0.2.pyc
+│   │   ├── test_gemini_structured_output.py
+│   │   ├── test_llm_client_demo_output.py
+│   │   ├── test_llm_client.py
+│   │   ├── test_llmclient_with_adapters.py
+│   │   ├── test_provider_health_checks.py
+│   │   ├── test_providers_gemini.py
+│   │   ├── test_providers_groq.py
+│   │   └── test_providers_mistral.py
+│   └── verify_llm_client_factory.py
+├── tree.txt
+└── vector_store_client.py
+
+259 directories, 1017 files

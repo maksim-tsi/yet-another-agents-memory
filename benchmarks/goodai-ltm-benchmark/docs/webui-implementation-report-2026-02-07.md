@@ -1,3 +1,7 @@
+> WARNING (DEPRECATED, 2026-02-10)
+> This document describes a component (WebUI) that has been removed from the architecture.
+> It is preserved here for historical context only.
+
 # GoodAI Benchmark WebUI Implementation Report (2026-02-07)
 
 ## 1. Scope and Objectives

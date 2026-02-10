@@ -243,8 +243,8 @@ pytest tests/test_connectivity.py::test_postgres_connection -v
 
 ### Documentation
 - `tests/README.md` - Test documentation
-- `docs/python-environment-setup.md` - Environment guide
-- `docs/python-3.13-compatibility.md` - Compatibility notes
+- `docs/python_environment.md` - Environment guide
+- `docs/python_environment.md` - Compatibility notes
 - `docs/IAC/database-setup.md` - Database documentation
 
 ---

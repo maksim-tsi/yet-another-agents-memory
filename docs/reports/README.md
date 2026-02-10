@@ -7,8 +7,7 @@ This directory contains technical reports, status updates, and debugging documen
 ### Phase Readiness & Status
 | Report | Description |
 |--------|-------------|
-| [phase5-readiness.md](phase5-readiness.md) | Consolidated Phase 5 readiness tracker with grading |
-| [lifecycle-status-*.md](.) | Daily lifecycle test status reports |
+| [preliminary_readiness_checks_version-0.7_upto10feb2026.md](preliminary_readiness_checks_version-0.7_upto10feb2026.md) | Consolidated readiness checks (version-0.7) |
 | [adr-003-architecture-review.md](adr-003-architecture-review.md) | Gap analysis against ADR-003 architecture |
 
 ### Debugging & Incident Reports
@@ -19,28 +18,31 @@ This directory contains technical reports, status updates, and debugging documen
 ### Implementation Reports
 | Report | Description |
 |--------|-------------|
-| [metrics-implementation-final-summary.md](metrics-implementation-final-summary.md) | Metrics system implementation summary |
+| [metrics_program_overview_version-0.9_upto10feb2026.md](metrics_program_overview_version-0.9_upto10feb2026.md) | Metrics program overview (version-0.9) |
 | [neo4j-refactor-option-a-success.md](neo4j-refactor-option-a-success.md) | Neo4j adapter refactoring outcome |
-| [implementation-status-summary.md](implementation-status-summary.md) | Overall implementation progress |
+| [implementation_consolidated_version-0.9_upto10feb2026.md](implementation_consolidated_version-0.9_upto10feb2026.md) | Consolidated implementation reports (version-0.9) |
+| [phase2_3_consolidated_version-0.9_upto10feb2026.md](phase2_3_consolidated_version-0.9_upto10feb2026.md) | Phase 2/3 consolidated plan and prereq notes |
+| [memory_inspector_consolidated_version-0.9_upto10feb2026.md](memory_inspector_consolidated_version-0.9_upto10feb2026.md) | Memory inspector consolidated reports (version-0.9) |
+| [dependency_analysis_consolidated_version-0.9_upto10feb2026.md](dependency_analysis_consolidated_version-0.9_upto10feb2026.md) | Dependency analysis consolidated reports (version-0.9) |
 
 ### Code Review Reports
 | Report | Description |
 |--------|-------------|
-| [code-review-priority-*.md](.) | Priority-based code review findings |
-| [code-review-summary-priorities-0-2.md](code-review-summary-priorities-0-2.md) | Summary of high-priority reviews |
+| [code_review_consolidated_version-0.9_upto10feb2026.md](code_review_consolidated_version-0.9_upto10feb2026.md) | Consolidated code reviews (version-0.9) |
+| [priority_6_consolidated_version-0.9_upto10feb2026.md](priority_6_consolidated_version-0.9_upto10feb2026.md) | Priority 6 consolidated reports (version-0.9) |
 
 ### Benchmark & Validation
 | Report | Description |
 |--------|-------------|
-| [benchmark-validation-21-oct-2025.md](benchmark-validation-21-oct-2025.md) | Storage benchmark validation results |
+| [goodai_ltm_benchmark_reports_version-0.9_upto10feb2026.md](goodai_ltm_benchmark_reports_version-0.9_upto10feb2026.md) | Consolidated benchmark reports (version-0.9) |
 | [integration-tests-2025-11-12.md](integration-tests-2025-11-12.md) | Integration test results |
-| [benchmark-mypy-cleanup-2026-02-05.md](benchmark-mypy-cleanup-2026-02-05.md) | GoodAI benchmark mypy cleanup progress report |
+| [goodai_ltm_benchmark_troubleshooting_upto10feb2026.md](goodai_ltm_benchmark_troubleshooting_upto10feb2026.md) | Consolidated benchmark troubleshooting notes |
 
 ## Naming Conventions
 
 - **Date-prefixed:** `YYYY-MM-DD-topic.md` for time-specific reports
 - **Topic-date:** `topic-YYYY-MM-DD.md` for debugging/incident reports
-- **JSON artifacts:** `lifecycle-test-YYYY-MM-DD.json` for machine-readable test results
+- **JSON artifacts:** `lifecycle_test_history_version-0.9.jsonl` for machine-readable test results
 
 ## Related Documentation
 

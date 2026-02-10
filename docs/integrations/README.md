@@ -76,11 +76,11 @@ pip install -r requirements.txt
 ./scripts/test_mistral.py
 ```
 
-**See [LLM Provider Tests Documentation](../LLM_PROVIDER_TESTS.md)** for detailed testing guide.
+**See [LLM Provider Tests Documentation](../llm_provider_guide.md)** for detailed testing guide.
 
 ### 5. Start Implementation
 
-See **Week 4-5** in the [Implementation Plan](../plan/implementation-plan-02112025.md) for CIAR Scorer and Fact Extraction integration
+See **Week 4-5** in the [Implementation Plan](../plan/implementation_master_plan_version-0.9.md) for CIAR Scorer and Fact Extraction integration
 
 ## Provider Selection Quick Reference
 

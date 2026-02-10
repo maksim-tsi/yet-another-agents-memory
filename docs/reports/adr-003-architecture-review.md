@@ -30,12 +30,12 @@
 - Coverage ≥80% overall and per component (storage, tiers, engines) — **met (86%)**
 - <2s p95 latency for lifecycle batches (promotion, consolidation, distillation) measured against real backends (current stage target) — **pending** (latest perf run exceeds target for Postgres/Qdrant/Neo4j/Typesense)
 - Full L1→L4 end-to-end validation on Redis, PostgreSQL, Qdrant, Neo4j, Typesense — **pending**
-- Gemini API connectivity verified after key refresh (see [LLM Provider Results](../LLM_PROVIDER_TEST_RESULTS.md)) — **met**
+- Gemini API connectivity verified after key refresh (see [LLM Provider Results](../llm_provider_guide.md)) — **met**
 
 ## Validation Checklist (Next)
 1. Execute full pipeline runs on real storage backends with metrics enabled; capture latency percentiles and throughput.
 2. Re-run coverage to confirm ≥80% overall and per component; publish htmlcov summary.
-3. Refresh Gemini API key and re-run provider tests; record outcomes in [LLM Provider Test Results](../LLM_PROVIDER_TEST_RESULTS.md).
+3. Refresh Gemini API key and re-run provider tests; record outcomes in [LLM Provider Test Results](../llm_provider_guide.md).
 4. Prepare GoodAI LTM evaluation plan and schedule execution after storage validation.
 
 ---

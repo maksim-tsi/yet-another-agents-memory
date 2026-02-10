@@ -1368,8 +1368,8 @@ These aspects represent novel contributions for AIMS 2025 paper:
 
 - [ADR-003: Four-Tier Memory Architecture](docs/ADR/003-four-layers-memory.md)
 - [ADR-004: CIAR Scoring Formula](docs/ADR/004-ciar-scoring-formula.md)
-- [UC-01: GoodAI LTM Benchmark (Full System)](docs/uc-01.md)
-- [UC-02: Standard RAG Baseline](docs/uc-02.md)
-- [UC-03: Full-Context Baseline](docs/uc-03.md)
+- [UC-01: GoodAI LTM Benchmark (Full System)](docs/benchmark_use_cases.md)
+- [UC-02: Standard RAG Baseline](docs/benchmark_use_cases.md)
+- [UC-03: Full-Context Baseline](docs/benchmark_use_cases.md)
 - [Phase 2 Specification](docs/specs/spec-phase2-memory-tiers.md)
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
