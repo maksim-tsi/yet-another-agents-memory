@@ -10,6 +10,15 @@ import redis
 from pydantic import BaseModel, Field, ValidationError
 
 # Import the facade for the persistent knowledge layer
+# Note: KnowledgeStoreManager is archived at scripts/archive/knowledge_store_manager.py
+# It uses legacy sync clients (Meilisearch instead of Typesense, sync instead of async)
+import sys
+from pathlib import Path
+
+# Add scripts/archive to path for legacy imports
+_archive_path = str(Path(__file__).parent.parent.parent / "scripts" / "archive")
+if _archive_path not in sys.path:
+    sys.path.insert(0, _archive_path)
 from knowledge_store_manager import KnowledgeStoreManager
 from src.memory.engines.consolidation_engine import ConsolidationEngine
 from src.memory.engines.distillation_engine import DistillationEngine

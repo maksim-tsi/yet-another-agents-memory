@@ -16,6 +16,65 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-10 - Repository Root Cleanup: File Reorganization ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Reorganized 12 files from the repository root into appropriate directories based on their purpose. This cleanup improves the repository structure and separates concerns between documentation, scripts, debug utilities, archived legacy code, and core application code.
+
+**Files Moved:**
+
+| Original Location | New Location | Rationale |
+|-------------------|--------------|-----------|
+| `benchmark_implementation.md` | `docs/reports/storage-benchmark-implementation.md` | Documentation belongs in docs/ |
+| `check_l2_roundtrip.py` | `scripts/debug/` | Debug verification script |
+| `check_tier_collection.py` | `scripts/debug/` | Debug verification script |
+| `debug_qdrant_dump.py` | `scripts/debug/` | Debug diagnostic tool |
+| `manual_l3_store.py` | `scripts/debug/` | Debug test script |
+| `create_qdrant_index.py` | `scripts/` | Database infrastructure script |
+| `ensure_episodes_collection.py` | `scripts/` | Database infrastructure script |
+| `graph_store_client.py` | `scripts/archive/` | Legacy: superseded by async `src/storage/neo4j_adapter.py` |
+| `vector_store_client.py` | `scripts/archive/` | Legacy: superseded by async `src/storage/qdrant_adapter.py` |
+| `search_store_client.py` | `scripts/archive/` | Legacy: uses Meilisearch (project uses Typesense per ADR-003) |
+| `knowledge_store_manager.py` | `scripts/archive/` | Legacy: facade using archived sync clients |
+| `memory_system.py` | `src/memory/unified_memory_system.py` | Core module belongs in src/memory/ |
+
+**New Directory Structure:**
+
+```
+scripts/
+├── archive/          # Archived legacy code (preserved for reference)
+│   ├── README.md
+│   ├── graph_store_client.py
+│   ├── knowledge_store_manager.py
+│   ├── search_store_client.py
+│   └── vector_store_client.py
+├── debug/            # One-off debug and verification scripts
+│   ├── README.md
+│   ├── check_l2_roundtrip.py
+│   ├── check_tier_collection.py
+│   ├── debug_qdrant_dump.py
+│   └── manual_l3_store.py
+├── create_qdrant_index.py      # Database infrastructure
+├── ensure_episodes_collection.py
+└── ...
+```
+
+**Import Updates:**
+- Updated `src/evaluation/agent_wrapper.py`: `from memory_system import UnifiedMemorySystem` → `from src.memory.unified_memory_system import UnifiedMemorySystem`
+- Updated `src/memory/unified_memory_system.py`: Added path manipulation to import `knowledge_store_manager` from `scripts/archive/` for backward compatibility
+
+**Documentation Updates:**
+- Created `scripts/debug/README.md` documenting debug scripts
+- Created `scripts/archive/README.md` explaining why files are archived and their replacements
+- Updated `scripts/README.md` with new directory structure and database infrastructure scripts
+
+**Architectural Notes:**
+The archived files use synchronous APIs and Meilisearch instead of the project-standard async APIs and Typesense (per ADR-003). They are preserved for historical reference but should not be used for new development.
+
+---
+
 ### 2026-02-10 - Typesense Document Archive Script ✅
 
 **Status:** ✅ Complete

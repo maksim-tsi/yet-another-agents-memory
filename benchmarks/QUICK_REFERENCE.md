@@ -79,4 +79,4 @@ python tests/benchmarks/results_analyzer.py --results benchmarks/results/raw/ben
 
 📖 Full Documentation: `benchmarks/README.md`  
 📋 ADR: `docs/ADR/002-storage-performance-benchmarking.md`  
-🎯 Implementation: `BENCHMARK_IMPLEMENTATION.md`
+🎯 Implementation: `docs/reports/storage-benchmark-implementation.md`

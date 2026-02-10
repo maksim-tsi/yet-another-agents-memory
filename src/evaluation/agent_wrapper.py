@@ -18,7 +18,7 @@ import redis
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 
-from memory_system import UnifiedMemorySystem
+from src.memory.unified_memory_system import UnifiedMemorySystem
 from src.agents.base_agent import BaseAgent
 from src.agents.full_context_agent import FullContextAgent
 from src.agents.memory_agent import MemoryAgent

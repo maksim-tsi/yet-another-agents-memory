@@ -7,6 +7,40 @@ Why these scripts exist
 - Provide quick, developer-friendly ways to exercise provider SDKs and the `LLMClient` implementation.
 - Provide smoke/integration checks to verify connectivity, usage, and basic generation for provider-specific SDKs.
 
+## Directory Structure
+
+```
+scripts/
+├── archive/             # Archived legacy code (preserved for reference)
+├── debug/               # One-off debug and verification scripts
+├── *.py                 # Production utility scripts
+├── *.sh                 # Shell scripts for tests and setup
+└── README.md            # This file
+```
+
+### Database Infrastructure Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `create_qdrant_index.py` | Creates a payload index on `session_id` field in Qdrant's `episodes` collection |
+| `ensure_episodes_collection.py` | Creates/refreshes the `episodes` collection in Qdrant with correct vector size |
+
+**Usage:**
+```bash
+# Create Qdrant index
+./.venv/bin/python scripts/create_qdrant_index.py
+
+# Ensure episodes collection exists
+./.venv/bin/python scripts/ensure_episodes_collection.py
+```
+
+### Subdirectories
+
+- **`debug/`** - One-off debug and verification scripts for development troubleshooting. See [debug/README.md](debug/README.md).
+- **`archive/`** - Archived legacy code that has been superseded by current architecture. See [archive/README.md](archive/README.md).
+
+---
+
 Script inventory
 # Run demo with flags (run subset of providers and custom prompt):
 ./venv/bin/python scripts/llm_client_demo.py --providers=gemini,groq --prompt "Explain memory systems in one sentence."
