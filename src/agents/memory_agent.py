@@ -49,12 +49,19 @@ class MemoryAgent(BaseAgent):
         """Initialize MemoryAgent resources."""
         logger.info("Initializing MemoryAgent '%s'", self.agent_id)
 
-    async def run_turn(self, request: RunTurnRequest) -> RunTurnResponse:
+    async def run_turn(
+        self, request: RunTurnRequest, history: list[dict[str, Any]] | None = None
+    ) -> RunTurnResponse:
         """Process a single conversation turn with memory retrieval and updates."""
         await self.ensure_initialized()
 
+        messages = (
+            list(history)
+            if history
+            else [{"role": request.role, "content": request.content}]
+        )
         initial_state: AgentState = {
-            "messages": [{"role": request.role, "content": request.content}],
+            "messages": messages,
             "session_id": request.session_id,
             "turn_id": request.turn_id,
             "metadata": request.metadata or {},
@@ -352,6 +359,12 @@ class MemoryAgent(BaseAgent):
         """Format retrieved context for prompt injection."""
         sections: list[str] = []
 
+        history = state.get("messages", [])
+        if history:
+            sections.append("## Conversation History (API Wall)")
+            for idx, line in enumerate(self._format_history(history), 1):
+                sections.append(f"{idx}. {line}")
+
         active_context = state.get("active_context", [])
         if active_context:
             sections.append("## Recent Conversation")
@@ -406,6 +419,19 @@ class MemoryAgent(BaseAgent):
                 sections.append(f"{idx}. {content}")
 
         return "\n".join(sections)
+
+    def _format_history(self, history: list[dict[str, Any] | Any]) -> list[str]:
+        """Format API-provided conversation history for prompt context."""
+        formatted: list[str] = []
+        for message in history:
+            if isinstance(message, dict):
+                role = str(message.get("role", "unknown")).upper()
+                content = str(message.get("content", ""))
+            else:
+                role = str(getattr(message, "role", "unknown")).upper()
+                content = str(getattr(message, "content", ""))
+            formatted.append(f"{role}: {content}")
+        return formatted
 
     def _merge_query_results(self, state: AgentState, results: list[dict[str, Any]]) -> None:
         """Merge query results into the agent state by tier."""

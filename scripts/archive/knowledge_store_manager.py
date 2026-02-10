@@ -2,9 +2,8 @@
 
 from typing import Any, Literal
 
-from qdrant_client import models as qdrant_models
-
 from graph_store_client import Neo4jGraphStore
+from qdrant_client import models as qdrant_models
 from search_store_client import MeilisearchStore
 from vector_store_client import QdrantVectorStore
 
