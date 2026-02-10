@@ -223,6 +223,7 @@ class MemoryAgent(BaseAgent):
 
         if hasattr(self._memory_system, "run_promotion_cycle"):
             try:
+                logger.info(f"DEBUG: Spawning promotion task for session {session_id}")
                 self._promotion_task = asyncio.create_task(
                     self._memory_system.run_promotion_cycle(session_id)
                 )

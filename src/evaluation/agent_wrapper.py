@@ -25,6 +25,10 @@ from src.agents.memory_agent import MemoryAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.rag_agent import RAGAgent
 from src.llm.client import LLMClient
+from src.memory.ciar_scorer import CIARScorer
+from src.memory.engines.fact_extractor import FactExtractor
+from src.memory.engines.promotion_engine import PromotionEngine
+from src.memory.engines.topic_segmenter import TopicSegmenter
 from src.memory.models import TurnData
 from src.memory.tiers import ActiveContextTier, WorkingMemoryTier
 from src.storage.postgres_adapter import PostgresAdapter
@@ -233,14 +237,33 @@ async def initialize_state(config: WrapperConfig) -> AgentWrapperState:
     await l1_tier.initialize()
     await l2_tier.initialize()
 
+    await l1_tier.initialize()
+    await l2_tier.initialize()
+
+    llm_client = LLMClient.from_env()
+
+    # Initialize engines
+    ciar_scorer = CIARScorer()
+    fact_extractor = FactExtractor(llm_client)
+    topic_segmenter = TopicSegmenter(llm_client)
+
+    promotion_engine = PromotionEngine(
+        l1_tier=l1_tier,
+        l2_tier=l2_tier,
+        topic_segmenter=topic_segmenter,
+        fact_extractor=fact_extractor,
+        ciar_scorer=ciar_scorer,
+        config={"promotion_threshold": config.min_ciar},
+    )
+
     memory_system = UnifiedMemorySystem(
         redis_client=redis_client,
         knowledge_manager=NullKnowledgeStoreManager(),
         l1_tier=l1_tier,
         l2_tier=l2_tier,
+        promotion_engine=promotion_engine,
     )
 
-    llm_client = LLMClient.from_env()
     agent_cls = AGENT_TYPES[config.agent_type]
     agent = agent_cls(
         agent_id=f"mas-{config.agent_type}",

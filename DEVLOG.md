@@ -16,6 +16,26 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-10 - Promotion Engine Integration Fix ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Fixed a critical integration issue where the `PromotionEngine` (and thus `FactExtractor`) was not being initialized in the `agent_wrapper.py` service, causing the Prospective Memory benchmark to fail silently without extracting facts.
+
+**✅ What's Complete:**
+1.  **Engine Initialization:** Updated `src/evaluation/agent_wrapper.py` to correctly instantiate `PromotionEngine`, `FactExtractor`, `TopicSegmenter`, and `CIARScorer`.
+2.  **Method Alignment:** Updated `memory_system.py` (legacy root file) to call `process_session` instead of the non-existent `promote_session`.
+3.  **Debug Instrumentation:** Added verbose logging to trace the promotion lifecycle.
+
+**Files Modified:**
+-   `src/evaluation/agent_wrapper.py`
+-   `memory_system.py`
+-   `src/agents/memory_agent.py` (instrumentation)
+-   `src/memory/engines/promotion_engine.py` (instrumentation)
+
+---
+
 ### 2026-02-09 - Intelligent Instruction Handling ✅
 
 **Status:** ✅ Complete

@@ -95,6 +95,17 @@ class PromotionEngine(BaseEngine):
 
         return await self.process_session(session_id)
 
+    async def promote_session(self, session_id: str) -> list[Fact]:
+        """
+        Legacy compatibility method for HybridMemorySystem interface.
+
+        Wraps process_session() and returns empty list to satisfy the list[Fact] contract.
+        Use process_session() for full stats.
+        """
+        await self.process_session(session_id)
+        # Facts are stored async in L2, we don't return them here in the batch process
+        return []
+
     async def process_session(self, session_id: str) -> dict[str, Any]:
         """
         Process a specific session for batch topic segmentation and promotion.
@@ -111,6 +122,7 @@ class PromotionEngine(BaseEngine):
             "facts_filtered": 0,
             "errors": 0,
         }
+        logger.info(f"DEBUG: PromotionEngine processing session {session_id}")
 
         def inc(key: str, amount: int = 1) -> None:
             """Increment a stats counter."""
