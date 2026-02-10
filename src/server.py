@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import time
 import uuid
 from collections.abc import Iterable
@@ -229,6 +230,37 @@ def create_app(config: agent_wrapper.WrapperConfig) -> FastAPI:
         }
 
     return app
+
+
+def build_config_from_env() -> agent_wrapper.WrapperConfig:
+    """Build wrapper configuration from environment variables."""
+    agent_type = os.environ.get("MAS_AGENT_TYPE") or os.environ.get("AGENT_TYPE") or "full"
+    os.environ["AGENT_TYPE"] = agent_type
+
+    redis_url = agent_wrapper._read_env_or_raise("REDIS_URL")
+    postgres_url = agent_wrapper._read_env_or_raise("POSTGRES_URL")
+    session_prefix = agent_wrapper.SESSION_PREFIXES[agent_type]
+
+    window_size = int(os.environ.get("MAS_L1_WINDOW", "20"))
+    ttl_hours = int(os.environ.get("MAS_L1_TTL_HOURS", "24"))
+    min_ciar = float(os.environ.get("MAS_MIN_CIAR", "0.6"))
+    model = os.environ.get("MAS_MODEL", "gemini-2.5-flash-lite")
+    port = int(os.environ.get("MAS_PORT", "8080"))
+
+    return agent_wrapper.WrapperConfig(
+        agent_type=agent_type,
+        port=port,
+        model=model,
+        redis_url=redis_url,
+        postgres_url=postgres_url,
+        session_prefix=session_prefix,
+        window_size=window_size,
+        ttl_hours=ttl_hours,
+        min_ciar=min_ciar,
+    )
+
+
+app = create_app(build_config_from_env())
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
