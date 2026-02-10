@@ -241,7 +241,7 @@ All core lifecycle tests now pass consistently.
 | `src/storage/qdrant_adapter.py` | Added method | New `scroll()` method for filter-only retrieval |
 | `tests/integration/test_memory_lifecycle.py` | Modified | Changed Qdrant verification from `search()` to `scroll()` |
 | `docs/reports/qdrant-scroll-vs-search-debugging-2026-01-03.md` | Created | This report |
-| `docs/plan/phase5-readiness-checklist-2026-01-02.md` | Updated | Added debugging session documentation |
+| `docs/plan/phase5_execution_and_readiness_version-0.9.md` | Updated | Added debugging session documentation |
 | `docs/lessons-learned.md` | Updated | Added incident LL-20260103-01 |
 
 ---
@@ -250,4 +250,4 @@ All core lifecycle tests now pass consistently.
 
 - [ADR-003: Four Layers Memory](../ADR/003-four-layers-memory.md) - L3 dual-indexing architecture
 - [Qdrant Scroll API](https://qdrant.tech/documentation/concepts/search/#scroll-through-all-points) - Official documentation
-- [Phase 5 Readiness Checklist](../plan/phase5-readiness-checklist-2026-01-02.md) - Overall readiness tracking
+- [Phase 5 Readiness Checklist](../plan/phase5_execution_and_readiness_version-0.9.md) - Overall readiness tracking

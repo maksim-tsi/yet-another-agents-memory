@@ -266,7 +266,7 @@ Reference `.env.example` for required variables (uses placeholder values only).
 1. Standard RAG (single vector store)
 2. Full-context (pass entire history to LLM)
 
-See `docs/uc-01.md`, `docs/sd-01.md`, `docs/dd-01.md` for experiment specifications.
+See `docs/benchmark_use_cases.md`, `docs/benchmark_sequence_diagrams.md`, and `docs/benchmark_data_dictionary.md` for experiment specifications.
 
 ## Key Files & Documentation
 

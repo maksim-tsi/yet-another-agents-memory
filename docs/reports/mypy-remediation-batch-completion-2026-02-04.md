@@ -45,5 +45,5 @@ This report documents the completion of the staged mypy remediation plan coverin
 - No mypy remediation batches remain; the next priority is the BaseTier generic refactor plan and associated test updates.
 
 ## References
-- [docs/plan/mypy-type-fix-plan.md](../plan/mypy-type-fix-plan.md)
+- [docs/plan/phase2_3_engineering_plans_version-0.9.md](../plan/phase2_3_engineering_plans_version-0.9.md)
 - [pyproject.toml](../../pyproject.toml)

@@ -360,7 +360,7 @@ As part of this integration testing effort, the following documentation was upda
 **Section**: Prerequisites (new section)  
 **Changes**: Added comprehensive installation guide for PostgreSQL client tools across platforms
 
-### 5. docs/python-environment-setup.md
+### 5. docs/python_environment.md
 **Section**: System Prerequisites (new section)  
 **Changes**: Moved system dependencies before Python environment setup
 
@@ -584,7 +584,7 @@ The successful completion of these integration tests confirms that **Phase 1 (St
 
 - [Infrastructure Access Guide](../IAC/INFRASTRUCTURE_ACCESS_GUIDE.md)
 - [Database Setup Guide](../IAC/database-setup.md)
-- [Python Environment Setup](../python-environment-setup.md)
+- [Python Environment Setup](../python_environment.md)
 - [ADR-002: Infrastructure Architecture](../ADR/002-infrastructure-architecture.md)
 - [ADR-003: Four-Layer Memory Architecture](../ADR/003-four-layers-memory.md)
 - [Benchmark Documentation](../../benchmarks/README.md)

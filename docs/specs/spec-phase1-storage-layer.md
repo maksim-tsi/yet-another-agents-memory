@@ -3385,7 +3385,7 @@ TTL Behavior:
 - [x] Update `search()` to conditionally refresh TTL
 - [x] Update class docstring with behavior explanation
 - [x] Add tests for TTL refresh on read
-- [x] Update code review report (see `docs/reports/implementation-report-3a2-ttl-on-read.md`)
+- [x] Update code review report (see `docs/reports/implementation_consolidated_version-0.9_upto10feb2026.md`)
 
 ##### Acceptance Criteria
 
@@ -7135,7 +7135,7 @@ Phase 1 is considered complete when:
 ## Known Considerations
 
 ### Python 3.13 Compatibility
-⚠️ **Important**: The implementation plan references `asyncpg` for PostgreSQL, but we must use `psycopg[binary]` due to Python 3.13 compatibility issues. See `docs/python-3.13-compatibility.md` for details.
+⚠️ **Important**: The implementation plan references `asyncpg` for PostgreSQL, but we must use `psycopg[binary]` due to Python 3.13 compatibility issues. See `docs/python_environment.md` for details.
 
 ### Connection Management
 All adapters must support both:
@@ -7158,17 +7158,17 @@ Upon completion of Phase 1, proceed to:
 - Implement `SemanticMemoryTier` (L4)
 - Implement `MemoryOrchestrator` for tier coordination
 
-See `docs/plan/implementation-plan-20102025.md` for full roadmap.
+See `docs/plan/implementation_master_plan_version-0.9.md` for full roadmap.
 
 ---
 
 ## Appendix
 
 ### References
-- Implementation Plan: `docs/plan/implementation-plan-20102025.md`
+- Implementation Plan: `docs/plan/implementation_master_plan_version-0.9.md`
 - ADR-001: Benchmarking Strategy: `docs/ADR/001-benchmarking-strategy.md`
 - Database Setup: `docs/IAC/database-setup.md`
-- Python Environment: `docs/python-environment-setup.md`
+- Python Environment: `docs/python_environment.md`
 - Smoke Test Report: `docs/reports/smoke-tests-2025-10-20.md`
 
 ### Contact

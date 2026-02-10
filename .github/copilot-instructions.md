@@ -200,7 +200,7 @@ Mypy strict checking is enforced via pre-commit. Follow these patterns to avoid 
 - **Google GenAI SDK:** Use dynamic imports `importlib.import_module("google.genai")` due to namespace package issues with mypy.
 - **Type Ignore:** Use specific error codes: `# type: ignore[import-untyped]` not bare `# type: ignore`.
 
-See `docs/plan/mypy-type-fix-plan.md` for comprehensive guidelines.
+See `docs/plan/phase2_3_engineering_plans_version-0.9.md` for comprehensive guidelines.
 
 ## Research Context
 
@@ -208,7 +208,7 @@ Submission target: **AIMS 2025 Conference**. System compares hybrid 4-tier archi
 1. Standard RAG baseline (single vector store)
 2. Full-context baseline (pass entire history to LLM)
 
-Benchmark: **GoodAI LTM Benchmark** for long-term memory evaluation (32k-120k token conversations). See `docs/uc-01.md`, `docs/sd-01.md`, `docs/dd-01.md` for experiment specs.
+Benchmark: **GoodAI LTM Benchmark** for long-term memory evaluation (32k-120k token conversations). See `docs/benchmark_use_cases.md`, `docs/benchmark_sequence_diagrams.md`, `docs/benchmark_data_dictionary.md` for experiment specs.
 
 ## Python Environment
 

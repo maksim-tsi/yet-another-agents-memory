@@ -5,7 +5,7 @@
 **Status**: Active - Aligned with Implementation Plan v1.0  
 **Target Completion**: 11 weeks (Phase 2A-2E)  
 **Branch**: `dev-mas`  
-**Implementation Plan Reference**: [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md)
+**Implementation Plan Reference**: [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md)
 
 ---
 
@@ -91,7 +91,7 @@ CIAR = (Certainty × Impact) × exp(-λ×days_since_creation) × (1 + α×access
 
 ### Lifecycle Engine Implementation Details
 
-**Reference:** See [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2B-2D for detailed task breakdowns.
+**Reference:** See [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2B-2D for detailed task breakdowns.
 
 #### Implementation Approach (Engineering Details)
 
@@ -302,7 +302,7 @@ Distillation processes multiple episodes in batches. Failures are isolated:
 
 ### Testing & Validation Methodology
 
-**Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) - Each Phase 2 task includes detailed test specifications.
+**Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) - Each Phase 2 task includes detailed test specifications.
 
 **Four-Level Testing Pyramid**:
 
@@ -448,7 +448,7 @@ async def active_context_tier(redis_adapter, postgres_adapter):
 
 ### Implementation Priorities & Roadmap
 
-**Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Section 6 for complete details.
+**Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Section 6 for complete details.
 
 **Phase 2 Total Duration:** 11 weeks (77 days)  
 **Start Date:** November 3, 2025  
@@ -850,7 +850,7 @@ tests/
 
 ### Memory Tier API Contracts
 
-**Reference:** Full implementation details in [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2A.
+**Reference:** Full implementation details in [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2A.
 
 All memory tier classes implement the `BaseTier` abstract interface:
 
@@ -25018,7 +25018,7 @@ def test_promotion_handles_llm_timeout_gracefully():
 - Integrate with memory orchestrator
 - Create benchmark adapters
 
-See `docs/plan/implementation-plan-20102025.md` for full roadmap.
+See `docs/plan/implementation_master_plan_version-0.9.md` for full roadmap.
 
 ---
 
@@ -25026,10 +25026,10 @@ See `docs/plan/implementation-plan-20102025.md` for full roadmap.
 
 ### References
 - Phase 1 Specification: `docs/specs/spec-phase1-storage-layer.md`
-- Implementation Plan: `docs/plan/implementation-plan-20102025.md`
-- Use Case UC-01: `docs/uc-01.md`
-- Data Dictionary DD-01: `docs/dd-01.md`
-- Sequence Diagram SD-01: `docs/sd-01.md`
+- Implementation Plan: `docs/plan/implementation_master_plan_version-0.9.md`
+- Use Case UC-01: `docs/benchmark_use_cases.md`
+- Data Dictionary DD-01: `docs/benchmark_data_dictionary.md`
+- Sequence Diagram SD-01: `docs/benchmark_sequence_diagrams.md`
 
 ### Glossary
 - **L1/Active Context**: Recent conversation turns (10-20 turns, 24h TTL)
