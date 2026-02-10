@@ -5,7 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    network_mode: "host"
+    # network_mode: "host" // comeented out as may not be supported on Mac
+    ports:                  # <-- Add this to expose the port locally
+      - "8080:8080"
     environment:
       MAS_AGENT_TYPE: ${MAS_AGENT_TYPE:-full}
       MAS_MODEL: ${MAS_MODEL:-gemini-2.5-flash-lite}
