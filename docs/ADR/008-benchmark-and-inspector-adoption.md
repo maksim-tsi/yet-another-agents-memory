@@ -46,3 +46,8 @@ We will instrument the `GoodAIAgent` and the underlying `UnifiedMemorySystem` to
 
 *   [Concept Document 1: GoodAI-LTM Benchmark v2](../concept-01-benchmark-v2.md)
 *   [Concept Document 2: MAS Memory Inspector](../concept-02-memory-inspector.md)
+
+## Status Update (2026-02-10)
+
+The "Memory Inspector" Web UI component is revoked. We are adopting a Headless Microservices architecture.
+Telemetry will be handled via standard log exporters (TypeSense/Phoenix), not a custom dashboard.

@@ -1,3 +1,7 @@
+> WARNING (DEPRECATED, 2026-02-10)
+> This document describes a component (WebUI) that has been removed from the architecture.
+> It is preserved here for historical context only.
+
 ## Readiness Verdict
 **MVP‑ready for local use**, not yet production‑ready.  
 You can launch runs, view progress/logs, and choose LLM/agent/scope, but there are several reliability and correctness gaps that will show up with repeated runs or multiple users.
@@ -86,4 +90,3 @@ If you want to validate locally now:
    - `turn_metrics.jsonl` grows
    - `runstats.json` updates
    - `run_console.log` shows progress
-
