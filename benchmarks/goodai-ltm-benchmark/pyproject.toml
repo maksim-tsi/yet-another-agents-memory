@@ -62,6 +62,7 @@ gdown = "4.7.1"
 browser-cookie3 = "*"
 langchain-community = "^0.4.1"
 langchain-core = "^1.2.10"
+packaging = ">=24.0"
 
 
 [build-system]

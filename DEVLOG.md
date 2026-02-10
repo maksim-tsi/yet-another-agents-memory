@@ -75,6 +75,75 @@ The archived files use synchronous APIs and Meilisearch instead of the project-s
 
 ---
 
+### 2026-02-10 - pymemgpt Removal and Benchmark Docker Fixes ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Removed `pymemgpt` dependency from GoodAI benchmark and suspended MemGPT baseline comparisons. Fixed multiple Docker containerization issues preventing benchmark execution.
+
+**pymemgpt Analysis:**
+- **Finding**: `pymemgpt` IS actively used as a baseline competitor agent in the benchmark, not vestigial
+- **Implementation**: 3 files (`memgpt_interface.py`, `memgpt_proxy.py`, `run_benchmark.py`) totaling ~200 lines
+- **Problem**: Enforces Python `<3.13` constraint, conflicts with modern dependency versions
+- **Decision**: Removed from `pyproject.toml` and suspended MemGPT baseline runs
+- **Documentation**: Created comprehensive analysis in `benchmarks/goodai-ltm-benchmark/docs/pymemgpt-analysis.md`
+- **Migration Path**: Optional dependency pattern documented for future Letta migration
+
+**Docker Build Issues Fixed:**
+
+1. **Broken Virtual Environment**
+   - **Symptom**: `The virtual environment found in /app/.venv seems to be broken`
+   - **Cause**: Local `.venv/` copied into container with incompatible Python paths
+   - **Fix**: Created `.dockerignore` excluding `.venv/`, `__pycache__/`, test artifacts, data/results
+
+2. **Missing Project Packages**
+   - **Symptom**: `ModuleNotFoundError: No module named 'dataset_interfaces'`
+   - **Cause**: Dockerfile used `--no-root` flag skipping local package installation
+   - **Fix**: Changed to `RUN poetry install --no-ansi` (includes local packages)
+
+3. **Tkinter Import Error**
+   - **Symptom**: `ImportError: libtk8.6.so: cannot open shared object file`
+   - **Cause**: `runner/progress.py` caught only `ModuleNotFoundError`, not `ImportError`
+   - **Fix**: Updated exception handler to `except (ModuleNotFoundError, ImportError)` for headless compatibility
+
+4. **Package Name Collision**
+   - **Symptom**: `ModuleNotFoundError: No module named 'datasets.instruction_recall'`
+   - **Root Cause**: Running `python runner/run_benchmark.py` sets `sys.path[0]=/app/runner`, causing HuggingFace `datasets` (4.5.0) to shadow local `datasets/` package
+   - **Fix**: Execute as module: `python -m runner.run_benchmark` to keep `/app` in `sys.path[0]`
+
+**Files Modified:**
+- `benchmarks/goodai-ltm-benchmark/.dockerignore` (created)
+- `benchmarks/goodai-ltm-benchmark/Dockerfile` (removed `--no-root`)
+- `benchmarks/goodai-ltm-benchmark/runner/progress.py` (catch `ImportError`)
+- `benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py` (removed MemGPT import/case)
+- `benchmarks/goodai-ltm-benchmark/pyproject.toml` (removed `pymemgpt`)
+- `benchmarks/goodai-ltm-benchmark/README.md` (updated agent list and instructions)
+
+**Execution Command (Docker):**
+```bash
+# Build and run
+docker-compose build benchmark-runner
+docker-compose up -d benchmark-runner
+
+# Execute benchmark (note: module execution, not script path)
+docker exec -w /app mas-memory-layer-benchmark-runner-1 \
+  python -m runner.run_benchmark \
+  -c configurations/mas_remote_test.yml \
+  -a mas-remote
+```
+
+**Benchmark Progress:**
+- Successfully executed 100-turn prospective memory test against `mas-remote` agent
+- Confirmed end-to-end Docker workflow operational
+- Memory span warnings observed (47.4k-47.7k tokens vs 32k threshold) - expected for long tests
+
+**References:**
+- Analysis: `benchmarks/goodai-ltm-benchmark/docs/pymemgpt-analysis.md`
+- Session: 2026-02-10 debugging log
+
+---
+
 ### 2026-02-10 - Typesense Document Archive Script ✅
 
 **Status:** ✅ Complete

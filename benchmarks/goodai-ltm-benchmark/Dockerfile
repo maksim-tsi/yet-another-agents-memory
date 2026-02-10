@@ -15,8 +15,10 @@ RUN apt-get update \
 RUN pip install --no-cache-dir poetry
 
 COPY pyproject.toml poetry.lock /app/
-RUN poetry install --no-ansi --no-root
 
 COPY . /app
+
+# Install all dependencies AND the project's local packages
+RUN poetry install --no-ansi
 
 CMD ["tail", "-f", "/dev/null"]
