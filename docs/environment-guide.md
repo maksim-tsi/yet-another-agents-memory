@@ -22,30 +22,36 @@ Interpretation:
 
 Document the answers in the worklog when switching contexts so that reviewers understand which interpreter produced a given artifact.
 
-## 2. Create or Refresh the Virtual Environment
+## 2. Create or Refresh the Poetry Environments
 
-Regardless of platform, the virtual environment belongs at the repository root and should be created via a relative path. This guarantees that both macOS and Linux instructions remain valid.
+This repository uses two isolated Poetry environments:
 
-```bash
-python3 -m venv .venv
-```
+1. **Root environment (MAS Memory Layer)**  
+   - Location: repository root  
+   - Command: `poetry install --with test,dev`  
+   - Virtualenv: `.venv/`
 
-If you must recreate the environment, delete `.venv/` completely (`rm -rf .venv`) before rerunning the command above.
+2. **Benchmark environment (GoodAI LTM Benchmark)**  
+   - Location: `benchmarks/goodai-ltm-benchmark/`  
+   - Command: `poetry install`  
+   - Virtualenv: `benchmarks/goodai-ltm-benchmark/.venv/`
+
+Keep these environments separate to avoid dependency conflicts.
 
 ## 3. Install Dependencies Deterministically
 
-Install requirements using the interpreter that lives inside `.venv`. Never rely on whichever `pip` happens to be on the `PATH`.
+Run the appropriate Poetry install command from the correct directory.
 
+**Root environment:**
 ```bash
-./.venv/bin/pip install -r requirements.txt
-./.venv/bin/pip install -r requirements-test.txt
+poetry install --with test,dev
 ```
 
-This sequence ensures:
-
-1. Runtime packages such as `python-dotenv`, `psycopg_pool`, and the storage/LLM clients are always present.
-2. Test infrastructure (`pytest`, `pytest-asyncio`) is available before executing any suite.
-3. The installation log is confined to the repository, which simplifies reproducibility checks.
+**Benchmark environment:**
+```bash
+cd benchmarks/goodai-ltm-benchmark
+poetry install
+```
 
 ## 4. Verify Interpreter Selection
 
@@ -85,7 +91,7 @@ Maintaining both forms prevents accidental edits to the remote interpreter while
 
 1. Probe environment (`uname`, `hostname`, `pwd`).
 2. Confirm `.venv/` exists at repository root; recreate if necessary.
-3. Install `requirements.txt` and `requirements-test.txt` via the `.venv` interpreter.
+3. Install dependencies with Poetry in the correct directory (root or benchmark).
 4. Run the interpreter verification command.
 5. Execute provider/tests smoke checks relevant to the tasks you intend to perform.
 6. Record the host type in commit messages or DEVLOG entries when the environment influences results.

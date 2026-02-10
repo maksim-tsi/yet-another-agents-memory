@@ -1083,7 +1083,7 @@ For extended journal publication (post-AIMS 2025):
 ### 12.1 Internal Documents
 - [ADR-003: Four-Tier Cognitive Memory Architecture](003-four-layers-memory.md)
 - [ADR-004: CIAR Scoring Formula](004-ciar-scoring-formula.md)
-- [Implementation Plan Week 4-5: CIAR Scoring & Promotion](../plan/implementation-plan-02112025.md#week-4-ciar-scoring-system)
+- [Implementation Plan Week 4-5: CIAR Scoring & Promotion](../plan/implementation_master_plan_version-0.9.md#week-4-ciar-scoring-system)
 - [Phase 2 Specification: Priority 6 (Promotion Logic)](../specs/spec-phase2-memory-tiers.md)
 
 ### 12.2 External Resources

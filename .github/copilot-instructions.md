@@ -69,10 +69,11 @@ This project is guided by five core principles. All new code and refactoring sho
   - To install packages: `/home/max/code/mas-memory-layer/.venv/bin/pip ...`
 - **RECOMMENDED (Local environments)**: Use the equivalent relative commands (`./.venv/bin/python`, etc.) to keep paths portable. The relative commands map 1:1 to the absolute versions and prevent accidental use of a different interpreter.
 
-## MANDATORY: Terminal Resiliency Protocol (Remote SSH)
+**Two-Environment Architecture**: This repository contains two separate Poetry projects:
+1. **MAS Memory Layer** (root): `poetry install --with test,dev` creates `.venv/`
+2. **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install` creates `.venv/` in that subdirectory
 
-  * **Pattern**: `<command> > /tmp/copilot.out 2>&1; cat /tmp/copilot.out`
-  * The semicolon ensures the log is surfaced even if the primary command exits non-zero. See `docs/lessons-learned.md` (entry LL-20251115-01) for the incident summary.
+These environments are intentionally isolated due to incompatible langchain versions (MAS uses `langchain-core>=0.3.25,<0.4.0` while benchmark uses `langchain==0.1.1`).
 
 ## Path-Specific Instructions
 
@@ -89,21 +90,19 @@ Detailed implementation patterns are organized by directory:
 
 ## Development Workflow
 
-**IMPORTANT**: All commands MUST follow the Terminal Resiliency Protocol (redirect-and-cat pattern).
-
 ### Running Tests
 ```bash
 # All tests (pytest discovers tests/ directory)
-/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ -v > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./.venv/bin/pytest tests/ -v
 
 # Smoke tests (connectivity checks)
-/home/max/code/mas-memory-layer/scripts/run_smoke_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./scripts/run_smoke_tests.sh
 
 # Specific storage adapter
-/home/max/code/mas-memory-layer/scripts/run_redis_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./scripts/run_redis_tests.sh
 
 # Memory integration tests
-/home/max/code/mas-memory-layer/scripts/run_memory_integration_tests.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./scripts/run_memory_integration_tests.sh
 ```
 
 **Markers and real LLM/provider checks**
@@ -116,14 +115,14 @@ Tests use `pytest` with `pytest-asyncio`. See `.github/instructions/testing.inst
 ### Running Benchmarks
 ```bash
 # Storage performance benchmarks
-/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py run --size 10000 > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
-/home/max/code/mas-memory-layer/.venv/bin/python scripts/run_storage_benchmark.py analyze > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 10000
+./.venv/bin/python scripts/run_storage_benchmark.py analyze
 ```
 
 ### Database Setup
 ```bash
 # PostgreSQL migrations
-/home/max/code/mas-memory-layer/scripts/setup_database.sh > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+./scripts/setup_database.sh
 # Applies migrations/001_active_context.sql
 ```
 
@@ -142,10 +141,9 @@ Copy `.env.example` to `.env` with:
 - **Purpose**: For high-level, complex tasks, we will delegate to the `gemini` CLI. This tool is used for deep codebase analysis, multi-file refactoring planning, and architectural reviews.
 - **Invocation Pattern**: You MUST invoke it non-interactively using the `-p` flag.
 - **Context Syntax**: You MUST provide file and directory context using the `@` syntax inside the prompt string (e.g., `@src/memory/tiers/` or `@./`).
-- **Execution**: All `gemini` commands MUST follow the MANDATORY: Terminal Resiliency Protocol.
 - **Example Command**:
 ```bash
-gemini -p "@./ Review the project architecture and suggest improvements for the L3 tier" > /tmp/copilot.out 2>&1; cat /tmp/copilot.out
+gemini -p "@./ Review the project architecture and suggest improvements for the L3 tier"
 ```
 
 ## Critical Files & Directories
@@ -202,7 +200,7 @@ Mypy strict checking is enforced via pre-commit. Follow these patterns to avoid 
 - **Google GenAI SDK:** Use dynamic imports `importlib.import_module("google.genai")` due to namespace package issues with mypy.
 - **Type Ignore:** Use specific error codes: `# type: ignore[import-untyped]` not bare `# type: ignore`.
 
-See `docs/plan/mypy-type-fix-plan.md` for comprehensive guidelines.
+See `docs/plan/phase2_3_engineering_plans_version-0.9.md` for comprehensive guidelines.
 
 ## Research Context
 
@@ -210,11 +208,16 @@ Submission target: **AIMS 2025 Conference**. System compares hybrid 4-tier archi
 1. Standard RAG baseline (single vector store)
 2. Full-context baseline (pass entire history to LLM)
 
-Benchmark: **GoodAI LTM Benchmark** for long-term memory evaluation (32k-120k token conversations). See `docs/uc-01.md`, `docs/sd-01.md`, `docs/dd-01.md` for experiment specs.
+Benchmark: **GoodAI LTM Benchmark** for long-term memory evaluation (32k-120k token conversations). See `docs/benchmark_use_cases.md`, `docs/benchmark_sequence_diagrams.md`, `docs/benchmark_data_dictionary.md` for experiment specs.
 
 ## Python Environment
 
 - **Version**: Python 3.11+ (3.13 tested)
-- **Dependencies**: `requirements.txt` (production), `requirements-test.txt` (testing)
-- **Virtual Env**: `.venv/` (activate before running scripts)
+- **Package Manager**: Poetry (with `virtualenvs.in-project = true`)
+- **Dependencies**: `pyproject.toml` (production + test + dev groups)
+- **Virtual Env**: `.venv/` (Poetry-managed, in-project)
 - **Key Packages**: `pydantic==2.8.2`, `redis==5.0.7`, `psycopg[binary]>=3.2.0`, `qdrant-client==1.9.2`, `neo4j==5.22.0`
+
+**Two Environments**:
+- **MAS Memory Layer** (root): `poetry install --with test,dev`
+- **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install`

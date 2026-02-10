@@ -7,8 +7,8 @@ from typing import Any
 
 from src.agents.base_agent import BaseAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
+from src.llm.client import LLMClient
 from src.memory.models import ContextBlock
-from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -143,10 +143,17 @@ class FullContextAgent(BaseAgent):
         """Format recent turns for full-context prompts."""
         formatted: list[str] = []
         for turn in recent_turns:
-            role = turn.get("role", "unknown").upper()
-            content = turn.get("content", "")
-            if self._include_metadata:
+            if isinstance(turn, dict):
+                role = turn.get("role", "unknown").upper()
+                content = turn.get("content", "")
                 timestamp = turn.get("timestamp", "N/A")
+            else:
+                # Handle TurnData objects
+                role = getattr(turn, "role", "unknown").upper()
+                content = getattr(turn, "content", "")
+                timestamp = getattr(turn, "timestamp", "N/A")
+
+            if self._include_metadata:
                 formatted.append(f"[{timestamp}] {role}: {content}")
             else:
                 formatted.append(f"{role}: {content}")

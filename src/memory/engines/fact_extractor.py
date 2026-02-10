@@ -14,12 +14,12 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from src.llm.client import LLMClient
 from src.memory.models import Fact, FactCategory, FactType
 from src.memory.schemas.fact_extraction import (
     FACT_EXTRACTION_SCHEMA,
     FACT_EXTRACTION_SYSTEM_INSTRUCTION,
 )
-from src.utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,8 @@ class FactExtractor:
         model_name: Name of the LLM model to use.
     """
 
-    def __init__(self, llm_client: LLMClient, model_name: str | None = None):
-        self.llm_client: LLMClient = llm_client
+    def __init__(self, llm_client: LLMClient | None = None, model_name: str | None = None):
+        self.llm_client: LLMClient = llm_client or LLMClient.from_env()
         self.model_name = model_name or "gemini-3-flash-preview"
 
     async def extract_facts(self, text: str, metadata: dict[str, Any] | None = None) -> list[Fact]:
@@ -78,6 +78,10 @@ class FactExtractor:
             max_output_tokens=8192,
         )
 
+        # Temporary Debug Log
+        logger.info(f"DEBUG: Input text to extractor: {text[:100]}...")
+        logger.info(f"DEBUG: Raw LLM Extraction Response: {response.text}")
+
         try:
             # Parse JSON response (no markdown cleanup needed with structured output)
             data = json.loads(response.text)
@@ -102,6 +106,7 @@ class FactExtractor:
                         ciar_score=0.0,  # Will be calculated later
                         age_decay=1.0,
                         recency_boost=1.0,
+                        justification=rf.get("justification"),
                     )
                     facts.append(fact)
                 except ValidationError as ve:
@@ -135,6 +140,7 @@ class FactExtractor:
                     ciar_score=0.0,
                     age_decay=1.0,
                     recency_boost=1.0,
+                    justification="Regex extraction: Email pattern match",
                 )
             )
 
@@ -156,6 +162,7 @@ class FactExtractor:
                     ciar_score=0.0,
                     age_decay=1.0,
                     recency_boost=1.0,
+                    justification="Regex extraction: Preference pattern match",
                 )
             )
 

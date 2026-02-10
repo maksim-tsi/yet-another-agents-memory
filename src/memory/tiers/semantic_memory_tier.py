@@ -6,6 +6,7 @@ Provides full-text search, faceted filtering, and provenance tracking.
 """
 
 import logging
+import time
 import warnings
 from datetime import UTC, datetime
 from typing import Any
@@ -34,14 +35,19 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
         typesense_adapter: TypesenseAdapter,
         metrics_collector: MetricsCollector | None = None,
         config: dict[str, Any] | None = None,
+        telemetry_stream: Any | None = None,
     ):
         storage_adapters = {"typesense": typesense_adapter}
-        super().__init__(storage_adapters, metrics_collector, config)
+        super().__init__(storage_adapters, metrics_collector, config, telemetry_stream)
 
         self.typesense = typesense_adapter
         self.collection_name = (
             config.get("collection_name", self.COLLECTION_NAME) if config else self.COLLECTION_NAME
         )
+
+    def _tier_name(self) -> str:
+        """Return tier identifier for telemetry."""
+        return "L4_Semantic"
 
     async def initialize(self) -> None:
         """Initialize Typesense collection."""
@@ -76,6 +82,8 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
 
             # Prefer explicit index_document when available (tests mock this)
             index_func = getattr(self.typesense, "index_document", None)
+
+            start_time = time.perf_counter()
             if callable(index_func):
                 await index_func(document=document, collection_name=self.collection_name)
             else:
@@ -88,7 +96,21 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
                 self.collection_name,
             )
 
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            await self._emit_tier_access(
+                operation="STORE",
+                session_id="unknown",
+                status="HIT",
+                latency_ms=latency_ms,
+                item_count=1,
+                metadata={
+                    "knowledge_id": knowledge.knowledge_id,
+                    "knowledge_type": knowledge.knowledge_type,
+                },
+            )
+
             return knowledge.knowledge_id
+        raise AssertionError("Unreachable: store should return or raise.")
 
     async def retrieve(self, knowledge_id: str) -> KnowledgeDocument | None:
         """
@@ -101,11 +123,20 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             KnowledgeDocument or None
         """
         async with OperationTimer(self.metrics, "l4_retrieve"):
+            start_time = time.perf_counter()
             result = await self.typesense.get_document(
                 collection_name=self.collection_name, document_id=knowledge_id
             )
 
             if not result:
+                latency_ms = (time.perf_counter() - start_time) * 1000
+                await self._emit_tier_access(
+                    operation="RETRIEVE",
+                    session_id="unknown",
+                    status="MISS",
+                    latency_ms=latency_ms,
+                    metadata={"knowledge_id": knowledge_id},
+                )
                 return None
 
             # Convert back to KnowledgeDocument
@@ -130,7 +161,21 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             # Update access tracking
             await self._update_access(knowledge)
 
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            await self._emit_tier_access(
+                operation="RETRIEVE",
+                session_id="unknown",
+                status="HIT",
+                latency_ms=latency_ms,
+                item_count=1,
+                metadata={
+                    "knowledge_id": knowledge.knowledge_id,
+                    "knowledge_type": knowledge.knowledge_type,
+                },
+            )
+
             return knowledge
+        raise AssertionError("Unreachable: retrieve should return or raise.")
 
     async def search(
         self,
@@ -152,6 +197,7 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             List of matching knowledge documents
         """
         async with OperationTimer(self.metrics, "l4_search"):
+            start_time = time.perf_counter()
             # Build filter string
             filter_terms: list[str] = []
             if filter_by is None and filters:
@@ -179,6 +225,7 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
 
             # Convert to KnowledgeDocument objects
             documents = []
+            max_score = 0
             for hit in results.get("hits", []):
                 doc = hit["document"]
                 knowledge = KnowledgeDocument(
@@ -199,13 +246,30 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
                     validation_count=doc["validation_count"],
                 )
                 # Attach search score
-                knowledge.metadata["search_score"] = hit.get("text_match", 0)
+                score = hit.get("text_match", 0)
+                knowledge.metadata["search_score"] = score
                 documents.append(knowledge)
+                max_score = max(max_score, score)
+
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            await self._emit_tier_access(
+                operation="SEARCH",
+                session_id="unknown",
+                status="HIT",
+                latency_ms=latency_ms,
+                item_count=len(documents),
+                metadata={
+                    "query": query_text[:50],
+                    "filters": str(filters)[:100] if filters else None,
+                    "max_score": max_score,
+                },
+            )
 
             return documents
+        raise AssertionError("Unreachable: search should return or raise.")
 
     async def query(
-        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs
+        self, filters: dict[str, Any] | None = None, limit: int = 10, **kwargs: Any
     ) -> list[KnowledgeDocument]:
         """
         Query knowledge documents with filters (without text search).
@@ -261,11 +325,22 @@ class SemanticMemoryTier(BaseTier[KnowledgeDocument]):
             True if deleted
         """
         async with OperationTimer(self.metrics, "l4_delete"):
+            start_time = time.perf_counter()
             await self.typesense.delete_document(
                 collection_name=self.collection_name, document_id=knowledge_id
             )
 
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            await self._emit_tier_access(
+                operation="DELETE",
+                session_id="unknown",
+                status="HIT",
+                latency_ms=latency_ms,
+                metadata={"knowledge_id": knowledge_id},
+            )
+
             return True
+        raise AssertionError("Unreachable: delete should return or raise.")
 
     async def get_statistics(self) -> dict[str, Any]:
         """

@@ -27,7 +27,7 @@ class OperationTimer:
         self.start_time: float | None = None
         self.success = True
 
-    def start(self):
+    def start(self) -> "OperationTimer":
         """Start the timer manually."""
         self.start_time = time.perf_counter()
         return self
@@ -45,10 +45,15 @@ class OperationTimer:
         await self.collector.record_operation(self.operation, duration_ms, success, self.metadata)
         return duration_ms
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "OperationTimer":
         return self.start()
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
         success = (exc_type is None) and self.success
         await self.stop(success)
 

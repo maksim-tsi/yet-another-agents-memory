@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 
 import click
-import yaml  # type: ignore[import-untyped]
+import yaml
 from dataset_interfaces.factory import DatasetFactory
 from dataset_interfaces.interface import TestExample
 from reporting.results import TestResult
@@ -52,11 +52,11 @@ def extract_questions(example: TestExample) -> list[str]:
 @click.option(
     "-y", required=False, is_flag=True, default=False, help="Automatically assent to questions"
 )
-def main(run_name: str, agent_name: str, dataset_name: str, y: bool):
+def main(run_name: str, agent_name: str, dataset_name: str, y: bool) -> None:
     _main(run_name, agent_name, dataset_name, y)
 
 
-def _main(run_name: str, agent_name: str, dataset_name: str, y: bool):
+def _main(run_name: str, agent_name: str, dataset_name: str, y: bool) -> None:
     examples = []
     with open(make_config_path(run_name), "rb") as file:
         yaml_configuration = yaml.safe_load(file)

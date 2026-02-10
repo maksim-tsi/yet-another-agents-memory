@@ -3,7 +3,7 @@
 **Date**: October 21, 2025  
 **Status**: Proposed  
 **Decision Makers**: MAS Memory Layer Team  
-**Related**: [ADR-001: Benchmarking Strategy](001-benchmarking-strategy.md), [Metrics Implementation Final](../reports/metrics-implementation-final.md)
+**Related**: [ADR-001: Benchmarking Strategy](001-benchmarking-strategy.md), [Metrics Implementation Final](../reports/metrics_program_overview_version-0.9_upto10feb2026.md)
 
 ---
 
@@ -230,8 +230,8 @@ Benchmark is successful if:
 ## References
 
 - [ADR-001: Benchmarking Strategy](001-benchmarking-strategy.md)
-- [Metrics Implementation Final Report](../reports/metrics-implementation-final.md)
-- [Metrics Quick Reference](../reports/metrics-quick-reference.md)
+- [Metrics Implementation Final Report](../reports/metrics_program_overview_version-0.9_upto10feb2026.md)
+- [Metrics Quick Reference](../reports/metrics_program_overview_version-0.9_upto10feb2026.md)
 - Existing metrics infrastructure: `src/storage/metrics/`
 
 ---

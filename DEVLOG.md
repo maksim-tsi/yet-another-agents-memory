@@ -16,6 +16,217 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-10 - Typesense Document Archive Script ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Developed `scripts/archive_docs_to_typesense.py` for selective ingestion of repository markdown documentation into Typesense for semantic search. The script uses httpx for direct REST API calls (consistent with `TypesenseAdapter`), reads configuration from `.env`, and includes comprehensive unit tests.
+
+**✅ What's Complete:**
+
+1. **Environment Configuration:**
+   - Updated script to read `TYPESENSE_HOST`, `TYPESENSE_PORT`, `TYPESENSE_PROTOCOL`, `TYPESENSE_API_KEY` from `.env`
+   - Fallback chain: `TYPESENSE_HOST` → `DATA_NODE_IP` → `192.168.107.187` (skz-data-lv)
+   - No localhost fallback per infrastructure requirements
+
+2. **httpx-based TypesenseClient:**
+   - Custom `TypesenseClient` dataclass using httpx for REST API calls
+   - Consistent with `src/storage/typesense_adapter.py` approach (no typesense SDK dependency)
+   - Supports collection creation, document import with JSONL format
+
+3. **CLI Interface:**
+   - `--dry-run`: Scan and list files without uploading
+   - `--root-dir`: Specify root directory to scan
+   - `--collection`: Override default collection name
+   - `--verbose`: Enable detailed output
+
+4. **Document Tagging:**
+   - Auto-tags documents: `adr`, `specification`, `plan`, `report`, `readme`, `documentation`
+   - Adds `repository_label: "mas-memory-layer-repo"` to all documents
+   - Excludes `benchmarks/goodai-ltm-benchmark` and standard noise directories
+
+5. **Test Coverage:**
+   - Created `tests/scripts/test_archive_docs_to_typesense.py` with 44 unit tests
+   - Tests cover: exclusion logic, doc type categorization, scanning, CLI parsing, TypesenseClient, upload workflow
+   - Mocked httpx client for testing
+
+6. **Verification Script:**
+   - Created `scripts/verify_typesense_docs.py` for quick verification of uploaded documents
+   - Checks collection existence, document count, search functionality, and doc_type distribution
+
+**Upload Results (2026-02-10):**
+
+| Metric | Value |
+|--------|-------|
+| Collection | `mas_project_archive` |
+| Total documents | 160 |
+| repository_label filter | ✓ All 160 tagged |
+
+**Document type distribution:**
+- `report`: 51
+- `documentation`: 49
+- `plan`: 21
+- `readme`: 16
+- `adr`: 10
+- `spec`: 0
+
+**Files Modified:**
+- `scripts/archive_docs_to_typesense.py` - Refactored with env config, CLI, and httpx
+- `scripts/verify_typesense_docs.py` - Created verification script
+- `scripts/README.md` - Added documentation section
+- `tests/scripts/__init__.py` - Created test package
+- `tests/scripts/test_archive_docs_to_typesense.py` - Created with 44 tests
+
+---
+
+### 2026-02-10 - Promotion Engine Integration Fix ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Fixed a critical integration issue where the `PromotionEngine` (and thus `FactExtractor`) was not being initialized in the `agent_wrapper.py` service, causing the Prospective Memory benchmark to fail silently without extracting facts.
+
+**✅ What's Complete:**
+1.  **Engine Initialization:** Updated `src/evaluation/agent_wrapper.py` to correctly instantiate `PromotionEngine`, `FactExtractor`, `TopicSegmenter`, and `CIARScorer`.
+2.  **Method Alignment:** Updated `memory_system.py` (legacy root file) to call `process_session` instead of the non-existent `promote_session`.
+3.  **Debug Instrumentation:** Added verbose logging to trace the promotion lifecycle.
+
+**Files Modified:**
+-   `src/evaluation/agent_wrapper.py`
+-   `memory_system.py`
+-   `src/agents/memory_agent.py` (instrumentation)
+-   `src/memory/engines/promotion_engine.py` (instrumentation)
+
+---
+
+### 2026-02-09 - Intelligent Instruction Handling ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented a robust, memory-driven instruction handling system to replace brittle hardcoded prompt constraints. The agent now intelligently recognizes, stores, contextualizes, and prioritizes delayed/conditional instructions.
+
+**✅ What's Complete:**
+
+1.  **Data Model Updates:**
+    -   Added `FactType.INSTRUCTION` ("behavioral constraints, delayed commands") to `src/memory/models.py`.
+    -   Updated `FACT_EXTRACTION_SCHEMA` in `src/memory/schemas/fact_extraction.py` to support `instruction` type.
+
+2.  **Agent Logic Enhancements (`MemoryAgent`):**
+    -   **Session State Injection:** Added `[SESSION STATE]` (Turn Count, Time) to system prompt so the agent knows *when* to execute instructions.
+    -   **Active Orders Section:** Added `[ACTIVE STANDING ORDERS]` to separate instructions from general facts.
+    -   **Format Guardian:** Explicitly prioritized User Query format over instruction constraints to prevent "format wars".
+
+3.  **Verification:**
+    -   Created `tests/integration/test_instruction_recall.py`.
+    -   Verified schema extraction and prompt injection logic.
+    -   Detailed implementation report: `docs/reports/intelligent-instruction-implementation-20260209.md`.
+
+**Files Modified:**
+-   `src/memory/models.py`
+-   `src/memory/schemas/fact_extraction.py`
+-   `src/agents/memory_agent.py`
+-   `tests/integration/test_instruction_recall.py` (created)
+
+---
+
+### 2026-02-08 - Tier-Level Telemetry (L1-L4) ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Instrumented all memory tiers (Active Context, Working Memory, Episodic Memory, Semantic Memory) to emit `TIER_ACCESS` events for Glass Box observability. This enables tracking of physical execution metrics (hits, misses, latency) at the tier level, complementing the engine-level telemetry.
+
+**✅ What's Complete:**
+
+1. **Base Infrastructure:**
+   - Added `_emit_tier_access()` to `BaseTier` for standardized event emission.
+   - Added `_tier_name()` abstract method.
+
+2. **Tier Instrumentation:**
+   - **L1 Active Context**: `store`, `retrieve`, `retrieve_session`, `delete`
+   - **L2 Working Memory**: `store`, `retrieve`, `query`, `search_facts`, `delete`
+   - **L3 Episodic Memory**: `store`, `retrieve`, `search_similar`, `query`, `delete`
+   - **L4 Semantic Memory**: `store`, `retrieve`, `search`, `delete`
+
+3. **Verification:**
+   - **Integration Test**: `tests/integration/test_tier_telemetry.py` verifies events from all tiers via Redis Stream.
+   - **Fixes**: creating separate `_tier_name` implementations and fixing L2 Postgres `fact_id` mapping.
+
+**Files Modified:**
+- `src/memory/tiers/base_tier.py`
+- `src/memory/tiers/active_context_tier.py`
+- `src/memory/tiers/working_memory_tier.py`
+- `src/memory/tiers/episodic_memory_tier.py`
+- `src/memory/tiers/semantic_memory_tier.py`
+- `tests/integration/test_tier_telemetry.py` (created)
+
+---
+
+### 2026-02-08 - Glass Box Telemetry Implementation ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented comprehensive Glass Box telemetry across all memory engines to enable full observability of the memory lifecycle. Created `UnifiedMemorySystem` facade with feature flags. All engines now emit telemetry events via `LifecycleStreamProducer` to Redis Streams.
+
+**✅ What's Complete:**
+
+1. **UnifiedMemorySystem** (`src/memory/system.py`):
+   - Central facade orchestrating L1-L4 tiers and engines
+   - Feature flags: `enable_promotion`, `enable_consolidation`, `enable_distillation`, `enable_telemetry`
+   - Wires `telemetry_stream` to all engines
+
+2. **Engine Telemetry Events:**
+
+   | Engine | Events |
+   |--------|--------|
+   | `PromotionEngine` | `significance_scored`, `fact_promoted` |
+   | `ConsolidationEngine` | `consolidation_started`, `facts_clustered`, `episode_created`, `consolidation_completed` |
+   | `DistillationEngine` | `distillation_started`, `knowledge_created`, `distillation_completed` |
+
+3. **Data Model Updates** (`src/memory/models.py`):
+   - Added `justification: str | None` to `Fact` for LLM reasoning transparency
+   - Made `last_accessed` optional to handle DB null values
+
+4. **Integration Test** (`tests/integration/test_memory_inspector.py`):
+   - End-to-end telemetry verification via Redis Streams consumer
+   - Validates event emission during promotion flow
+
+5. **Documentation:**
+   - README.md and DEVLOG.md added to `src/memory/`, `src/memory/schemas/`, `src/memory/tiers/`, `src/memory/engines/`
+   - Implementation report: `docs/reports/memory_inspector_consolidated_version-0.9_upto10feb2026.md`
+
+**Commits:**
+- `42772dd`: Instrument ConsolidationEngine with telemetry
+- `c313e61`: Instrument DistillationEngine with telemetry
+- `d391005`: Documentation updates
+- `fad9806`: Add README/DEVLOG to memory directories
+
+**Test Results:**
+```
+Memory Lifecycle Tests: 4 passed, 6 skipped
+Memory Inspector Test: 1 passed
+Full Integration Suite: 24 passed, 6 skipped
+```
+
+**Files Modified/Created:**
+```
+MOD: src/memory/system.py
+MOD: src/memory/engines/promotion_engine.py
+MOD: src/memory/engines/consolidation_engine.py
+MOD: src/memory/engines/distillation_engine.py
+MOD: src/memory/models.py
+NEW: tests/integration/test_memory_inspector.py
+NEW: src/memory/README.md, DEVLOG.md
+NEW: src/memory/engines/README.md, DEVLOG.md
+NEW: src/memory/tiers/README.md, DEVLOG.md
+NEW: src/memory/schemas/README.md, DEVLOG.md
+```
+
+---
+
 ### 2026-02-04 - Mypy Remediation Batches 1–7 Completion 📊
 
 **Status:** ✅ Complete
@@ -47,6 +258,63 @@ Completed the full mypy remediation sequence across storage adapters, memory tie
 git status -s
 ```
 
+### 2026-02-05 - Poetry Migration Complete 📦
+
+**Status:** ✅ Complete
+
+**Summary:**
+Migrated both projects (MAS Memory Layer and GoodAI LTM Benchmark) from pip/requirements.txt to Poetry for dependency management. This provides reproducible builds via `poetry.lock`, cleaner separation of production vs dev/test dependencies, and simplified environment setup.
+
+**Key Changes:**
+- Created `pyproject.toml` for MAS Memory Layer with all dependencies organized into main, test, and dev groups
+- Created `pyproject.toml` for GoodAI Benchmark at `benchmarks/goodai-ltm-benchmark/`
+- Configured Poetry with `virtualenvs.in-project = true` to preserve `.venv/bin/python` path contracts
+- Updated orchestration script (`scripts/run_subset_experiments.sh`) to reference new benchmark venv location
+- Updated agent instruction files (AGENTS.MD, copilot-instructions.md) with Poetry commands
+- Updated README.md with Poetry installation and two-environment architecture documentation
+
+**Two-Environment Architecture:**
+- **MAS Memory Layer** (root): `poetry install --with test,dev` creates `.venv/`
+  - Python: `>=3.12,<3.14`
+- **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install` creates its own `.venv/`
+  - Python: `>=3.10,<3.13` (constrained by `pymemgpt` which requires `<3.13`)
+
+**Dependency Constraints Discovered:**
+- `pymemgpt` requires Python `<3.13` — all versions (0.1.0 through 0.3.25) have this constraint
+- `langchain==0.1.1` (benchmark) conflicts with `langchain-core>=0.3.25` (MAS) — hence separate environments
+
+Environments are isolated due to incompatible langchain versions:
+- MAS uses `langchain-core>=0.3.25,<0.4.0`
+- Benchmark uses `langchain==0.1.1`
+
+**Files Modified:**
+- `pyproject.toml` (replaced with Poetry-managed version)
+- `benchmarks/goodai-ltm-benchmark/pyproject.toml` (created)
+- `scripts/run_subset_experiments.sh` (updated venv paths)
+- `AGENTS.MD` (updated environment protocols)
+- `.github/copilot-instructions.md` (updated environment section)
+- `README.md` (updated Getting Started section)
+
+**Migration Commands (for reference):**
+```bash
+# MAS Memory Layer
+cd /path/to/mas-memory-layer
+poetry install --with test,dev
+
+# GoodAI Benchmark
+cd benchmarks/goodai-ltm-benchmark
+poetry install
+```
+
+**✅ What's Complete:**
+- Poetry pyproject.toml for both projects
+- poetry.lock generated for both projects (MAS Memory Layer + GoodAI Benchmark)
+- All agent documentation updated
+- Both environments installed and verified (228 packages for benchmark)
+
+**❌ What's Pending:**
+- Full test suite validation after Poetry migration
+
 ### 2026-02-05 - GoodAI Benchmark Mypy Cleanup 📊
 
 **Status:** ✅ Complete
@@ -55,7 +323,7 @@ git status -s
 Completed the benchmark mypy cleanup for the GoodAI LTM Benchmark integration,
 aligning dataset interfaces, datasets, runners, reporting, and model interfaces
 with the repository's strict typing requirements. The cleanup followed the
-actions in [docs/plan/benchmark-mypy-cleanup-plan.md](docs/plan/benchmark-mypy-cleanup-plan.md)
+actions in [docs/plan/phase2_3_engineering_plans_version-0.9.md](docs/plan/phase2_3_engineering_plans_version-0.9.md)
 and validated ruff, ruff-format, and mypy checks for the benchmark package.
 
 **Key Findings:**
@@ -66,7 +334,7 @@ and validated ruff, ruff-format, and mypy checks for the benchmark package.
 **✅ What's Complete:**
 - Benchmark mypy cleanup implemented across `benchmarks/goodai-ltm-benchmark/`.
 - Ruff and ruff-format alignment verified for benchmark sources.
-- Progress report published in [docs/reports/benchmark-mypy-cleanup-2026-02-05.md](docs/reports/benchmark-mypy-cleanup-2026-02-05.md).
+- Progress report published in [docs/reports/goodai_ltm_benchmark_reports_version-0.9_upto10feb2026.md](docs/reports/goodai_ltm_benchmark_reports_version-0.9_upto10feb2026.md).
 
 **❌ What's Missing:**
 - No remaining items from the benchmark mypy cleanup plan.
@@ -141,6 +409,41 @@ L1/L2 tiers, wired wrapper session prefixing, and registered MAS agents in the b
 - MAS agents registered in [benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py](benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py).
 - L1/L2 retrieval compatibility fixes in [memory_system.py](memory_system.py).
 
+### 2026-02-07 - GoodAI Benchmark WebUI Stabilization 📊
+
+**Status:** ✅ Complete
+
+**Summary:**
+Stabilized the GoodAI Benchmark WebUI for non-interactive execution, wrapper diagnostics, and run tracking. The backend now enforces unique run identities, injects auto-approval for definition reuse by default, and exposes wrapper health with last-error extraction. The frontend adds operator guidance, wrapper status visualization, and auto-selection of active runs. Benchmark runs now capture stdout/stderr and Python logging records into per-run console logs.
+
+**Key Findings:**
+- Wrapper startup required the root `.venv` interpreter to resolve Redis/Postgres dependencies.
+- Run progress stalling was caused by interactive prompts and non-unique run IDs.
+- Consistent console logging is necessary for post-hoc diagnosis of partial runs.
+
+**✅ What's Complete:**
+- Wrapper health endpoint and last-error surfacing in [benchmarks/goodai-ltm-benchmark/webui/server.py](benchmarks/goodai-ltm-benchmark/webui/server.py).
+- Run auto-approval toggle and inline operator guidance in [benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx](benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx).
+- Frontend styling updates in [benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css](benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css).
+- Consistent console logging for benchmark runs in [benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py](benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py).
+- Wrapper startup helper in [scripts/start_benchmark_wrappers.sh](scripts/start_benchmark_wrappers.sh).
+
+**❌ What's Missing:**
+- Automated wrapper restart controls in the WebUI.
+- Pre-run database connectivity validation.
+
+**Current Project Completion:**
+- **Phase 5**: ~80% 🚧 (no scope change recorded in this activity)
+
+**Evidence from Codebase:**
+```bash
+benchmarks/goodai-ltm-benchmark/webui/server.py
+benchmarks/goodai-ltm-benchmark/webui/frontend/src/App.tsx
+benchmarks/goodai-ltm-benchmark/webui/frontend/src/styles.css
+benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py
+scripts/start_benchmark_wrappers.sh
+```
+
 **❌ What's Missing:**
 - Wrapper database isolation locks (Redis/Neo4j/Qdrant) and adapter-level instrumentation.
 - Wrapper API unit tests and instrumentation module (`src/evaluation/instrumentation.py`).
@@ -206,7 +509,7 @@ Revised Phase 5 plan to 10% subset baseline approach (prospective_memory + resta
 
 **✅ Completed Today:**
 
-1. **Phase 5 Plan Revision** ([docs/plan/phase5-implementation-plan-2026-01-03.md](docs/plan/phase5-implementation-plan-2026-01-03.md)):
+1. **Phase 5 Plan Revision** ([docs/plan/phase5_execution_and_readiness_version-0.9.md](docs/plan/phase5_execution_and_readiness_version-0.9.md)):
    - Updated to v2.0 with 10% subset baseline strategy
    - Changed model: gemini-3-flash-preview → gemini-2.5-flash-lite (4K RPM, 4M TPM)
    - Scope: 2 test types (prospective_memory + restaurant) at 32k span only
@@ -260,7 +563,7 @@ Revised Phase 5 plan to 10% subset baseline approach (prospective_memory + resta
 | HTTP Boundary Isolation | GoodAI requires Python 3.10+, has conflicting dependencies | Separate venv prevents contamination of main project environment |
 
 **Files Modified:**
-- [docs/plan/phase5-implementation-plan-2026-01-03.md](docs/plan/phase5-implementation-plan-2026-01-03.md) - Comprehensive revision to v2.0
+- [docs/plan/phase5_execution_and_readiness_version-0.9.md](docs/plan/phase5_execution_and_readiness_version-0.9.md) - Comprehensive revision to v2.0
 - [AGENTS.MD](AGENTS.MD) - Protocol 8.1 updated for context-aware pathing
 - [docs/integrations/goodai-benchmark-setup.md](docs/integrations/goodai-benchmark-setup.md) - Complete setup guide
 - [.gitignore](.gitignore) - Added GoodAI benchmark exclusions
@@ -311,8 +614,8 @@ Resolved critical Qdrant retrieval issue by adding `scroll()` method for filter-
 4. **Documentation**:
    - Comprehensive debugging report: [docs/reports/qdrant-scroll-vs-search-debugging-2026-01-03.md](docs/reports/qdrant-scroll-vs-search-debugging-2026-01-03.md)
    - Updated lessons learned: [docs/lessons-learned.md](docs/lessons-learned.md) entry LL-20260103-01
-   - Updated Phase 5 readiness: [docs/plan/phase5-readiness-checklist-2026-01-02.md](docs/plan/phase5-readiness-checklist-2026-01-02.md)
-   - Updated readiness tracker: [docs/reports/phase5-readiness.md](docs/reports/phase5-readiness.md) with grading
+   - Updated Phase 5 readiness: [docs/plan/phase5_execution_and_readiness_version-0.9.md](docs/plan/phase5_execution_and_readiness_version-0.9.md)
+   - Updated readiness tracker: [docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md](docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md) with grading
    - Created reports README: [docs/reports/README.md](docs/reports/README.md)
 
 **Test Results (2026-01-03):**
@@ -348,7 +651,7 @@ Lifecycle Engines:
 ✅ Knowledge Synthesizer: 14/14 tests
 ```
 
-**Phase 5 Readiness Grading** ([docs/reports/phase5-readiness.md](docs/reports/phase5-readiness.md)):
+**Phase 5 Readiness Grading** ([docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md](docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md)):
 - **12 Green** (meets bar): All Implementation Depth, most Architecture & Testing
 - **12 Amber** (minor gaps): Performance benchmarks, some documentation
 - **0 Red** (no blockers)
@@ -375,7 +678,7 @@ Stabilized lifecycle paths ahead of Phase 5 readiness: tightened Qdrant filters 
 - Qdrant filter compatibility and create-collection idempotency adjustments in [src/storage/qdrant_adapter.py](src/storage/qdrant_adapter.py); backward-compatible `session_id` handling retained.
 - Consolidation fact fetch widened with `query_by_session` + generic query fallback and cache support in [src/memory/engines/consolidation_engine.py](src/memory/engines/consolidation_engine.py).
 - Promotion fallback gating now detects mocks via unittest types to disable segment/final fallbacks only when appropriate in [src/memory/engines/promotion_engine.py](src/memory/engines/promotion_engine.py).
-- Distillation now forces processing and uses rule-based synthesis when LLM output is unparsable in [src/memory/engines/distillation_engine.py](src/memory/engines/distillation_engine.py); report published at [docs/reports/lifecycle-status-2026-01-03.md](docs/reports/lifecycle-status-2026-01-03.md).
+- Distillation now forces processing and uses rule-based synthesis when LLM output is unparsable in [src/memory/engines/distillation_engine.py](src/memory/engines/distillation_engine.py); report published at [docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md](docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md).
 
 **Evidence:**
 - Tests: `/home/max/code/mas-memory-layer/.venv/bin/pytest tests/ -v` → 573 passing, 1 failing (consolidation), 12 skipped.
@@ -392,7 +695,7 @@ Added Phase 5 readiness grading automation (bash + Python) with explicit pytest 
 
 **✅ What's Complete:**
 - Readiness scripts: `scripts/grade_phase5_readiness.sh` (fast vs full modes, optional summary output, bench toggle, skip-llm) and `scripts/grade_phase5_readiness.py` (JSON summary with coverage/env flags).
-- Documentation updates: [docs/plan/phase5-readiness-checklist-2026-01-02.md](docs/plan/phase5-readiness-checklist-2026-01-02.md) (automation approach and examples) and [docs/reports/phase5-readiness.md](docs/reports/phase5-readiness.md) (invocations and summary handling).
+- Documentation updates: [docs/plan/phase5_execution_and_readiness_version-0.9.md](docs/plan/phase5_execution_and_readiness_version-0.9.md) (automation approach and examples) and [docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md](docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md) (invocations and summary handling).
 - Marker and LLM key alignment recorded in [scripts/README.md](scripts/README.md), [GEMINI.MD](GEMINI.MD), [AGENTS.MD](AGENTS.MD), and [.github/copilot-instructions.md](.github/copilot-instructions.md); real runs use `GOOGLE_API_KEY` (not `GEMINI_API_KEY`).
 
 **❌ What's Missing / Next Actions:**
@@ -401,7 +704,7 @@ Added Phase 5 readiness grading automation (bash + Python) with explicit pytest 
 
 **Evidence:**
 - Scripts: [scripts/grade_phase5_readiness.sh](scripts/grade_phase5_readiness.sh), [scripts/grade_phase5_readiness.py](scripts/grade_phase5_readiness.py)
-- Docs: [docs/plan/phase5-readiness-checklist-2026-01-02.md](docs/plan/phase5-readiness-checklist-2026-01-02.md), [docs/reports/phase5-readiness.md](docs/reports/phase5-readiness.md)
+- Docs: [docs/plan/phase5_execution_and_readiness_version-0.9.md](docs/plan/phase5_execution_and_readiness_version-0.9.md), [docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md](docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md)
 - Instructions: [scripts/README.md](scripts/README.md), [GEMINI.MD](GEMINI.MD), [AGENTS.MD](AGENTS.MD), [.github/copilot-instructions.md](.github/copilot-instructions.md)
 
 ### 2025-12-29 - Gemini Native Structured Output Implementation ✅
@@ -1021,7 +1324,7 @@ Established the foundation for Lifecycle Engines with the `BaseEngine` interface
 Created a detailed implementation plan for the Phase 2 Lifecycle Engines (Promotion, Consolidation, Distillation).
 
 **Details:**
-- **Plan Created:** `docs/plan/implementation-plan-2025-12-27-phase2-engines.md`
+- **Plan Created:** `docs/plan/phase2_3_engineering_plans_version-0.9.md`
 - **Scope:** Covers Phase 2B (Promotion), 2C (Consolidation), and 2D (Distillation).
 - **Alignment:** Mapped all tasks to specific sections of `docs/specs/spec-phase2-memory-tiers.md`.
 
@@ -1033,7 +1336,7 @@ Created a detailed implementation plan for the Phase 2 Lifecycle Engines (Promot
 Conducted a comprehensive audit of the codebase against Phase 2 specifications and generated a readiness report.
 
 **Details:**
-- **Report Generated:** `docs/reports/2025-12-27-phase2-readiness-assessment.md`
+- **Report Generated:** `docs/reports/preliminary_readiness_checks_version-0.7_upto10feb2026.md`
 - **Findings:**
     - Phase 2A (Memory Tiers) is 100% complete.
     - Phase 2B (Promotion) is blocked by missing `PromotionEngine` and `FactExtractor`.
@@ -1257,7 +1560,7 @@ src/memory/
 
 **Alignment with Implementation Plans:**
 
-**From `docs/reports/phase-2-action-plan.md` (November 2, 2025):**
+**From `docs/reports/phase2_3_consolidated_version-0.9_upto10feb2026.md` (November 2, 2025):**
 - Week 4 (CIAR Scorer): Partially complete (scorer exists, LLM integration missing)
 - Week 5 (Promotion Engine): Not started (0%)
 - Week 6-8 (Consolidation): Not started (0%)
@@ -1322,7 +1625,7 @@ src/memory/
 **References:**
 - Git commits analyzed: Last 50 (back to October 20, 2025)
 - Key commits: `43d8c1b` (LLM tests), `252f623` (ADR-006), `e6e704a` (CIAR scorer)
-- Documentation: ADR-006, phase-2-action-plan.md, spec-phase2-memory-tiers.md
+- Documentation: ADR-006, docs/reports/phase2_3_consolidated_version-0.9_upto10feb2026.md, spec-phase2-memory-tiers.md
 - Codebase validation: `find src -type f -name "*.py"` (26 files total)
 
 ---
@@ -1651,7 +1954,7 @@ health = await tier.health_check()
 - ⏳ **Week 4-5 (Phase 2B)**: Build CIAR scorer and fact extractor (now they have L1/L2 APIs to use!)
 
 **Documentation References:**
-- Implementation Plan: `docs/plan/implementation-plan-02112025.md` (Phase 2A Week 1)
+- Implementation Plan: `docs/plan/implementation_master_plan_version-0.9.md` (Phase 2A Week 1)
 - Architecture: `docs/ADR/003-four-layers-memory.md` (L1 specification)
 - Gap Analysis: `docs/reports/adr-003-architecture-review.md`
 
@@ -1842,7 +2145,7 @@ PostgreSQL schema migration needed (marked as TODO):
 - ⏳ **Week 4-5**: Implement Promotion Engine (L1→L2 pipeline with CIAR filtering)
 
 **Documentation References:**
-- Implementation Plan: `docs/plan/implementation-plan-02112025.md` (Phase 2A Week 2)
+- Implementation Plan: `docs/plan/implementation_master_plan_version-0.9.md` (Phase 2A Week 2)
 - Architecture: `docs/ADR/003-four-layers-memory.md` (L2 specification)
 - CIAR Scoring: `docs/ADR/004-ciar-scoring-model.md` (formula details)
 
@@ -1873,8 +2176,8 @@ Successfully implemented comprehensive LLM provider connectivity tests for all t
    - Interactive execution with detailed error diagnostics
 
 3. **Documentation:**
-   - `docs/LLM_PROVIDER_TESTS.md` - Complete testing guide with troubleshooting
-   - `docs/LLM_PROVIDER_TEST_RESULTS.md` - Test execution results and fix log
+   - `docs/llm_provider_guide.md` - Complete testing guide with troubleshooting
+   - `docs/llm_provider_guide.md` - Test execution results and fix log
 
 **Configuration Updates:**
 - `requirements.txt` - Added pinned versions: `google-genai==1.2.0`, `groq==0.33.0`, `mistralai==1.0.3`
@@ -1909,8 +2212,8 @@ Successfully implemented comprehensive LLM provider connectivity tests for all t
 - Created: `scripts/test_groq.py` (175 lines)
 - Created: `scripts/test_mistral.py` (158 lines)
 - Created: `scripts/test_llm_providers.py` (180 lines) - Master test suite
-- Created: `docs/LLM_PROVIDER_TESTS.md` (250 lines) - Testing guide
-- Created: `docs/LLM_PROVIDER_TEST_RESULTS.md` (150 lines) - Results log
+- Created: `docs/llm_provider_guide.md` (250 lines) - Testing guide
+- Created: `docs/llm_provider_guide.md` (150 lines) - Results log
 - Updated: `docs/ADR/006-free-tier-llm-strategy.md` - Multi-provider strategy
 - Updated: `docs/integrations/README.md` - Quick start guide
 - Updated: `README.md` - LLM Integration section with test commands
@@ -1931,7 +2234,7 @@ Successfully implemented comprehensive LLM provider connectivity tests for all t
 
 **Documentation References:**
 - ADR-006: Multi-provider LLM strategy with fallback chains
-- Testing Guide: `docs/LLM_PROVIDER_TESTS.md`
+- Testing Guide: `docs/llm_provider_guide.md`
 - Quick Start: `docs/integrations/README.md`
 
 **Validation:**
@@ -2961,7 +3264,7 @@ python scripts/run_storage_benchmark.py analyze
 - ADR-002: Storage Performance Benchmarking Strategy
 - benchmarks/README.md: Complete usage guide
 - BENCHMARK_IMPLEMENTATION.md: Implementation details
-- metrics-implementation-final.md: Metrics infrastructure (foundation)
+- metrics_program_overview_version-0.9_upto10feb2026.md: Metrics infrastructure (foundation)
 
 ---
 
@@ -3002,12 +3305,12 @@ Completed the Priority 4A metrics collection implementation by integrating Opera
 
 **Documentation:**
 - Created `IMPLEMENTATION_COMPLETE.md` - Session summary
-- Created `docs/reports/metrics-implementation-final.md` - Complete documentation
-- Created `docs/reports/metrics-quick-reference.md` - Quick reference guide
-- Created `docs/reports/metrics-changes-summary.md` - Detailed changes
+- Created `docs/reports/metrics_program_overview_version-0.9_upto10feb2026.md` - Complete documentation
+- Created `docs/reports/metrics_program_overview_version-0.9_upto10feb2026.md` - Quick reference guide
+- Created `docs/reports/metrics_program_overview_version-0.9_upto10feb2026.md` - Detailed changes
 - Created `scripts/verify_metrics_implementation.py` - Verification tool
-- Updated `docs/reports/code-review-priority-4A-metrics.md` - Grade: A (95/100) → A+ (100/100)
-- Created `docs/reports/code-review-update-summary.md` - Review comparison
+- Updated `docs/reports/code_review_consolidated_version-0.9_upto10feb2026.md` - Grade: A (95/100) → A+ (100/100)
+- Created `docs/reports/code_review_consolidated_version-0.9_upto10feb2026.md` - Review comparison
 
 **Files Modified:**
 - `src/storage/neo4j_adapter.py` - Added OperationTimer to all operations + _get_backend_metrics()
@@ -3023,10 +3326,10 @@ Completed the Priority 4A metrics collection implementation by integrating Opera
 - `tests/storage/test_typesense_metrics.py` - Typesense metrics integration test
 - `scripts/verify_metrics_implementation.py` - Verification script
 - `IMPLEMENTATION_COMPLETE.md` - Implementation summary
-- `docs/reports/metrics-implementation-final.md` - Final documentation
-- `docs/reports/metrics-quick-reference.md` - Quick reference
-- `docs/reports/metrics-changes-summary.md` - Detailed changes
-- `docs/reports/code-review-update-summary.md` - Review updates
+- `docs/reports/metrics_program_overview_version-0.9_upto10feb2026.md` - Final documentation
+- `docs/reports/metrics_program_overview_version-0.9_upto10feb2026.md` - Quick reference
+- `docs/reports/metrics_program_overview_version-0.9_upto10feb2026.md` - Detailed changes
+- `docs/reports/code_review_consolidated_version-0.9_upto10feb2026.md` - Review updates
 
 **Metrics Available:**
 Each adapter now collects comprehensive metrics for all operations:
@@ -3288,8 +3591,8 @@ Enhanced the Redis adapter with comprehensive performance benchmarking, configur
 **Files Created:**
 - `tests/benchmarks/bench_redis_adapter.py` - Performance benchmark suite
 - `scripts/run_redis_tests.sh` - Convenient test runner with environment setup
-- `docs/reports/implementation-report-3a2-ttl-on-read.md` - TTL implementation report
-- `docs/reports/implementation-report-3a3-edge-case-testing.md` - Edge case testing report
+- `docs/reports/implementation_consolidated_version-0.9_upto10feb2026.md` - TTL implementation report
+- `docs/reports/implementation_consolidated_version-0.9_upto10feb2026.md` - Edge case testing report
 
 **Files Modified:**
 - `src/storage/redis_adapter.py` - Added TTL-on-read feature and updated docstring with metrics
@@ -3361,10 +3664,10 @@ Conducted comprehensive code review of Priorities 0-2 implementations and applie
 - `tests/storage/test_postgres_adapter.py` - 25 changes (fixture and env var fixes)
 
 **Documentation Created:**
-- `docs/reports/code-review-priority-0.md` - 21-page detailed review of project setup
-- `docs/reports/code-review-priority-1.md` - 23-page detailed review of base interface
-- `docs/reports/code-review-priority-2.md` - 28-page detailed review of PostgreSQL adapter
-- `docs/reports/code-review-summary-priorities-0-2.md` - Executive summary
+- `docs/reports/code_review_consolidated_version-0.9_upto10feb2026.md` - 21-page detailed review of project setup
+- `docs/reports/code_review_consolidated_version-0.9_upto10feb2026.md` - 23-page detailed review of base interface
+- `docs/reports/code_review_consolidated_version-0.9_upto10feb2026.md` - 28-page detailed review of PostgreSQL adapter
+- `docs/reports/code_review_consolidated_version-0.9_upto10feb2026.md` - Executive summary
 - `docs/reports/fix-report-priority-2.md` - Detailed fix report
 
 **Test Results:**
@@ -3565,7 +3868,7 @@ Created dedicated PostgreSQL database setup for complete project isolation and d
 - `.gitignore` - Added `.env` protection
 - `README.md` - Added database setup section
 - `docs/IAC/connectivity-cheatsheet.md` - Real endpoints documented
-- `docs/plan/implementation-plan-20102025.md` - Added database setup step
+- `docs/plan/implementation_master_plan_version-0.9.md` - Added database setup step
 
 **Infrastructure:**
 - Orchestrator Node: `skz-dev-lv` (192.168.107.172) - PostgreSQL, Redis, n8n, Phoenix
@@ -3637,8 +3940,8 @@ Resolved Python 3.13 compatibility issues with PostgreSQL drivers and completed 
 **Changes:**
 - Replaced asyncpg==0.29.0 with psycopg[binary]>=3.2.0 in requirements.txt
 - Updated test_connectivity.py to detect and use whichever PostgreSQL driver is available
-- Created docs/python-3.13-compatibility.md with detailed explanation
-- Updated docs/python-environment-setup.md with troubleshooting hints
+- Created docs/python_environment.md with detailed explanation
+- Updated docs/python_environment.md with troubleshooting hints
 
 **Environment Setup:**
 - Created virtual environment: `python3 -m venv .venv`
@@ -3663,10 +3966,10 @@ Resolved Python 3.13 compatibility issues with PostgreSQL drivers and completed 
 **Files Modified:**
 - requirements.txt (PostgreSQL driver change)
 - tests/test_connectivity.py (dual driver support)
-- docs/python-environment-setup.md (troubleshooting added)
+- docs/python_environment.md (troubleshooting added)
 
 **Files Created:**
-- docs/python-3.13-compatibility.md
+- docs/python_environment.md
 
 **Git:**
 ```
@@ -3676,8 +3979,8 @@ Message: "fix: Resolve Python 3.13 compatibility issues with PostgreSQL drivers"
 ```
 
 **Documentation References:**
-- docs/python-3.13-compatibility.md - Detailed Python 3.13 compatibility guide
-- docs/python-environment-setup.md - Complete environment setup guide
+- docs/python_environment.md - Detailed Python 3.13 compatibility guide
+- docs/python_environment.md - Complete environment setup guide
 - tests/README.md - Smoke test documentation
 
 ---
@@ -3723,4 +4026,3 @@ Use conventional commit format:
 
 ### Entry Template
 ```
-

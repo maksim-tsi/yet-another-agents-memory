@@ -499,7 +499,7 @@ class UnifiedMemorySystem(HybridMemorySystem):
         # Retrieve L1 recent turns
         if self.l1_tier:
             try:
-                turns = await self.l1_tier.retrieve(session_id=session_id)
+                turns = await self.l1_tier.retrieve_session(session_id=session_id)
                 if turns is None:
                     turns = []
                 if max_turns is not None:

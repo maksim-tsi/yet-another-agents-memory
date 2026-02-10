@@ -4,9 +4,10 @@ import webbrowser
 from pathlib import Path
 
 import click
-from reporting.generate import generate_summary_report
 from utils.files import gather_runstats_files
 from utils.ui import ask_yesno
+
+from reporting.generate import generate_summary_report
 
 
 @click.command("comparative-report")
@@ -34,7 +35,9 @@ from utils.ui import ask_yesno
     required=False,
     help="Name of the resulting report, without extension.",
 )
-def main(run_name: str, agents: list[str] | None, labels: list[str] | None, output: str | None):
+def main(
+    run_name: str, agents: list[str] | None, labels: list[str] | None, output: str | None
+) -> None:
     if agents is None or len(agents) < 2:
         labels = None  # Invalidate any provided label
         print("This report can only be generated for two agents or more.")
@@ -68,6 +71,7 @@ def main(run_name: str, agents: list[str] | None, labels: list[str] | None, outp
         short_names=labels,
         output_name=output,
     )
+    assert isinstance(report_path, Path)
     webbrowser.open_new_tab(report_path.as_uri())
 
 

@@ -1,3 +1,7 @@
+> WARNING (OUTDATED, 2026-02-10)
+> This document is preserved for archive and transparency purposes.
+> See `docs/llm_provider_guide.md` for the current provider guide.
+
 # LLM Provider Setup Complete ✅
 
 **Date:** November 2, 2025  
@@ -106,8 +110,8 @@ MISTRAL_API_KEY=your_mistral_api_key_here
 - ✅ `scripts/test_groq.py` (175 lines)
 - ✅ `scripts/test_mistral.py` (158 lines)
 - ✅ `scripts/test_llm_providers.py` (180 lines) - Master suite
-- ✅ `docs/LLM_PROVIDER_TESTS.md` (250 lines) - Testing guide
-- ✅ `docs/LLM_PROVIDER_TEST_RESULTS.md` (150 lines) - Results log
+- ✅ `docs/llm_provider_guide.md` (250 lines) - Testing guide
+- ✅ `docs/llm_provider_guide.md` (150 lines) - Results log
 - ✅ `docs/ADR/006-free-tier-llm-strategy.md` - Multi-provider strategy
 - ✅ `docs/integrations/README.md` - Quick start guide
 - ✅ `README.md` - Status updated to "In Progress (~5%)"
@@ -199,7 +203,7 @@ MISTRAL_API_KEY=your_mistral_api_key_here
 ## Documentation References
 
 - **ADR-006:** Multi-provider LLM strategy ([link](../ADR/006-free-tier-llm-strategy.md))
-- **Testing Guide:** LLM provider tests ([link](LLM_PROVIDER_TESTS.md))
+- **Testing Guide:** LLM provider tests ([link](llm_provider_guide.md))
 - **Quick Start:** Integration guide ([link](integrations/README.md))
 - **Development Log:** Session entry ([link](../DEVLOG.md))
 

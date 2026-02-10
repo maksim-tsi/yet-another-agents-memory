@@ -28,7 +28,7 @@ class JokesDataset(DatasetInterface):
     minutes_high: int = 240
     joke_prefix: bool = False
 
-    def create_script_line(self, joke: str):
+    def create_script_line(self, joke: str) -> str:
         return f"Joke: {joke}" if self.joke_prefix else joke
 
     def generate_examples(self, num_examples: int) -> list[TestExample]:

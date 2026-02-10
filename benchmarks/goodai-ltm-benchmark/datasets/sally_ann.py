@@ -2,6 +2,7 @@ import re
 from dataclasses import dataclass, field
 from json import JSONDecodeError
 from pathlib import Path
+from typing import Any
 
 from dataset_interfaces.interface import DatasetInterface, TestExample
 from goodai.helpers.json_helper import sanitize_and_parse_json
@@ -49,8 +50,8 @@ class SallyAnneDataset(DatasetInterface):
     data_location: Path = field(default_factory=lambda: DATA_DIR.joinpath("tomi_data", "test.txt"))
     question_type: str = "any"  # world_model / theory_of_mind / any
 
-    def __post_init__(self):
-        self.samples = list()
+    def __post_init__(self) -> None:
+        self.samples: list[dict[str, Any]] = list()
         assert self.question_type in {"any", "world_model", "theory_of_mind"}
         question_types = (
             ["world_model", "theory_of_mind"]
@@ -60,7 +61,7 @@ class SallyAnneDataset(DatasetInterface):
         self.question_patterns = [p for qt in question_types for p in patterns[qt]]
         self.extract_samples()
 
-    def extract_samples(self):
+    def extract_samples(self) -> None:
         with open(self.data_location) as fd:
             sample_lines = list()
             for line in fd:

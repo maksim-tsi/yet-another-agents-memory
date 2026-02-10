@@ -6,13 +6,13 @@ with validation and serialization support.
 """
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 
-class FactType(str, Enum):
+class FactType(StrEnum):
     """Classification of fact types."""
 
     PREFERENCE = "preference"  # User preferences (high impact)
@@ -21,9 +21,10 @@ class FactType(str, Enum):
     MENTION = "mention"  # Casual mentions (low impact)
     RELATIONSHIP = "relationship"  # Entity relationships
     EVENT = "event"  # Temporal events
+    INSTRUCTION = "instruction"  # Behavioral constraints, delayed commands
 
 
-class FactCategory(str, Enum):
+class FactCategory(StrEnum):
     """Domain-specific fact categories."""
 
     PERSONAL = "personal"
@@ -48,7 +49,7 @@ class TurnData(BaseModel):
     turn_id: str = Field(..., min_length=1, max_length=200)
     session_id: str = Field(..., min_length=1, max_length=200)
     role: Literal["user", "assistant", "system"]
-    content: str = Field(..., min_length=1, max_length=10000)
+    content: str = Field(..., min_length=1, max_length=200000)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -109,10 +110,11 @@ class Fact(BaseModel):
 
     # Metadata
     metadata: dict[str, Any] = Field(default_factory=dict)
+    justification: str | None = None  # Explanation for extraction/promotion logic
 
     # Timestamps
     extracted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_accessed: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_accessed: datetime | None = Field(default_factory=lambda: datetime.now(UTC))
     access_count: int = Field(default=0, ge=0)
 
     model_config = {"use_enum_values": True}
@@ -193,6 +195,7 @@ class Fact(BaseModel):
             "extracted_at": self.extracted_at,
             "last_accessed": self.last_accessed,
             "access_count": self.access_count,
+            "justification": self.justification,
         }
 
 
@@ -549,7 +552,11 @@ class ContextBlock(BaseModel):
 
         # Count turn content
         for turn in self.recent_turns:
-            total_chars += len(turn.get("content", ""))
+            if isinstance(turn, dict):
+                total_chars += len(turn.get("content", ""))
+            else:
+                # Handle TurnData objects
+                total_chars += len(getattr(turn, "content", ""))
 
         # Count fact content
         for fact in self.significant_facts:

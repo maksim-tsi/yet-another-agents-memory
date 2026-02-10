@@ -41,6 +41,8 @@ try:
 except ImportError:
     psycopg = None
 
+pytestmark = pytest.mark.integration
+
 try:
     from qdrant_client import QdrantClient
 except ImportError:
@@ -420,7 +422,7 @@ def test_typesense_auth(config):
 
 
 @pytest.mark.skipif(
-    not all([redis, asyncpg, QdrantClient, GraphDatabase, requests]),
+    not all([redis, (asyncpg or psycopg), QdrantClient, GraphDatabase, requests]),
     reason="Some dependencies not installed",
 )
 def test_all_services_summary(config):

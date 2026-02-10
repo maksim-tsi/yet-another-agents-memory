@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-import requests  # type: ignore[import-untyped]
+import requests
 from utils.llm import count_tokens_for_model
 
 from model_interfaces.interface import ChatSession
@@ -25,7 +25,7 @@ class MASWrapperSession(ChatSession):
     session_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     turn_id: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         if self.max_prompt_size is not None:
             self.max_message_size = self.max_prompt_size
@@ -59,6 +59,7 @@ class MASWrapperSession(ChatSession):
         response_json = self._post_with_retry(payload)
         self.turn_id += 1
 
+        self.last_metadata = response_json.get("metadata")
         response_text = cast(str, response_json.get("content", ""))
         self._update_costs(user_message, response_text)
         return response_text
@@ -101,11 +102,11 @@ class MASWrapperSession(ChatSession):
         estimated = (prompt_tokens * cost_in) + (response_tokens * cost_out)
         self.costs_usd += max(estimated, 1e-9)
 
-    def reset(self):
+    def reset(self) -> None:
         self.session_id = uuid.uuid4().hex
         self.turn_id = 0
 
-    def save(self):
+    def save(self) -> None:
         fname = self.save_path.joinpath("session.json")
         payload = {
             "session_id": self.session_id,
@@ -116,7 +117,7 @@ class MASWrapperSession(ChatSession):
         with open(fname, "w") as fd:
             json.dump(payload, fd)
 
-    def load(self):
+    def load(self) -> None:
         fname = self.save_path.joinpath("session.json")
         if not fname.exists():
             return

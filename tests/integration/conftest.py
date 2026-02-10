@@ -18,12 +18,12 @@ import pytest
 import pytest_asyncio
 import yaml
 
+from src.llm.client import LLMClient
 from src.storage.neo4j_adapter import Neo4jAdapter
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.qdrant_adapter import QdrantAdapter
 from src.storage.redis_adapter import RedisAdapter
 from src.storage.typesense_adapter import TypesenseAdapter
-from src.utils.llm_client import LLMClient
 
 
 @dataclass
@@ -110,8 +110,9 @@ def real_llm_client(test_settings: TestSettings) -> tuple[LLMClient | None, str]
     Raises:
         pytest.skip if no provider is available.
     """
-    from src.utils.llm_client import LLMClient, ProviderConfig
-    from src.utils.providers import GeminiProvider, GroqProvider
+    from src.llm.client import LLMClient, ProviderConfig
+    from src.llm.providers.gemini import GeminiProvider
+    from src.llm.providers.groq import GroqProvider
 
     primary = test_settings.llm_providers["primary"]
     fallback = test_settings.llm_providers["fallback"]

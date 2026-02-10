@@ -1,11 +1,13 @@
 import json
 import math
+import time
 import webbrowser
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from random import Random
-from typing import TypedDict
+from typing import TypedDict, cast
 
 import time_machine
 from dataset_interfaces.interface import (
@@ -25,7 +27,9 @@ from utils.ui import colour_print
 
 from runner.config import RunConfig
 from runner.master_log import MasterLog
-from runner.progress import ProgressDialog, ProgressDialogProtocol
+from runner.progress import ProgressDialogProtocol, build_progress_dialog
+from runner.stuck_watchdog import StuckWatchdog
+from runner.turn_metrics import TurnMetrics, TurnMetricsWriter
 
 
 class WaitState(TypedDict):
@@ -70,13 +74,18 @@ class TestRunner:
     master_log: MasterLog | None = None
     progress_dialog: ProgressDialogProtocol | None = None
     random: Random = field(default_factory=lambda: Random(0))
+    run_id: str | None = None
+    metrics_writer: TurnMetricsWriter | None = None
+    stuck_watchdog: StuckWatchdog | None = None
+    llm_durations_ms: list[float] = field(default_factory=list)
+    storage_durations_ms: list[float] = field(default_factory=list)
 
     @property
-    def runstats_path(self):
+    def runstats_path(self) -> Path:
         return make_runstats_path(self.config.run_name, self.agent.name)
 
     @property
-    def master_log_path(self):
+    def master_log_path(self) -> Path:
         return make_master_log_path(self.config.run_name, self.agent.name)
 
     @property
@@ -91,7 +100,7 @@ class TestRunner:
         assert self.progress_dialog is not None, "progress_dialog must be initialized"
         return self.progress_dialog
 
-    def save_runstats(self):
+    def save_runstats(self) -> None:
         stats = dict(
             total_tokens=self.total_token_count,
             agent_tokens=self.agent_token_count,
@@ -99,11 +108,17 @@ class TestRunner:
             managing_costs_usd=self.test_managing_costs_usd,
             duration=self.agent_benchmark_duration,
             rnd_state=self.random.getstate(),
+            llm_ms_p50=_percentile(self.llm_durations_ms, 50),
+            llm_ms_p95=_percentile(self.llm_durations_ms, 95),
+            llm_ms_p99=_percentile(self.llm_durations_ms, 99),
+            storage_ms_p50=_percentile(self.storage_durations_ms, 50),
+            storage_ms_p95=_percentile(self.storage_durations_ms, 95),
+            storage_ms_p99=_percentile(self.storage_durations_ms, 99),
         )
         with open(self.runstats_path, "w") as fd:
             json.dump(stats, fd)
 
-    def load(self):
+    def load(self) -> None:
         if not self.runstats_path.exists():
             return
         assert (
@@ -122,12 +137,12 @@ class TestRunner:
         rnd_state[1] = tuple(rnd_state[1])
         self.random.setstate(tuple(rnd_state))
 
-    def travel_to_dt(self, target_date: datetime):
+    def travel_to_dt(self, target_date: datetime) -> None:
         self.reset_time()
         self.traveller = time_machine.travel(target_date.astimezone(UTC))
         self.traveller.start()
 
-    def forward_time(self, **kwargs):
+    def forward_time(self, **kwargs: float) -> None:
         t_jump = timedelta(**kwargs)
         if self.config.debug:
             colour_print("green", f"Time jump by {t_jump}")
@@ -137,14 +152,16 @@ class TestRunner:
         ), "Can only move forward in time. Going back is problematic."
         self.travel_to_dt(target_date)
 
-    def reset_time(self):
+    def reset_time(self) -> None:
         if self.traveller is not None:
             self.traveller.stop()
             self.traveller = None
 
-    def set_to_wait(self, example: TestExample, action: WaitAction, log_this: bool = True):
+    def set_to_wait(self, example: TestExample, action: WaitAction, log_this: bool = True) -> None:
         master_log = self._require_master_log()
         unique_id = example.unique_id
+        if self.stuck_watchdog is not None:
+            self.stuck_watchdog.touch()
 
         # We convert the percentage to tokens
         if action.percentage_finished > 0.0:
@@ -185,10 +202,19 @@ class TestRunner:
     def send_message(self, test_id: str, action: SendMessageAction) -> int:
         master_log = self._require_master_log()
         progress_dialog = self._require_progress_dialog()
+        if self.stuck_watchdog is not None:
+            self.stuck_watchdog.touch()
         agent_reply = None if not action.is_filling else action.filler_response
-        action.reply, action.sent_ts, action.reply_ts = self.agent.message_to_agent(
+        t0 = time.perf_counter()
+        action.reply, action.sent_ts, action.reply_ts, metadata = self.agent.message_to_agent(
             action.message, agent_reply
         )
+
+        from runner.sanitizer import MetadataSanitizer
+
+        safe_metadata = MetadataSanitizer.sanitize(metadata)
+
+        t1 = time.perf_counter()
         self.debug_message(action.message, action.reply, action.sent_ts, action.reply_ts)
         master_log.add_send_message(
             test_id=test_id,
@@ -201,6 +227,7 @@ class TestRunner:
             message=action.reply,
             timestamp=action.reply_ts,
             is_question=action.is_question,
+            metadata=safe_metadata,
         )
         self.agent_benchmark_duration += (action.reply_ts - action.sent_ts).total_seconds()
         message_tokens = self.agent.token_len(action.message)
@@ -208,7 +235,43 @@ class TestRunner:
         self.agent_token_count += reply_tokens
         self.total_token_count += message_tokens + reply_tokens
         progress_dialog.notify_message(self.total_token_count)
+        self._record_turn_metrics(
+            test_id=test_id,
+            message_tokens=message_tokens,
+            reply_tokens=reply_tokens,
+            total_ms=(t1 - t0) * 1000,
+        )
         return message_tokens + reply_tokens
+
+    def _record_turn_metrics(
+        self, test_id: str, message_tokens: int, reply_tokens: int, total_ms: float
+    ) -> None:
+        if self.metrics_writer is None or self.run_id is None:
+            return
+        last_metadata = getattr(self.agent, "last_metadata", None) or {}
+        llm_ms = _safe_float(last_metadata.get("llm_ms"))
+        storage_ms = _safe_float(last_metadata.get("storage_ms"))
+        if llm_ms is not None:
+            self.llm_durations_ms.append(llm_ms)
+        if storage_ms is not None:
+            self.storage_durations_ms.append(storage_ms)
+        dataset_name = ""
+        if test_id in self.in_progress_results:
+            dataset_name = self.in_progress_results[test_id].dataset_name
+        metrics = TurnMetrics.now(
+            run_id=self.run_id,
+            session_id=self.agent.save_name,
+            turn_id=self.total_token_count,
+            test_id=test_id,
+            dataset_name=dataset_name,
+            llm_ms=llm_ms,
+            storage_ms=storage_ms,
+            total_ms=total_ms,
+            tokens_in=message_tokens,
+            tokens_out=reply_tokens,
+            status="ok",
+        )
+        self.metrics_writer.write(metrics)
 
     def get_blocked_test(self, waiting_on: str) -> str | None:
         assert waiting_on in ["tokens", "time"]
@@ -288,18 +351,20 @@ class TestRunner:
 
         raise AssertionError(f"Couldn't find a test to run. Wait list: {self.wait_list}")
 
-    def run_filler_task(self, num_filler_tokens: int):
+    def run_filler_task(self, num_filler_tokens: int) -> None:
         while num_filler_tokens > 0:
             msg, agent_response = filler_no_response_tokens_trivia(
                 self.random, num_filler_tokens, self.agent.max_message_size, self.agent.token_len
             )
-            agent_response = agent_response if len(self.result_callbacks) == 0 else None
+            agent_response_opt: str | None = (
+                agent_response if len(self.result_callbacks) == 0 else None
+            )
             tokens_spent = self.send_message(
-                "", SendMessageAction(msg, is_filling=True, filler_response=agent_response)
+                "", SendMessageAction(msg, is_filling=True, filler_response=agent_response_opt)
             )
             num_filler_tokens -= tokens_spent
 
-    def fast_forward_tests(self, tests: dict[str, TestExample]):
+    def fast_forward_tests(self, tests: dict[str, TestExample]) -> None:
         master_log = self._require_master_log()
         # Go event by event in the master log and sync up with trace
         finished_tests = {
@@ -356,7 +421,7 @@ class TestRunner:
                     self.set_to_wait(test, action, log_this=False)
                     self.reset_time()
 
-    def setup_iterator(self, test_group) -> dict[str, TestExample]:
+    def setup_iterator(self, test_group: list[TestExample]) -> dict[str, TestExample]:
         """Sets up the test dict and fast forwards any tests that are currently in progress"""
         master_log = self._require_master_log()
         tests = {t.unique_id: t for t in test_group}
@@ -411,7 +476,7 @@ class TestRunner:
             result.load()
         return result, skip
 
-    def run_tests(self):
+    def run_tests(self) -> None:
         master_log = self._require_master_log()
         progress_dialog = self._require_progress_dialog()
         self.result_callbacks = []
@@ -468,6 +533,14 @@ class TestRunner:
 
                 self.save_runstats()
                 self.agent.save()
+                if self.stuck_watchdog is not None:
+                    self.stuck_watchdog.check_or_raise(
+                        {
+                            "run_name": self.config.run_name,
+                            "agent": self.agent.name,
+                            "test_id": example.unique_id,
+                        }
+                    )
 
             self.check_result_callbacks()
             if self.config.isolated:
@@ -500,13 +573,13 @@ class TestRunner:
                 if self.config.isolated:
                     self.agent.reset()
 
-    def register_callback(self, example: TestExample):
+    def register_callback(self, example: TestExample) -> None:
         cb = example.dataset_generator.continual_evaluation_callback
         master_log = self._require_master_log()
         master_log.register_callback(example.unique_id, datetime.now())
         self.result_callbacks.append((cb, example))
 
-    def check_result_callbacks(self):
+    def check_result_callbacks(self) -> None:
         master_log = self._require_master_log()
         deregistered_cb = []
         for callback, example in self.result_callbacks:
@@ -528,14 +601,14 @@ class TestRunner:
             master_log.deregister_callback(tup[1].unique_id, datetime.now())
             self.result_callbacks.remove(tup)
 
-    def set_cost_callback(self):
-        def cost_callback(cost_usd: float):
+    def set_cost_callback(self) -> None:
+        def cost_callback(cost_usd: float) -> None:
             self.test_managing_costs_usd += cost_usd
 
         for example in self.tests:
             example.dataset_generator.cost_callback = cost_callback
 
-    def run(self):
+    def run(self) -> None:
         self.master_log = MasterLog(self.master_log_path)
         self.runstats_path.parent.mkdir(parents=True, exist_ok=True)
         self.agent.save_path.mkdir(parents=True, exist_ok=True)
@@ -543,7 +616,9 @@ class TestRunner:
         self.set_cost_callback()
         colour_print("green", f"Number of tests to run: {len(self.tests)}.")
         self.tests.sort(key=lambda t: t.unique_id)
-        self.progress_dialog = ProgressDialog(len(self.tests), self.config.isolated)
+        self.progress_dialog = build_progress_dialog(
+            self.config.progress, len(self.tests), self.config.isolated
+        )
         self.run_tests()
         self._require_progress_dialog().close()
         self.save_runstats()
@@ -556,7 +631,7 @@ class TestRunner:
         example: TestExample,
         result: TestResult,
         master_log: MasterLog,
-    ):
+    ) -> None:
         if example.uses_callback:
             task_log = master_log.messages_past_question(example.unique_id)
         else:
@@ -601,9 +676,25 @@ class TestRunner:
         response: str,
         user_timestamp: datetime,
         ai_timestamp: datetime,
-    ):
+    ) -> None:
         if not self.config.debug:
             return
-        colour_print("cyan", f"{user_timestamp} User: {user_message}")
         colour_print("red", f"{ai_timestamp} Agent: {response}")
         print()
+
+
+def _safe_float(value: object) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(cast(str | float, value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _percentile(values: list[float], pct: int) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    k = max(0, min(len(ordered) - 1, round((pct / 100) * (len(ordered) - 1))))
+    return float(ordered[k])

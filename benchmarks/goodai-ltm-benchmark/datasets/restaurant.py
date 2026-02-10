@@ -3,6 +3,7 @@ from collections import OrderedDict
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from json import JSONDecodeError
+from typing import Any
 
 from dataset_interfaces.interface import (
     DynamicDataset,
@@ -194,7 +195,7 @@ class RestaurantExample(DynamicExample):
                 return orig_dish, alt_dish, altered_order
         raise AssertionError(f"Cannot alter wrong order: {order}")
 
-    def check_notices_mishap(self):
+    def check_notices_mishap(self) -> None:
         self.expected_responses.append("The agent notices the mix-up.")
         assert self.action is not None
         context = [
@@ -208,7 +209,7 @@ class RestaurantExample(DynamicExample):
         self.reasoning.append("The agent notices the unordered meal.")
         self.score += 1
 
-    def check_role_following(self):
+    def check_role_following(self) -> None:
         assert self.action is not None
         context = [
             make_system_message(role_eval_prompt),
@@ -221,7 +222,7 @@ class RestaurantExample(DynamicExample):
             )
             raise RestaurantOrderFailed
 
-    def check_recalls_drink(self, drinks: list[str]):
+    def check_recalls_drink(self, drinks: list[str]) -> None:
         drinks_str = enumerate_str(drinks)
         self.expected_responses.append(f"The agent recalls that it was drinking {drinks_str}.")
         assert self.action is not None
@@ -239,7 +240,9 @@ class RestaurantExample(DynamicExample):
         self.reasoning.append(f"The agent {recall_str} what it was drinking.")
         self.score += int(recalls)
 
-    def gpt_bool_check(self, context: LLMContext, key: str, model: str = "", **llm_kwargs) -> bool:
+    def gpt_bool_check(
+        self, context: LLMContext, key: str, model: str = "", **llm_kwargs: Any
+    ) -> bool:
         model_name = model or _get_eval_model()
         eval_json = self.ask_llm(context, model_name, **llm_kwargs)
         try:
@@ -263,7 +266,7 @@ class RestaurantDataset(DynamicDataset):
         "Let's not pretend to be at a restaurant anymore. Please also forget everything about it."
     )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.menu_dict: OrderedDict = self.load_json("menu.json", object_pairs_hook=OrderedDict)
         self.menu_items = [item for content in self.menu_dict.values() for item in content]
         self.menu: str = "\n\n".join(

@@ -7,11 +7,12 @@ import asyncio
 import json
 import logging
 import os
+import time
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import redis
 import uvicorn
@@ -23,11 +24,15 @@ from src.agents.full_context_agent import FullContextAgent
 from src.agents.memory_agent import MemoryAgent
 from src.agents.models import RunTurnRequest, RunTurnResponse
 from src.agents.rag_agent import RAGAgent
+from src.llm.client import LLMClient
+from src.memory.ciar_scorer import CIARScorer
+from src.memory.engines.fact_extractor import FactExtractor
+from src.memory.engines.promotion_engine import PromotionEngine
+from src.memory.engines.topic_segmenter import TopicSegmenter
+from src.memory.models import TurnData
 from src.memory.tiers import ActiveContextTier, WorkingMemoryTier
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.redis_adapter import RedisAdapter
-from src.utils.llm_client import LLMClient, ProviderConfig, ensure_phoenix_instrumentation
-from src.utils.providers import GeminiProvider, GroqProvider, MistralProvider
 
 logger = logging.getLogger(__name__)
 
@@ -180,39 +185,6 @@ SESSION_PREFIXES = {
 }
 
 
-def build_llm_client() -> LLMClient:
-    """Build an LLMClient with providers configured from environment variables."""
-
-    ensure_phoenix_instrumentation()
-
-    client = LLMClient(
-        provider_configs=[
-            ProviderConfig(name="gemini", timeout=30.0, priority=0),
-            ProviderConfig(name="groq", timeout=30.0, priority=1),
-            ProviderConfig(name="mistral", timeout=30.0, priority=2),
-        ]
-    )
-
-    google_key = os.environ.get("GOOGLE_API_KEY")
-    if google_key:
-        client.register_provider(GeminiProvider(api_key=google_key))
-    else:
-        logger.warning("GOOGLE_API_KEY not set; Gemini provider disabled.")
-
-    groq_key = os.environ.get("GROQ_API_KEY")
-    if groq_key:
-        client.register_provider(GroqProvider(api_key=groq_key))
-
-    mistral_key = os.environ.get("MISTRAL_API_KEY")
-    if mistral_key:
-        client.register_provider(MistralProvider(api_key=mistral_key))
-
-    if not client.available_providers():
-        logger.warning("No LLM providers configured; responses will be fallback messages.")
-
-    return client
-
-
 def _read_env_or_raise(key: str) -> str:
     value = os.environ.get(key)
     if not value:
@@ -265,14 +237,33 @@ async def initialize_state(config: WrapperConfig) -> AgentWrapperState:
     await l1_tier.initialize()
     await l2_tier.initialize()
 
+    await l1_tier.initialize()
+    await l2_tier.initialize()
+
+    llm_client = LLMClient.from_env()
+
+    # Initialize engines
+    ciar_scorer = CIARScorer()
+    fact_extractor = FactExtractor(llm_client)
+    topic_segmenter = TopicSegmenter(llm_client)
+
+    promotion_engine = PromotionEngine(
+        l1_tier=l1_tier,
+        l2_tier=l2_tier,
+        topic_segmenter=topic_segmenter,
+        fact_extractor=fact_extractor,
+        ciar_scorer=ciar_scorer,
+        config={"promotion_threshold": config.min_ciar},
+    )
+
     memory_system = UnifiedMemorySystem(
         redis_client=redis_client,
         knowledge_manager=NullKnowledgeStoreManager(),
         l1_tier=l1_tier,
         l2_tier=l2_tier,
+        promotion_engine=promotion_engine,
     )
 
-    llm_client = build_llm_client()
     agent_cls = AGENT_TYPES[config.agent_type]
     agent = agent_cls(
         agent_id=f"mas-{config.agent_type}",
@@ -333,9 +324,13 @@ def create_app(config: WrapperConfig) -> FastAPI:
         await state.rate_limiter.wait_if_needed(estimated_input_tokens)
 
         try:
+            t0 = time.perf_counter()
             await _store_turn(state, updated_request, role=updated_request.role)
+            t1 = time.perf_counter()
             response = await state.agent.run_turn(updated_request)
+            t2 = time.perf_counter()
             await _store_turn(state, response, role=response.role)
+            t3 = time.perf_counter()
             estimated_total_tokens = _estimate_tokens(
                 f"{updated_request.content}\n{response.content}"
             )
@@ -345,7 +340,16 @@ def create_app(config: WrapperConfig) -> FastAPI:
             logger.exception("Error handling /run_turn for session %s", session_id)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return response
+        metadata = dict(response.metadata or {})
+        metadata.update(
+            {
+                "storage_ms_pre": (t1 - t0) * 1000,
+                "llm_ms": (t2 - t1) * 1000,
+                "storage_ms_post": (t3 - t2) * 1000,
+                "storage_ms": (t1 - t0 + t3 - t2) * 1000,
+            }
+        )
+        return response.model_copy(update={"metadata": metadata})
 
     @app.get("/sessions")
     async def list_sessions() -> dict[str, Any]:
@@ -404,7 +408,9 @@ def create_app(config: WrapperConfig) -> FastAPI:
     return app
 
 
-async def _store_turn(state: AgentWrapperState, message: Any, role: str) -> None:
+async def _store_turn(
+    state: AgentWrapperState, message: Any, role: Literal["user", "assistant"]
+) -> None:
     """Store a user or assistant turn in L1 for context assembly."""
 
     def _encode_turn_id(turn_id: int, message_role: str) -> int:
@@ -416,16 +422,25 @@ async def _store_turn(state: AgentWrapperState, message: Any, role: str) -> None
     timestamp = getattr(message, "timestamp", None) or datetime.now(UTC)
     metadata = getattr(message, "metadata", None) or {}
     stored_turn_id = _encode_turn_id(int(message.turn_id), role)
-    await state.l1_tier.store(
-        {
-            "session_id": message.session_id,
-            "turn_id": str(stored_turn_id),
-            "role": role,
-            "content": message.content,
-            "timestamp": timestamp,
-            "metadata": metadata,
-        }
+    turn = TurnData(
+        session_id=message.session_id,
+        turn_id=str(stored_turn_id),
+        role=role,
+        content=message.content,
+        timestamp=timestamp,
+        metadata=metadata,
     )
+    try:
+        await state.l1_tier.store(turn)
+    except Exception as exc:
+        if "duplicate key value violates unique constraint" in str(exc):
+            logger.warning(
+                "Ignored duplicate turn submission: session_id=%s, turn_id=%s",
+                message.session_id,
+                stored_turn_id,
+            )
+        else:
+            raise
 
 
 def _estimate_tokens(text: str) -> int:
@@ -494,7 +509,7 @@ def build_config(args: argparse.Namespace) -> WrapperConfig:
 def main(argv: Iterable[str] | None = None) -> None:
     """Entrypoint for running the FastAPI wrapper via Uvicorn."""
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     args = parse_args(argv)
     config = build_config(args)
     app = create_app(config)

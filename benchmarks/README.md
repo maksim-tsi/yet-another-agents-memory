@@ -298,7 +298,7 @@ Based on architecture design (localhost, adequate resources):
 ## References
 
 - [ADR-002: Storage Performance Benchmarking](../../docs/ADR/002-storage-performance-benchmarking.md)
-- [Metrics Implementation](../../docs/reports/metrics-implementation-final.md)
+- [Metrics Implementation](../../docs/reports/metrics_program_overview_version-0.9_upto10feb2026.md)
 - [Storage Adapter Documentation](../../src/storage/README.md)
 
 ## License

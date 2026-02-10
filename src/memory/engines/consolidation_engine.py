@@ -18,18 +18,24 @@ import asyncio
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
+from src.llm.client import LLMClient
+from src.llm.providers.base import BaseProvider
 from src.memory.engines.base_engine import BaseEngine
 from src.memory.lifecycle_stream import LifecycleStreamConsumer
-from src.memory.models import Episode, Fact
+from src.memory.models import Episode, EpisodeStoreInput, Fact
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
-from src.utils.llm_client import LLMClient
-from src.utils.providers import BaseProvider
 
 logger = logging.getLogger(__name__)
+
+
+class EmbeddingProvider(Protocol):
+    async def get_embedding(
+        self, text: str, model: str | None = None, output_dimensionality: int = 768
+    ) -> list[float]: ...
 
 
 class ConsolidationEngine(BaseEngine):
@@ -58,6 +64,7 @@ class ConsolidationEngine(BaseEngine):
         stream_consumer: LifecycleStreamConsumer | None = None,
         config: dict[str, Any] | None = None,
         gemini_provider: BaseProvider | None = None,
+        telemetry_stream: Any | None = None,
     ):
         super().__init__()
         self.l2 = l2_tier
@@ -70,7 +77,7 @@ class ConsolidationEngine(BaseEngine):
             self.llm = LLMClient()
             self.llm.register_provider(gemini_provider)
         else:
-            raise ValueError("llm_provider or gemini_provider must be provided")
+            self.llm = LLMClient.from_env()
         self.stream_consumer = stream_consumer
         self.config = config or {}
         self.time_window_hours = self.config.get(
@@ -84,7 +91,8 @@ class ConsolidationEngine(BaseEngine):
         self.batch_size = self.config.get("batch_size", self.DEFAULT_BATCH_SIZE)
         self._running = False
         self._buffer: list[Fact] = []
-        self._stream_task: asyncio.Task | None = None
+        self._stream_task: asyncio.Task[None] | None = None
+        self.telemetry_stream = telemetry_stream
 
     async def start(self) -> None:
         """
@@ -284,14 +292,13 @@ class ConsolidationEngine(BaseEngine):
                 episode = await self._create_episode_from_facts(session_id, cluster)
                 embedding = await self._generate_embedding(episode)
 
-                await self.l3.store(
-                    {
-                        "episode": episode,
-                        "embedding": embedding,
-                        "entities": [],
-                        "relationships": [],
-                    }
+                payload = EpisodeStoreInput(
+                    episode=episode,
+                    embedding=embedding,
+                    entities=[],
+                    relationships=[],
                 )
+                await self.l3.store(payload)
 
                 stats["episodes_created"] = stats.get("episodes_created", 0) + 1
 
@@ -342,6 +349,17 @@ class ConsolidationEngine(BaseEngine):
             start_time = await self._get_last_consolidation_time(session_id)
             end_time = datetime.now(UTC)
 
+            # Emit consolidation_started event
+            if self.telemetry_stream:
+                await self.telemetry_stream.publish(
+                    event_type="consolidation_started",
+                    session_id=session_id,
+                    data={
+                        "start_time": start_time.isoformat(),
+                        "end_time": end_time.isoformat(),
+                    },
+                )
+
             # 2. Retrieve facts from L2 in time range
             facts = await self._get_facts_in_range(session_id, start_time, end_time)
             stats["facts_retrieved"] = len(facts)
@@ -352,6 +370,18 @@ class ConsolidationEngine(BaseEngine):
             # 3. Cluster facts by time windows
             clusters = self._cluster_facts_by_time(facts)
 
+            # Emit facts_clustered event
+            if self.telemetry_stream:
+                await self.telemetry_stream.publish(
+                    event_type="facts_clustered",
+                    session_id=session_id,
+                    data={
+                        "total_facts": len(facts),
+                        "cluster_count": len(clusters),
+                        "time_window_hours": self.time_window_hours,
+                    },
+                )
+
             # 4. Create episodes from clusters
             for cluster in clusters:
                 try:
@@ -361,20 +391,44 @@ class ConsolidationEngine(BaseEngine):
                     embedding = await self._generate_embedding(episode)
 
                     # 6. Store in L3
-                    await self.l3.store(
-                        {
-                            "episode": episode,
-                            "embedding": embedding,
-                            "entities": [],  # Could extract from facts
-                            "relationships": [],  # Could extract from facts
-                        }
+                    payload = EpisodeStoreInput(
+                        episode=episode,
+                        embedding=embedding,
+                        entities=[],  # Could extract from facts
+                        relationships=[],  # Could extract from facts
                     )
+                    await self.l3.store(payload)
+
+                    # Emit episode_created event
+                    if self.telemetry_stream:
+                        await self.telemetry_stream.publish(
+                            event_type="episode_created",
+                            session_id=session_id,
+                            data={
+                                "episode_id": episode.episode_id,
+                                "fact_count": len(cluster),
+                                "summary": episode.summary[:100],
+                                "importance_score": episode.importance_score,
+                            },
+                        )
 
                     inc("episodes_created")
 
                 except Exception as e:
                     logger.error(f"Error creating episode: {e}")
                     inc("errors")
+
+            # Emit consolidation_completed event
+            if self.telemetry_stream:
+                await self.telemetry_stream.publish(
+                    event_type="consolidation_completed",
+                    session_id=session_id,
+                    data={
+                        "facts_retrieved": stats["facts_retrieved"],
+                        "episodes_created": stats["episodes_created"],
+                        "errors": stats["errors"],
+                    },
+                )
 
             return stats
 
@@ -583,11 +637,11 @@ Format as JSON:
             **provider_health,
         }
 
-    def _get_embedding_provider(self):
+    def _get_embedding_provider(self) -> EmbeddingProvider | None:
         """Select a provider that supports embeddings from the registered LLM client."""
         for provider in self.llm._providers.values():
             if hasattr(provider, "get_embedding"):
-                return provider
+                return cast(EmbeddingProvider, provider)
         return None
 
     def _fallback_embedding(self, text: str) -> list[float]:

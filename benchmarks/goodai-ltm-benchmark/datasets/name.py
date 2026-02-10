@@ -21,7 +21,7 @@ class NamesDataset(DatasetInterface):
     question: str = "What is my name?"
     name_changes: int = 3
 
-    def generate_examples(self, num_examples):
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         renderer = pystache.Renderer()
         faker = Faker(["en_US", "en_IE"])
         examples = []

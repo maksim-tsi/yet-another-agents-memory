@@ -74,7 +74,7 @@ class TriggerResponseDataset(DatasetInterface):
                 "be some repetitions.",
             )
 
-    def generate_examples(self, num_examples):
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         examples = []
         setup = "Whenever I {{request}} then say: '{{response}}'"
 

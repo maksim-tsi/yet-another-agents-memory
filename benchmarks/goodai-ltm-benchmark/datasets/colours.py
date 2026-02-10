@@ -37,7 +37,7 @@ class ColourDataset(DatasetInterface):
     question: str = "What is my favourite colour?"
     colour_changes: int = 3
 
-    def generate_examples(self, num_examples):
+    def generate_examples(self, num_examples: int) -> list[TestExample]:
         examples = []
 
         for _ in range(num_examples):

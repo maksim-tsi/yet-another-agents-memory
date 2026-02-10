@@ -240,4 +240,4 @@ def test_newservice_connection(config):
 - **Main Documentation**: `README.md`
 - **Database Setup**: `docs/IAC/database-setup.md`
 - **Connectivity**: `docs/IAC/connectivity-cheatsheet.md`
-- **Implementation Plan**: `docs/plan/implementation-plan-20102025.md`
+- **Implementation Plan**: `docs/plan/implementation_master_plan_version-0.9.md`

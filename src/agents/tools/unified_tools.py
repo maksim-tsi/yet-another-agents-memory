@@ -8,11 +8,12 @@ context injection (session_id, user_id) per ADR-007.
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 from src.agents.runtime import MASToolRuntime
-from src.memory.models import SearchWeights
+from src.memory.models import SearchWeights, TurnData
 
 if TYPE_CHECKING:
     # For type hints only - actual tool decorator will be from langchain-core
@@ -317,13 +318,15 @@ async def memory_store(
             # Store in Active Context (L1)
             if memory_system.l1_tier:
                 # Create turn-like structure
-                turn_data = {
-                    "role": "system",
-                    "content": content,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "metadata": metadata or {},
-                }
-                await memory_system.l1_tier.store(session_id, turn_data)
+                turn_data = TurnData(
+                    turn_id=uuid4().hex,
+                    session_id=session_id,
+                    role="system",
+                    content=content,
+                    timestamp=datetime.now(UTC),
+                    metadata=metadata or {},
+                )
+                await memory_system.l1_tier.store(turn_data)
                 return f"Stored in L1 Active Context (session: {session_id[:8]}...)"
             else:
                 return "Error: L1 tier not available"
@@ -332,13 +335,15 @@ async def memory_store(
             # Store in Working Memory (L2) - requires promotion/extraction
             # For now, store via L1 and let promotion engine handle it
             if memory_system.l1_tier:
-                turn_data = {
-                    "role": "system",
-                    "content": f"[STORE] {content}",
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "metadata": {**(metadata or {}), "store_request": True},
-                }
-                await memory_system.l1_tier.store(session_id, turn_data)
+                turn_data = TurnData(
+                    turn_id=uuid4().hex,
+                    session_id=session_id,
+                    role="system",
+                    content=f"[STORE] {content}",
+                    timestamp=datetime.now(UTC),
+                    metadata={**(metadata or {}), "store_request": True},
+                )
+                await memory_system.l1_tier.store(turn_data)
                 return "Queued for L2 storage (will be promoted via next cycle)"
             else:
                 return "Error: L1 tier not available for L2 promotion queue"

@@ -67,7 +67,7 @@ class ChapterBreakDataset(DatasetInterface):
     split: str = "goodai"  # goodai / pg19 / ao3 / all
     selection_info: dict = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert self.split in {"goodai", "pg19", "ao3", "all"}
 
     def load_data(self) -> dict[str, Any]:

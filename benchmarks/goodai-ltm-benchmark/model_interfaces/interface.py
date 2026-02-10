@@ -13,22 +13,32 @@ class ChatSession(ABC):
     costs_usd: float = 0
     is_local: bool = False
     max_message_size: int = 4096
+    last_metadata: dict | None = None
 
     def message_to_agent(
         self, user_message: str, agent_response: str | None = None
-    ) -> tuple[str, datetime, datetime]:
+    ) -> tuple[str, datetime, datetime, dict]:
         sent_ts = datetime.now()
         old_costs = self.costs_usd
-        response = self.reply(user_message, agent_response=agent_response)
+        reply_result = self.reply(user_message, agent_response=agent_response)
+
+        metadata = {}
+        if isinstance(reply_result, tuple):
+            response, metadata = reply_result
+            self.last_metadata = metadata
+        else:
+            response = reply_result
+            self.last_metadata = {}
+
         reply_ts = datetime.now()
         # If we are supplying a response from the agent, then don't count costs.
         if agent_response is None:
             assert (
                 self.is_local or old_costs < self.costs_usd
             ), "The agent implementation is not providing any cost information."
-        return response, sent_ts, reply_ts
+        return response, sent_ts, reply_ts, metadata
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert self.run_name != "", "Run name is not set!"
 
     @property
@@ -54,15 +64,15 @@ class ChatSession(ABC):
         pass
 
     @abstractmethod
-    def reset(self):
+    def reset(self) -> None:
         pass
 
     @abstractmethod
-    def save(self):
+    def save(self) -> None:
         pass
 
     @abstractmethod
-    def load(self):
+    def load(self) -> None:
         pass
 
     def token_len(self, text: str) -> int:

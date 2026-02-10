@@ -22,7 +22,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
     Abstract base of LTM agents
     """
 
-    def __init__(self, run_name: str = "", model: str | None = None):
+    def __init__(self, run_name: str = "", model: str | None = None) -> None:
         super().__init__(run_name=run_name)
         self.model = model
         self.log_count = 0
@@ -30,7 +30,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         self.session_id = uuid.uuid4()
 
     @staticmethod
-    def num_tokens_from_string(string: str, model="gemini-2.5-flash-lite"):
+    def num_tokens_from_string(string: str, model: str = "gemini-2.5-flash-lite") -> int:
         """Returns the number of tokens in a text string."""
         try:
             encoding = tiktoken.encoding_for_model(model)
@@ -39,7 +39,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         return len(encoding.encode(string))
 
     @classmethod
-    def context_token_counts(cls, messages: list[dict]):
+    def context_token_counts(cls, messages: list[dict]) -> int:
         """Calculates the total number of tokens in a list of messages."""
         total_tokens = 0
         for message in messages:
@@ -47,7 +47,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         return total_tokens
 
     @staticmethod
-    def get_elapsed_time_descriptor(event_timestamp: float, current_timestamp: float):
+    def get_elapsed_time_descriptor(event_timestamp: float, current_timestamp: float) -> str:
         elapsed = current_timestamp - event_timestamp
         if elapsed < 1:
             return "just now"
@@ -81,7 +81,7 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         return "\n".join([e for _, e in excerpts])
 
     def completion(self, context: list[dict[str, str]], temperature: float, label: str) -> str:
-        def cost_callback(cost_usd: float):
+        def cost_callback(cost_usd: float) -> None:
             self.costs_usd += cost_usd
 
         assert self.model is not None
@@ -108,10 +108,10 @@ class BaseLTMAgent(ChatSession, abc.ABC):
         return response
 
     @abc.abstractmethod
-    def reset_all(self):
+    def reset_all(self) -> None:
         pass
 
-    def reset(self):
+    def reset(self) -> None:
         self.reset_all()
 
     @property

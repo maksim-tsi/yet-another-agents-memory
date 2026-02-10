@@ -2,8 +2,9 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 
-from model_interfaces.interface import ChatSession
 from utils.ui import colour_print, multiline_input
+
+from model_interfaces.interface import ChatSession
 
 
 @dataclass
@@ -11,7 +12,7 @@ class HumanChatSession(ChatSession):
     is_local: bool = True
     max_message_size: int = sys.maxsize
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         print(
             "This is a human interface for the GoodAI LTM Benchmark. You are expected to provide responses to the "
@@ -19,7 +20,7 @@ class HumanChatSession(ChatSession):
             "signals the end of the response."
         )
 
-    def reset(self):
+    def reset(self) -> None:
         print(
             "The tester now expects the agent to remember nothing from past interactions. We recommend you to switch "
             "places with another human, but if that is not possible, we ask you to not consider past information whilst "
@@ -31,8 +32,8 @@ class HumanChatSession(ChatSession):
         colour_print("cyan", f"Test: {user_message}")
         return multiline_input("Human: ")
 
-    def save(self):
+    def save(self) -> None:
         pass
 
-    def load(self):
+    def load(self) -> None:
         pass

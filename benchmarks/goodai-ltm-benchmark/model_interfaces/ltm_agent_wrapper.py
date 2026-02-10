@@ -37,7 +37,9 @@ class LTMAgentWrapper(ChatSession):
         )
         self.costs_usd = 0
 
-    def _prompt_callback(self, session_id: str, label: str, context: list[dict], completion: str):
+    def _prompt_callback(
+        self, session_id: str, label: str, context: list[dict], completion: str
+    ) -> None:
         if _log_prompts:
             with self.log_lock:
                 self.log_count += 1
@@ -53,25 +55,25 @@ class LTMAgentWrapper(ChatSession):
                     fd.write(completion)
 
     @property
-    def name(self):
+    def name(self) -> str:
         model = self.model.replace("/", "-")
         return f"{super().name} - {model} - {self.max_prompt_size} - {self.variant.name}"
 
     def reply(self, user_message: str, agent_response: str | None = None) -> str:
-        def _cost_fn(amount: float):
+        def _cost_fn(amount: float) -> None:
             self.costs_usd += amount
 
         return str(self.agent.reply(user_message, cost_callback=_cost_fn))
 
-    def reset(self):
+    def reset(self) -> None:
         self.agent.reset()
 
-    def save(self):
+    def save(self) -> None:
         fname = self.save_path.joinpath("full_agent.json")
         with open(fname, "w") as fd:
             fd.write(self.agent.state_as_text())
 
-    def load(self):
+    def load(self) -> None:
         fname = self.save_path.joinpath("full_agent.json")
         with open(fname) as fd:
             state_text = fd.read()

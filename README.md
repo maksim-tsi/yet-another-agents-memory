@@ -50,7 +50,7 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 
 **See**: 
 - [Phase 3 Specification v2.1](docs/specs/spec-phase3-agent-integration.md) for validated architecture (updated Dec 29)
-- [Phase 3 Implementation Plan](docs/plan/phase3-implementation-plan-2025-12-27.md) for 6-week roadmap (Week 3 complete)
+- [Phase 3 Implementation Plan](docs/plan/phase2_3_engineering_plans_version-0.9.md) for 6-week roadmap (Week 3 complete)
 - [Research Validation](docs/research/README.md) for RT1-RT5 findings
 - [ADR-003 Architecture Review](docs/reports/adr-003-architecture-review.md) for gap analysis
 
@@ -117,7 +117,7 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 - Run full L1→L4 pipeline against real backends (Redis, PostgreSQL, Qdrant, Neo4j, Typesense) with metrics enabled.
 - Measure lifecycle batches against <200ms p95 target; capture metrics export for evidence.
 - Confirm coverage ≥80% overall and per component (storage + memory + engines); regenerate htmlcov.
-- Refresh Gemini API key and re-run provider connectivity scripts; record outcomes in [docs/LLM_PROVIDER_TEST_RESULTS.md](docs/LLM_PROVIDER_TEST_RESULTS.md).
+- Refresh Gemini API key and re-run provider connectivity scripts; record outcomes in [docs/llm_provider_guide.md](docs/llm_provider_guide.md).
 
 ## Developer Updates
 
@@ -269,17 +269,17 @@ Comprehensive documentation for our benchmark evaluation approach is available i
 
 - **Evaluation Discussion & Strategy:** [`docs/ADR/discussion-evaluation.md`](docs/ADR/discussion-evaluation.md) - Detailed analysis of benchmark selection rationale and our phased implementation plan
 - **Use Case Specifications:**
-  - [`docs/uc-01.md`](docs/uc-01.md) - GoodAI LTM Benchmark with Full Hybrid System
-  - [`docs/uc-02.md`](docs/uc-02.md) - GoodAI LTM Benchmark with Standard RAG Baseline
-  - [`docs/uc-03.md`](docs/uc-03.md) - GoodAI LTM Benchmark with Full-Context Baseline
+  - [`docs/benchmark_use_cases.md`](docs/benchmark_use_cases.md) - GoodAI LTM Benchmark with Full Hybrid System
+  - [`docs/benchmark_use_cases.md`](docs/benchmark_use_cases.md) - GoodAI LTM Benchmark with Standard RAG Baseline
+  - [`docs/benchmark_use_cases.md`](docs/benchmark_use_cases.md) - GoodAI LTM Benchmark with Full-Context Baseline
 - **Sequence Diagrams:**
-  - [`docs/sd-01.md`](docs/sd-01.md) - Full System execution flow
-  - [`docs/sd-02.md`](docs/sd-02.md) - Standard RAG execution flow
-  - [`docs/sd-03.md`](docs/sd-03.md) - Full-Context execution flow
+  - [`docs/benchmark_sequence_diagrams.md`](docs/benchmark_sequence_diagrams.md) - Full System execution flow
+  - [`docs/benchmark_sequence_diagrams.md`](docs/benchmark_sequence_diagrams.md) - Standard RAG execution flow
+  - [`docs/benchmark_sequence_diagrams.md`](docs/benchmark_sequence_diagrams.md) - Full-Context execution flow
 - **Data Dictionaries:**
-  - [`docs/dd-01.md`](docs/dd-01.md) - Full System data structures
-  - [`docs/dd-02.md`](docs/dd-02.md) - Standard RAG data structures
-  - [`docs/dd-03.md`](docs/dd-03.md) - Full-Context data structures
+  - [`docs/benchmark_data_dictionary.md`](docs/benchmark_data_dictionary.md) - Full System data structures
+  - [`docs/benchmark_data_dictionary.md`](docs/benchmark_data_dictionary.md) - Standard RAG data structures
+  - [`docs/benchmark_data_dictionary.md`](docs/benchmark_data_dictionary.md) - Full-Context data structures
 
 These documents provide detailed specifications of the experimental setup, component interactions, data flows, and success criteria for each benchmark configuration.
 
@@ -396,15 +396,15 @@ See [`docs/metrics_usage.md`](docs/metrics_usage.md) for complete metrics docume
 - Coverage confirmation to ≥80% per component and overall (htmlcov shows remaining adapter gaps)
 - <2s p95 lifecycle batch latency measured against real storage backends (current stage target)
 - Full L1→L4 end-to-end pipeline on Redis/PostgreSQL/Qdrant/Neo4j/Typesense
-- Gemini API key refresh and connectivity re-test (see [LLM Provider Results](docs/LLM_PROVIDER_TEST_RESULTS.md))
+- Gemini API key refresh and connectivity re-test (see [LLM Provider Results](docs/llm_provider_guide.md))
 
 **LLM Infrastructure:**
 - Multi-provider `LLMClient` with Gemini, Groq, and Mistral providers; connectivity scripts in `scripts/test_*`. Gemini currently blocked by API key validity; Groq/Mistral passing.
 
 **See**: 
 - [ADR-006: Free-Tier LLM Provider Strategy](docs/ADR/006-free-tier-llm-strategy.md)
-- [Phase 2 Engine Plan](docs/plan/implementation-plan-2025-12-27-phase2-engines.md)
-- [LLM Provider Test Results](docs/LLM_PROVIDER_TEST_RESULTS.md)
+- [Phase 2 Engine Plan](docs/plan/phase2_3_engineering_plans_version-0.9.md)
+- [LLM Provider Test Results](docs/llm_provider_guide.md)
 
 ### Phase 3: Agent Integration 🔬 Research Validated (Ready for Implementation)
 
@@ -425,7 +425,7 @@ LangGraph agent implementation with full memory system integration:
 
 **Documentation:**
 - [Phase 3 Specification v2.0](docs/specs/spec-phase3-agent-integration.md)
-- [Phase 3 Implementation Plan](docs/plan/phase3-implementation-plan-2025-12-27.md)
+- [Phase 3 Implementation Plan](docs/plan/phase2_3_engineering_plans_version-0.9.md)
 - [Research Validation](docs/research/README.md)
 
 ### Phase 4: Evaluation Framework ❌ Not Started (0%)
@@ -441,7 +441,7 @@ Implementation of GoodAI LTM Benchmark for validation:
 
 *   Python 3.11+ (recommended)
 *   Access to infrastructure services (PostgreSQL, Redis, Qdrant, Neo4j, Typesense)
-*   Python virtual environment (venv recommended - see [`docs/python-environment-setup.md`](docs/python-environment-setup.md))
+*   Python virtual environment (venv recommended - see [`docs/python_environment.md`](docs/python_environment.md))
 
 ### 1. Set Up Backend Services
 
@@ -457,17 +457,19 @@ This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch.
 docker-compose up -d
 ```
 
-### 2. Create Python Virtual Environment
+### 2. Create Python Virtual Environment (Poetry)
+
+This project uses **Poetry** for dependency management with in-project virtual environments.
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
+# Install Poetry (if not already installed)
+curl -sSL https://install.python-poetry.org | python3 -
 
-# Activate it
-source .venv/bin/activate  # Linux/macOS
-# or: .venv\Scripts\activate  # Windows
+# Add Poetry to PATH (if needed)
+export PATH="$HOME/.local/bin:$PATH"
 
-# Upgrade pip
+# Install dependencies (creates .venv/ in project root)
+poetry install --with test,dev
 ```
 
 ### 3. Environment Bootstrap Checklist (Multi-Host Safe)
@@ -482,49 +484,57 @@ source .venv/bin/activate  # Linux/macOS
   - Remote Ubuntu over SSH → expect `Linux` plus `/home/<user>/code/mas-memory-layer`.
   - Local Ubuntu desktop/RDP → expect `Linux` with `/home/<user>/...` but no SSH hostname suffix.
 
-2. **Create/refresh the virtual environment using a relative path** so the same instructions work on every host:
+2. **Create/refresh the virtual environment using Poetry** so the same instructions work on every host:
   ```bash
-  python3 -m venv .venv
+  # Install Poetry if needed
+  curl -sSL https://install.python-poetry.org | python3 -
+  export PATH="$HOME/.local/bin:$PATH"
+  
+  # Configure Poetry to create .venv in-project
+  poetry config virtualenvs.in-project true
+  
+  # Install dependencies
+  poetry install --with test,dev
   ```
 
-3. **Install primary dependencies explicitly via the venv interpreter.** Avoid `pip` from the system path.
-  ```bash
-  ./.venv/bin/pip install -r requirements.txt
-  ```
-
-4. **Install test and tooling dependencies whenever you plan to run any test suite.**
-  ```bash
-  ./.venv/bin/pip install -r requirements-test.txt
-  ```
-
-5. **Verify the interpreter being used by automation.** The command below must print the absolute path to `.venv/bin/python` on the current host.
+3. **Verify the interpreter being used by automation.** The command below must print the absolute path to `.venv/bin/python` on the current host.
   ```bash
   ./.venv/bin/python -c "import sys; print(sys.executable)"
   ```
 
-6. **Run smoke validations before heavy workflows.**
+4. **Run smoke validations before heavy workflows.**
   ```bash
   ./.venv/bin/python scripts/test_llm_providers.py --help
   ./scripts/run_smoke_tests.sh --summary
   ```
 
-> **Why this sequence?** Contributors regularly switch between a remote Ubuntu VM, a macOS laptop, and containerised CI. Using relative paths plus the explicit interpreter commands prevents accidental invocation of a different Python installation that might live outside the repo.
+> **Why Poetry?** Poetry provides reproducible builds via `poetry.lock`, automatic dependency resolution, and cleaner separation of production vs dev dependencies. Using `virtualenvs.in-project = true` preserves the `.venv/bin/python` path contracts expected by orchestration scripts and agent protocols.
 
 For more detailed troubleshooting guidance, see [`docs/environment-guide.md`](docs/environment-guide.md).
-pip install --upgrade pip
-```
 
-See [`docs/python-environment-setup.md`](docs/python-environment-setup.md) for detailed setup instructions.
+### Two-Environment Architecture
+
+This repository contains two separate Poetry projects with isolated dependencies:
+
+1. **MAS Memory Layer** (root): `poetry install --with test,dev`
+2. **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install`
+
+These environments are intentionally isolated due to incompatible langchain versions:
+- MAS uses `langchain-core>=0.3.25,<0.4.0`
+- Benchmark uses `langchain==0.1.1`
 
 ### 3. Install Dependencies
 
-Install the required Python packages from `requirements.txt`.
+Dependencies are managed via `pyproject.toml`. Poetry handles installation automatically.
 
 ```bash
-pip install -r requirements.txt
+# Install all dependencies (already done in step 2)
+poetry install --with test,dev
 
-# Optional: Install test dependencies
-pip install -r requirements-test.txt
+# For benchmark environment (if running GoodAI benchmarks)
+cd benchmarks/goodai-ltm-benchmark
+poetry install
+cd ../..  # Return to project root
 ```
 
 ### 4. Run Tests
@@ -762,7 +772,7 @@ See [`DEVLOG.md`](DEVLOG.md) for complete development history and progress track
 - Baseline comparisons (RAG, full-context)
 - Performance metrics and analysis
 
-**See [Phase 3 Implementation Plan](docs/plan/phase3-implementation-plan-2025-12-27.md)** for detailed week-by-week breakdown.
+**See [Phase 3 Implementation Plan](docs/plan/phase2_3_engineering_plans_version-0.9.md)** for detailed week-by-week breakdown.
 
 ## 10. Contributing
 

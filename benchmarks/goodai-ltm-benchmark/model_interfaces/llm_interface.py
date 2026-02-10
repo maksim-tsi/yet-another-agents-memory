@@ -27,11 +27,11 @@ class LLMChatSession(ChatSession):
     max_response_tokens: int = 4096
 
     @property
-    def name(self):
+    def name(self) -> str:
         name = f"{super().name} - {self.model} - {self.max_prompt_size}"
         return name.replace("/", "-")
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         assert self.model is not None
         if self.max_prompt_size is None:
@@ -45,7 +45,7 @@ class LLMChatSession(ChatSession):
         if self.verbose:
             print(f"USER: {user_message}")
 
-        def cost_callback(cost_usd: float):
+        def cost_callback(cost_usd: float) -> None:
             self.costs_usd += cost_usd
 
         self.context.append(make_user_message(user_message))
@@ -68,15 +68,15 @@ class LLMChatSession(ChatSession):
             print(f"AGENT: {response}")
         return response
 
-    def reset(self):
+    def reset(self) -> None:
         self.context = [make_system_message(_system_prompt)]
 
-    def save(self):
+    def save(self) -> None:
         fname = self.save_path.joinpath("context.json")
         with open(fname, "w") as fd:
             json.dump(self.context, fd)
 
-    def load(self):
+    def load(self) -> None:
         fname = self.save_path.joinpath("context.json")
         with open(fname) as fd:
             self.context = json.load(fd)
@@ -94,7 +94,7 @@ class TimestampLLMChatSession(LLMChatSession):
     history: list = field(default_factory=list)
 
     @staticmethod
-    def get_elapsed_time_descriptor(event_timestamp: float, current_timestamp: float):
+    def get_elapsed_time_descriptor(event_timestamp: float, current_timestamp: float) -> str:
         elapsed = current_timestamp - event_timestamp
         if elapsed < 1:
             return "just now"
@@ -131,16 +131,16 @@ class TimestampLLMChatSession(LLMChatSession):
         self.history.append({"content": response, "role": "assistant", "timestamp": datetime.now()})
         return response
 
-    def reset(self):
+    def reset(self) -> None:
         super().reset()
         self.history = []
 
-    def save(self):
+    def save(self) -> None:
         fname = self.save_path.joinpath("history.json")
         with open(fname, "w") as fd:
             json.dump(self.history, fd, cls=CustomEncoder)
 
-    def load(self):
+    def load(self) -> None:
         fname = self.save_path.joinpath("history.json")
         with open(fname) as fd:
             self.history = json.load(fd)

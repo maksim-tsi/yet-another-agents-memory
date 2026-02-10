@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
@@ -15,7 +16,7 @@ MEMGPT_LOGS_FILE = "model_interfaces/memgpt-logs.jsonl"
 
 
 @contextmanager
-def proxy(proxy_file_path: str):
+def proxy(proxy_file_path: str) -> Iterator[None]:
     proc = None
     try:
         clear_cost_info()
@@ -34,7 +35,7 @@ def proxy(proxy_file_path: str):
             proc.wait()
 
 
-def clear_cost_info():
+def clear_cost_info() -> None:
     if os.path.exists(MEMGPT_LOGS_FILE):
         os.remove(MEMGPT_LOGS_FILE)
 
@@ -64,7 +65,7 @@ class MemGPTChatSession(ChatSession):
     agent_initialised: bool = False
     max_prompt_size: int | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.client = create_client()
         self.client.server.server_llm_config.model_endpoint = "http://localhost:5000/v1"
         self.client.server.server_embedding_config.embedding_endpoint = "http://localhost:5000/v1"
@@ -99,7 +100,7 @@ class MemGPTChatSession(ChatSession):
                 return str(a["id"])
         return None
 
-    def init_agent(self):
+    def init_agent(self) -> None:
         self.agent_initialised = True
         if not self.client.agent_exists(agent_name=self.agent_name):
             self.agent_info = self.client.create_agent(name=self.agent_name)
@@ -109,7 +110,7 @@ class MemGPTChatSession(ChatSession):
                 raise ValueError(f"Agent {self.agent_name} not found")
             self.agent_info = self.client.get_agent_config(agent_id)
 
-    def reset(self):
+    def reset(self) -> None:
         self.agent_initialised = True
         agent_id = self.agent_id_from_name(self.agent_name)
         if agent_id is not None:
@@ -117,10 +118,10 @@ class MemGPTChatSession(ChatSession):
         self.agent_info = self.client.create_agent(name=self.agent_name)
         self.save()
 
-    def save(self):
+    def save(self) -> None:
         self.client.save()
 
-    def load(self):
+    def load(self) -> None:
         self.init_agent()
 
 

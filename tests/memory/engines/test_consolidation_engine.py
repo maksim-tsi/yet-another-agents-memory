@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.memory.engines.consolidation_engine import ConsolidationEngine
-from src.memory.models import Episode, Fact, FactCategory, FactType
+from src.memory.models import Episode, EpisodeStoreInput, Fact, FactCategory, FactType
 from src.memory.tiers.episodic_memory_tier import EpisodicMemoryTier
 from src.memory.tiers.working_memory_tier import WorkingMemoryTier
 from src.utils.llm_client import LLMResponse, ProviderHealth
@@ -72,7 +72,7 @@ def sample_facts():
 @pytest.mark.asyncio
 async def test_process_session_success(engine, mock_l2, mock_l3, mock_gemini, sample_facts):
     # Mock L2 to return facts
-    mock_l2.query_by_session.return_value = [f.model_dump() for f in sample_facts]
+    mock_l2.query_by_session.return_value = sample_facts
 
     # Mock Gemini LLM response
     mock_gemini.generate.return_value = LLMResponse(
@@ -92,9 +92,9 @@ async def test_process_session_success(engine, mock_l2, mock_l3, mock_gemini, sa
     # Verify L3 store was called
     mock_l3.store.assert_called_once()
     stored_data = mock_l3.store.call_args[0][0]
-    assert "episode" in stored_data
-    assert "embedding" in stored_data
-    assert len(stored_data["embedding"]) == 768
+    assert isinstance(stored_data, EpisodeStoreInput)
+    assert stored_data.episode is not None
+    assert len(stored_data.embedding) == 768
 
 
 @pytest.mark.asyncio

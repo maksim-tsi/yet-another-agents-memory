@@ -605,7 +605,7 @@ See **Rationale** section above for detailed analysis of:
 ### Project References
 
 6. **ADR-003:** Four-Tier Cognitive Memory Architecture
-7. **Implementation Plan:** `docs/plan/implementation-plan-02112025.md` Week 4-5
+7. **Implementation Plan:** `docs/plan/implementation_master_plan_version-0.9.md` Week 4-5
 8. **Specification:** `docs/specs/spec-phase2-memory-tiers.md` Priority 6
 
 ---
@@ -622,7 +622,7 @@ See **Rationale** section above for detailed analysis of:
 - [ ] Development Lead (Implementation Feasibility)
 
 **Action Items:**
-1. [ ] Update `implementation-plan-02112025.md` Week 4 with ADR-004 formula
+1. [ ] Update `implementation_master_plan_version-0.9.md` Week 4 with ADR-004 formula
 2. [ ] Update `spec-phase2-memory-tiers.md` all CIAR references to match ADR-004
 3. [ ] Create `src/memory/ciar_scorer.py` implementing ADR-004
 4. [ ] Update `config/ciar_config.yaml` with default parameters

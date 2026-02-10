@@ -3,12 +3,12 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import browser_cookie3
-import requests  # type: ignore[import-untyped]
+import requests
 
 from model_interfaces.interface import ChatSession
 
 
-def try_extract_session_cookie(cj):
+def try_extract_session_cookie(cj: list[Any]) -> tuple[str, str]:
     user_name = ""
     session_token = ""
     for cookie in cj:
@@ -29,10 +29,10 @@ class CharlieMnemonic(ChatSession):
     initial_costs_usd: float = 0.0
 
     @property
-    def name(self):
+    def name(self) -> str:
         return f"{super().name} - {self.max_prompt_size}"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         browsers = [
             browser_cookie3.chrome,
@@ -65,7 +65,7 @@ class CharlieMnemonic(ChatSession):
             )
 
         # Get display name and current costs of user
-        settings_dict = cast(dict[str, Any], self.get_settings())
+        settings_dict = self.get_settings()
         self.display_name = settings_dict["display_name"][0]
         self.initial_costs_usd = settings_dict["usage"]["total_cost"]
 
@@ -74,14 +74,14 @@ class CharlieMnemonic(ChatSession):
             "Content-Type": "application/json",
             "Cookie": f"session_token={self.token}",
         }
-        body = {
+        settings_payload: dict[str, Any] = {
             "username": self.user_name,
             "category": "memory",
             "setting": "max_tokens",
             "value": self.max_prompt_size,
         }
 
-        requests.post(self.endpoint + "/update_settings/", headers=headers, json=body)
+        requests.post(self.endpoint + "/update_settings/", headers=headers, json=settings_payload)
 
     def reply(self, user_message: str, agent_response: str | None = None) -> str:
         headers = {
@@ -120,7 +120,7 @@ class CharlieMnemonic(ChatSession):
         settings = requests.post(self.endpoint + "/load_settings/", headers=headers, json=body)
         return cast(dict[str, Any], json.loads(settings.text))
 
-    def reset(self):
+    def reset(self) -> None:
         # Delete the user data
         headers = {
             "Content-Type": "application/json",
@@ -129,10 +129,10 @@ class CharlieMnemonic(ChatSession):
         body = {"username": self.user_name}
         requests.post(self.endpoint + "/delete_data_keep_settings", headers=headers, json=body)
 
-    def load(self):
+    def load(self) -> None:
         # Charlie mnemonic is web based and so doesn't need to be manually told to resume a conversation
         pass
 
-    def save(self):
+    def save(self) -> None:
         # Charlie mnemonic is web based and so doesn't need to be manually told to persist
         pass

@@ -189,7 +189,7 @@ class LocationsDataset(DatasetInterface):
 
         return last_move, answer
 
-    def to_origin(self, current_pos):
+    def to_origin(self, current_pos: list[int]) -> list[str]:
         if current_pos[0] == 0 and current_pos[1] > 0:
             direction = "South"
             distance = abs(current_pos[1])
@@ -203,6 +203,6 @@ class LocationsDataset(DatasetInterface):
             direction = "East"
             distance = abs(current_pos[0])
         else:  # Coordinates are (0,0)
-            return "They are in the same location."
+            return ["They are in the same location."]
 
         return [f"{distance} km {direction}"]
