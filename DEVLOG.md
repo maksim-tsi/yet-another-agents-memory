@@ -16,6 +16,70 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-10 - Typesense Document Archive Script ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Developed `scripts/archive_docs_to_typesense.py` for selective ingestion of repository markdown documentation into Typesense for semantic search. The script uses httpx for direct REST API calls (consistent with `TypesenseAdapter`), reads configuration from `.env`, and includes comprehensive unit tests.
+
+**✅ What's Complete:**
+
+1. **Environment Configuration:**
+   - Updated script to read `TYPESENSE_HOST`, `TYPESENSE_PORT`, `TYPESENSE_PROTOCOL`, `TYPESENSE_API_KEY` from `.env`
+   - Fallback chain: `TYPESENSE_HOST` → `DATA_NODE_IP` → `192.168.107.187` (skz-data-lv)
+   - No localhost fallback per infrastructure requirements
+
+2. **httpx-based TypesenseClient:**
+   - Custom `TypesenseClient` dataclass using httpx for REST API calls
+   - Consistent with `src/storage/typesense_adapter.py` approach (no typesense SDK dependency)
+   - Supports collection creation, document import with JSONL format
+
+3. **CLI Interface:**
+   - `--dry-run`: Scan and list files without uploading
+   - `--root-dir`: Specify root directory to scan
+   - `--collection`: Override default collection name
+   - `--verbose`: Enable detailed output
+
+4. **Document Tagging:**
+   - Auto-tags documents: `adr`, `specification`, `plan`, `report`, `readme`, `documentation`
+   - Adds `repository_label: "mas-memory-layer-repo"` to all documents
+   - Excludes `benchmarks/goodai-ltm-benchmark` and standard noise directories
+
+5. **Test Coverage:**
+   - Created `tests/scripts/test_archive_docs_to_typesense.py` with 44 unit tests
+   - Tests cover: exclusion logic, doc type categorization, scanning, CLI parsing, TypesenseClient, upload workflow
+   - Mocked httpx client for testing
+
+6. **Verification Script:**
+   - Created `scripts/verify_typesense_docs.py` for quick verification of uploaded documents
+   - Checks collection existence, document count, search functionality, and doc_type distribution
+
+**Upload Results (2026-02-10):**
+
+| Metric | Value |
+|--------|-------|
+| Collection | `mas_project_archive` |
+| Total documents | 160 |
+| repository_label filter | ✓ All 160 tagged |
+
+**Document type distribution:**
+- `report`: 51
+- `documentation`: 49
+- `plan`: 21
+- `readme`: 16
+- `adr`: 10
+- `spec`: 0
+
+**Files Modified:**
+- `scripts/archive_docs_to_typesense.py` - Refactored with env config, CLI, and httpx
+- `scripts/verify_typesense_docs.py` - Created verification script
+- `scripts/README.md` - Added documentation section
+- `tests/scripts/__init__.py` - Created test package
+- `tests/scripts/test_archive_docs_to_typesense.py` - Created with 44 tests
+
+---
+
 ### 2026-02-10 - Promotion Engine Integration Fix ✅
 
 **Status:** ✅ Complete
