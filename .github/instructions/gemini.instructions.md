@@ -55,8 +55,8 @@ and Vertex AI) as of 2025. Do not use legacy libraries and SDKs.
 The `google-genai` library requires creating a client object for all API calls.
 
 -   Always use `client = genai.Client()` to create a client object.
--   Set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) environment variable, which will be picked up
-    automatically.
+-   Set `GOOGLE_API_KEY` environment variable (the repository standard), which will be picked up
+    automatically. **Note:** Do not use `GEMINI_API_KEY` - this is deprecated.
 
 ```python
 from google import genai

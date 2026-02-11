@@ -190,7 +190,7 @@ graph TD
             direction LR
             VEC[(Qdrant)]
             GPH[(Neo4j)]
-            SRCH[(Meilisearch)]
+            SRCH[(Typesense)]
             REL[(PostgreSQL)]
         end
     end
@@ -208,7 +208,7 @@ graph TD
 *   **Persistent Knowledge Layer (Specialized Databases):** The system's long-term memory, where distilled knowledge is archived.
     *   **Qdrant (Vector Store):** Stores experiential patterns for semantic similarity search.
     *   **Neo4j (Graph Store):** Stores entities and relationships for causal and relational analysis.
-    *   **Meilisearch (Search Store):** Stores operational knowledge (e.g., protocols, documents) for fast full-text search.
+    *   **Typesense (Search Store):** Stores operational knowledge (e.g., protocols, documents) for fast full-text search. *Note: The project migrated from Meilisearch to Typesense for better performance and feature set.*
     *   **PostgreSQL (Relational Store):** Stores structured metrics and auditable event logs.
 
 *   **Unified Memory System (`UnifiedMemorySystem`):** A single, clean facade that provides agents with a unified interface for all memory operations, intelligently routing requests to the appropriate underlying layer.
@@ -445,7 +445,7 @@ Implementation of GoodAI LTM Benchmark for validation:
 
 ### 1. Set Up Backend Services
 
-This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch. 
+This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Typesense. 
 
 **Important:** This project uses a dedicated PostgreSQL database named `mas_memory` to ensure complete isolation from other projects. See [`docs/IAC/database-setup.md`](docs/IAC/database-setup.md) for detailed setup instructions.
 

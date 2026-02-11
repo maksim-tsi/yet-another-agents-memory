@@ -40,11 +40,11 @@ redis-server
 # Qdrant
 docker run -p 6333:6333 qdrant/qdrant
 
-# Neo4j
-docker run -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:latest
+# Neo4j (pinned version for reproducibility)
+docker run -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:5.15
 
-# Typesense
-docker run -p 8108:8108 typesense/typesense:latest --data-dir=/data --api-key=xyz
+# Typesense (pinned version for reproducibility)
+docker run -p 8108:8108 typesense/typesense:0.25.2 --data-dir=/data --api-key=xyz
 ```
 
 ### Run Benchmark
