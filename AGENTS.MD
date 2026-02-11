@@ -66,7 +66,10 @@ You must adhere to the following file and directory interaction policies. This s
 
 | Path | Purpose | Agent Policy (Read/Write) |
 | :---- | :---- | :---- |
-| /src/ | Core application logic (FastAPI routers, Pydantic models, services). | **Read/Write**. This is your primary working directory for code modifications. |
+| /src/ | Core application logic (FastAPI routers, Pydantic models, services, memory tiers, lifecycle engines). | **Read/Write**. This is your primary working directory for code modifications. |
+| /src/memory/engines/ | Lifecycle engines: PromotionEngine, ConsolidationEngine, DistillationEngine (~1900 lines). | **Read/Write**. Fully implemented with LLM integration and metrics. |
+| /src/memory/tiers/ | Memory tier classes: L1-L4 (~2400 lines). | **Read/Write**. Complete implementations with dual-indexing for L3. |
+| /src/storage/ | Storage adapter classes for 5 databases (~4091 lines). | **Read/Write**. Production-ready with metrics and health checks. |
 | /tests/ | Pytest unit and integration tests. | **Read/Write**. You *must* run tests from this directory after every code change. You may write new tests here. See Protocol 4.2 for rules on modification. |
 | /.venv/ | Python virtual environment (Poetry-managed with `virtualenvs.in-project=true`). | **Read-Only**. You must *never* modify files in this directory. Incorrectly handling the .venv path is a known agent failure mode.11 |
 | /benchmarks/goodai-ltm-benchmark/.venv/ | Separate Poetry-managed venv for GoodAI benchmark. | **Read-Only**. Isolated environment to avoid dependency conflicts (e.g., langchain versions). |

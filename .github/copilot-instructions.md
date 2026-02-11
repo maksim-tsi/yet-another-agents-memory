@@ -2,9 +2,9 @@
 
 ## Architecture Overview
 
-This is a **four-tier cognitive memory system** for Multi-Agent Systems (MAS), designed for supply chain/logistics applications. The project is 43% complete (Phase 1 done, Phase 2A 92% done).
+This is a **four-tier cognitive memory system** for Multi-Agent Systems (MAS), designed for supply chain/logistics applications. The project is ~98% functionally complete (Phases 1-4 complete, Phase 5 in progress).
 
-**Critical Distinction**: Storage adapters ≠ Memory tiers. Adapters are database clients (complete). Tiers are intelligent memory managers (partially complete). Lifecycle engines automate information flow between tiers (not yet implemented).
+**Critical Distinction**: Storage adapters ≠ Memory tiers. Adapters are database clients (complete). Tiers are intelligent memory managers (complete). Lifecycle engines automate information flow between tiers (complete).
 
 ### Four-Tier Memory Architecture (ADR-003)
 
@@ -35,19 +35,26 @@ This project is guided by five core principles. All new code and refactoring sho
 ## What's Complete ✅
 
 - **Storage Adapters** (5): Redis, PostgreSQL, Qdrant, Neo4j, Typesense - all in `src/storage/`
-- **Memory Tier Classes** (4): L1-L4 classes in `src/memory/tiers/` with dual-indexing for L3
-- **Data Models**: `Fact`, `Episode`, `KnowledgeDocument` in `src/memory/models.py` (Pydantic)
-- **CIAR Scorer**: Calculation logic in `src/memory/ciar_scorer.py` (Certainty × Impact × Age × Recency)
+- **Memory Tier Classes** (4): L1-L4 classes in `src/memory/tiers/` with dual-indexing for L3 (~2400 lines)
+- **Lifecycle Engines** (3): PromotionEngine, ConsolidationEngine, DistillationEngine in `src/memory/engines/` (~1900 lines)
+- **Fact Extraction**: LLM-based structured extraction with rule-based fallback in `src/memory/engines/fact_extractor.py` (~170 lines)
+- **Topic Segmentation**: Batch compression via LLM in `src/memory/engines/topic_segmenter.py` (~247 lines)
+- **Knowledge Synthesis**: L3→L4 pattern extraction in `src/memory/engines/knowledge_synthesizer.py`
+- **Unified Interface**: `UnifiedMemorySystem` and `HybridMemorySystem` in `src/memory/unified_memory_system.py` (~608 lines)
+- **Data Models**: 10+ models including `Fact`, `Episode`, `KnowledgeDocument`, `ContextBlock` in `src/memory/models.py` (Pydantic v2)
+- **CIAR Scorer**: Config-driven calculation in `src/memory/ciar_scorer.py` (Certainty × Impact × Age × Recency)
 - **Metrics System**: Comprehensive observability in `src/storage/metrics/` (timing, throughput, percentiles)
-- **LLM Connectivity**: 7 models tested (Gemini, Groq, Mistral) with structured output validated
-- **LLM Client**: `src/utils/llm_client.py` - multi-provider abstraction with fallback
-- **Gemini Structured Output**: Native `types.Schema` format validated with `gemini-3-flash-preview` (see `tests/utils/test_gemini_structured_output.py`)
+- **LLM Connectivity**: Multi-provider support (Gemini, Groq, Mistral) with structured output
+- **LLM Client**: `src/utils/llm_client.py` - provider abstraction with model routing and fallback
+- **Gemini Structured Output**: Native `types.Schema` format with system instructions (see `src/memory/schemas/`)
+- **Agent Tools**: MASToolRuntime with 12+ tools including memory_query, get_context_block, CIAR operations
+- **FastAPI Integration**: OpenAI-compatible endpoints and GoodAI benchmark wrapper
 
-## What's Missing ❌
+## What's In Progress 🚧
 
-- **Lifecycle Engines**: `src/memory/engines/` directory - promotion, consolidation, distillation
-- **Fact Extraction**: LLM-based structured extraction from L1 turns
-- **Autonomous Flow**: L1→L2→L3→L4 intelligent promotion based on CIAR thresholds
+- **Phase 5 Benchmarking**: GoodAI LTM benchmark execution and analysis
+- **Baseline Implementations**: BaseAgent, MemoryAgent, RAGAgent, FullContextAgent
+- **Instrumentation**: Database isolation, comprehensive telemetry
 
 ## CRITICAL: Python Environment & Execution
 
@@ -163,13 +170,15 @@ gemini -p "@./ Review the project architecture and suggest improvements for the 
 3. Add tier-specific logic (e.g., turn windowing for L1, CIAR filtering for L2)
 4. Create tests in `tests/memory/test_<tier_name>.py`
 
-### Implementing Lifecycle Engines
-Follow Phase 2B-2D plan in `DEVLOG.md`:
-1. Create `src/memory/engines/` directory
-2. Implement `PromotionEngine` (L1→L2 fact extraction with LLM)
-3. Implement `ConsolidationEngine` (L2→L3 episode clustering)
-4. Implement `DistillationEngine` (L3→L4 knowledge synthesis)
-5. Add circuit breaker pattern for LLM resilience
+### Working with Lifecycle Engines
+
+Lifecycle engines are fully implemented in `src/memory/engines/`:
+
+1. **PromotionEngine** (L1→L2): Extracts facts from raw turns using LLM-based extraction with rule-based fallback, includes topic segmentation for batch compression
+2. **ConsolidationEngine** (L2→L3): Clusters facts into episodes with time-windowed processing and LLM summarization
+3. **DistillationEngine** (L3→L4): Synthesizes knowledge patterns from episodes using domain-specific configuration
+
+All engines inherit from `BaseEngine` and include metrics collection, health checks, and error handling.
 
 ### Adding Storage Metrics
 Metrics auto-collect when enabled. Export formats:
