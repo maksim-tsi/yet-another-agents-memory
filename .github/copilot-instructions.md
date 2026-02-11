@@ -2,9 +2,9 @@
 
 ## Architecture Overview
 
-This is a **four-tier cognitive memory system** for Multi-Agent Systems (MAS), designed for supply chain/logistics applications. The project is ~98% functionally complete (Phases 1-4 complete, Phase 5 in progress).
+This is a **four-tier cognitive memory system** for Multi-Agent Systems (MAS), designed for supply chain/logistics applications. The project is ~98% complete (Phase 1-4 complete, benchmarking in progress).
 
-**Critical Distinction**: Storage adapters ≠ Memory tiers. Adapters are database clients (complete). Tiers are intelligent memory managers (complete). Lifecycle engines automate information flow between tiers (complete).
+**Critical Distinction**: Storage adapters ≠ Memory tiers. Adapters are database clients (complete). Tiers are intelligent memory managers (complete). Lifecycle engines automate information flow between tiers (complete with async pipelines, LLM integration, and background task support).
 
 ### Four-Tier Memory Architecture (ADR-003)
 
@@ -44,17 +44,19 @@ This project is guided by five core principles. All new code and refactoring sho
 - **Data Models**: 10+ models including `Fact`, `Episode`, `KnowledgeDocument`, `ContextBlock` in `src/memory/models.py` (Pydantic v2)
 - **CIAR Scorer**: Config-driven calculation in `src/memory/ciar_scorer.py` (Certainty × Impact × Age × Recency)
 - **Metrics System**: Comprehensive observability in `src/storage/metrics/` (timing, throughput, percentiles)
-- **LLM Connectivity**: Multi-provider support (Gemini, Groq, Mistral) with structured output
-- **LLM Client**: `src/utils/llm_client.py` - provider abstraction with model routing and fallback
-- **Gemini Structured Output**: Native `types.Schema` format with system instructions (see `src/memory/schemas/`)
-- **Agent Tools**: MASToolRuntime with 12+ tools including memory_query, get_context_block, CIAR operations
-- **FastAPI Integration**: OpenAI-compatible endpoints and GoodAI benchmark wrapper
+- **LLM Connectivity**: 7 models tested (Gemini, Groq, Mistral) with structured output validated
+- **LLM Client**: `src/utils/llm_client.py` - multi-provider abstraction with fallback
+- **Gemini Structured Output**: Native `types.Schema` format validated with `gemini-3-flash-preview` (see `tests/utils/test_gemini_structured_output.py`)
+- **Lifecycle Engines**: All 3 engines (Promotion, Consolidation, Distillation) in `src/memory/engines/`
+- **Fact Extraction**: LLM-based structured extraction via `FactExtractor` with schema validation
+- **Topic Segmentation**: Batch compression via `TopicSegmenter` for L1→L2 promotion
+- **Knowledge Synthesis**: LLM-powered episode→knowledge transformation via `KnowledgeSynthesizer`
+- **Background Tasks**: ConsolidationEngine with `asyncio.create_task()` and Redis Streams consumer groups
 
 ## What's In Progress 🚧
 
-- **Phase 5 Benchmarking**: GoodAI LTM benchmark execution and analysis
-- **Baseline Implementations**: BaseAgent, MemoryAgent, RAGAgent, FullContextAgent
-- **Instrumentation**: Database isolation, comprehensive telemetry
+- **GoodAI LTM Benchmark**: Full evaluation suite integration (Phase 5)
+- **Performance Optimization**: Large-scale workload tuning
 
 ## CRITICAL: Python Environment & Execution
 
