@@ -45,7 +45,7 @@ poetry install
 # Correct (module execution)
 poetry run python -m runner.run_benchmark \
   -c configurations/published_benchmarks/<configuration_name>.yml \
-  -a gemini-2.5-flash-lite -m 4096
+  -a gemini -m 4096
 
 # WRONG (will fail with "No module named 'datasets.instruction_recall'")
 python runner/run_benchmark.py -c ...

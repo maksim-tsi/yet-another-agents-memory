@@ -19,9 +19,18 @@ The GoodAI LTM Benchmark is executed from `benchmarks/goodai-ltm-benchmark/` usi
 services defined in [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py). The benchmark
 interfaces are registered in `model_interfaces/mas_agents.py` and expose the following agents:
 
-- `mas-full` → `http://localhost:8080/run_turn`
-- `mas-rag` → `http://localhost:8081/run_turn`
-- `mas-full-context` → `http://localhost:8082/run_turn`
+- `mas-full` → `http://localhost:8080/run_turn` (default Docker Compose service)
+- `mas-rag` → `http://localhost:8081/run_turn` (**requires manual setup** - see below)
+- `mas-full-context` → `http://localhost:8082/run_turn` (**requires manual setup** - see below)
+
+**Note**: Docker Compose only provisions port 8080 by default. To run A/B comparisons across all three
+agents simultaneously, manually start additional wrapper instances:
+```bash
+# Terminal 1: mas-rag on 8081
+python src/evaluation/agent_wrapper.py --agent-type rag --port 8081
+# Terminal 2: mas-full-context on 8082
+python src/evaluation/agent_wrapper.py --agent-type full_context --port 8082
+```
 
 Session IDs are prefixed for isolation (e.g., `full:{session_id}`, `rag:{session_id}`) to avoid
 cross-agent contamination. For execution instructions, refer to
