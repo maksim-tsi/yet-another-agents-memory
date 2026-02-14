@@ -96,8 +96,8 @@ Target practice (as described): “Never commit/develop in `main`” + develop i
 Two reasonable options (choose one):
 
 **Option A — GitFlow-like (matches your described model)**
-- `dev-mas` (or `dev`) as integration branch (all feature branches merge here)
-- `main` as release branch (only merges from `dev-mas` via PR)
+- `dev` as integration branch (all feature branches merge here)
+- `main` as release branch (only merges from `dev` via PR)
 - releases via tags (e.g., `v0.9.0`, `v1.0.0`)
 - environment promotion: deploy from `main` (or tags) to QA, then prod, with approvals
 
@@ -112,7 +112,7 @@ If the goal is “main only releases,” Option A is closer, but it increases br
 
 Create `.github/workflows/ci.yml` to run on:
 - `pull_request` (targeting `dev-mas`/`dev`/`main`)
-- `push` to `dev-mas`/`main` (optional)
+- `push` to `dev`/`main` (optional)
 
 Recommended checks (aligned with existing repo scripts):
 - `ruff check .`
