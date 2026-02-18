@@ -6,7 +6,7 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 
 ---
 
-## 🚀 **Current Status: Phase 4 Complete (574/586 Tests Passing) | Phase 5 Ready**
+## 🚀 **Current Status: Phase 4 Complete | Phase 5 In Progress (Wrapper + GoodAI Interfaces Implemented)**
 
 **Overall ADR-003 Completion:** Functional implementation ~98% (all tiers + lifecycle engines + storage adapters + agent tools + integration infrastructure complete).
 
@@ -14,7 +14,8 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 **Phase 2 (Memory Tiers + Lifecycle Engines):** ✅ 100% Complete  
 **Phase 3 (Redis Infrastructure + Agent Tools):** ✅ 100% Complete  
 **Phase 4 (Integration Hardening):** ✅ 100% Complete — All lifecycle tests passing, Qdrant scroll() method added  
-**Full Test Suite (2026-01-03):** ✅ **574 passed, 12 skipped, 0 failed** (586 total) in 2m 11s
+**Full Test Suite (2026-01-27):** ✅ **580 passed, 12 skipped, 0 failed** (592 total) in 2m 23s
+**Wrapper Test Run (2026-01-27):** ✅ **19 passed, 0 failed** (17 unit + 2 integration) with XML/HTML reports
 
 **Integration Test Status:**
 - ✅ All 4 lifecycle integration tests passing (L1→L2→L3→L4)
@@ -42,14 +43,14 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 - ✅ **Week 3 BONUS**: Native Gemini structured output (types.Schema), model-to-provider routing, fact extraction validated with real supply chain document (7 facts, zero JSON errors)
 
 **What's Next**: 
-- 🚧 **Phase 3 Week 4**: BaseAgent interface + MemoryAgent (UC-01)
-- 🔧 **Phase 3 Week 5**: RAGAgent + FullContextAgent variants
-- 🔧 **Phase 3 Week 6**: LangGraph orchestration + FastAPI wrapper + E2E integration tests
-- 🚧 Full lifecycle integration tests (L1→L4) with real LLM calls + GoodAI benchmark runs
+- ✅ **Phase 5B**: BaseAgent + Memory/RAG/Full-Context agents (baseline implementations)
+- ✅ **Phase 5C (partial)**: FastAPI wrapper + GoodAI benchmark interfaces
+- 🚧 **Phase 5C (remaining)**: Database isolation locks, instrumentation
+- 🚧 **Phase 5D**: Subset execution orchestration and analysis
 
 **See**: 
 - [Phase 3 Specification v2.1](docs/specs/spec-phase3-agent-integration.md) for validated architecture (updated Dec 29)
-- [Phase 3 Implementation Plan](docs/plan/phase3-implementation-plan-2025-12-27.md) for 6-week roadmap (Week 3 complete)
+- [Phase 3 Implementation Plan](docs/plan/phase2_3_engineering_plans_version-0.9.md) for 6-week roadmap (Week 3 complete)
 - [Research Validation](docs/research/README.md) for RT1-RT5 findings
 - [ADR-003 Architecture Review](docs/reports/adr-003-architecture-review.md) for gap analysis
 
@@ -116,9 +117,23 @@ This work is being developed in preparation for a submission to the **AIMS 2025 
 - Run full L1→L4 pipeline against real backends (Redis, PostgreSQL, Qdrant, Neo4j, Typesense) with metrics enabled.
 - Measure lifecycle batches against <200ms p95 target; capture metrics export for evidence.
 - Confirm coverage ≥80% overall and per component (storage + memory + engines); regenerate htmlcov.
-- Refresh Gemini API key and re-run provider connectivity scripts; record outcomes in [docs/LLM_PROVIDER_TEST_RESULTS.md](docs/LLM_PROVIDER_TEST_RESULTS.md).
+- Refresh Gemini API key and re-run provider connectivity scripts; record outcomes in [docs/llm_provider_guide.md](docs/llm_provider_guide.md).
 
 ## Developer Updates
+
+### 2026-01-27 — Phase 5 Wrapper + GoodAI Interfaces Implemented
+
+Implemented the Phase 5 evaluation boundary between the MAS memory system and the GoodAI LTM benchmark.
+Key deliverables include a FastAPI wrapper for MAS agents with session prefixing and a GoodAI model
+interface module that proxies benchmark turns to the wrapper endpoints. See [docs/integrations/goodai-benchmark-setup.md](docs/integrations/goodai-benchmark-setup.md)
+for execution guidance and [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py) for API details.
+
+### 2026-01-27 — Wrapper Test Suite + Reporting Automation
+
+Added unit and integration coverage for the wrapper and GoodAI interface modules, including Redis
+namespace isolation checks and timestamped XML/HTML reporting. Test execution is automated via
+[scripts/run_wrapper_tests.sh](scripts/run_wrapper_tests.sh), with reports emitted to
+tests/reports/unit/ and tests/reports/integration/.
 
 ### 2025-11-15 — Demo: File Output & Test Coverage
 
@@ -175,7 +190,7 @@ graph TD
             direction LR
             VEC[(Qdrant)]
             GPH[(Neo4j)]
-            SRCH[(Meilisearch)]
+            SRCH[(Typesense)]
             REL[(PostgreSQL)]
         end
     end
@@ -193,7 +208,7 @@ graph TD
 *   **Persistent Knowledge Layer (Specialized Databases):** The system's long-term memory, where distilled knowledge is archived.
     *   **Qdrant (Vector Store):** Stores experiential patterns for semantic similarity search.
     *   **Neo4j (Graph Store):** Stores entities and relationships for causal and relational analysis.
-    *   **Meilisearch (Search Store):** Stores operational knowledge (e.g., protocols, documents) for fast full-text search.
+    *   **Typesense (Search Store):** Stores operational knowledge (e.g., protocols, documents) for fast full-text search. *Note: The project migrated from Meilisearch to Typesense for better performance and feature set.*
     *   **PostgreSQL (Relational Store):** Stores structured metrics and auditable event logs.
 
 *   **Unified Memory System (`UnifiedMemorySystem`):** A single, clean facade that provides agents with a unified interface for all memory operations, intelligently routing requests to the appropriate underlying layer.
@@ -220,14 +235,13 @@ We have implemented a comprehensive micro-benchmark suite that measures the perf
 **Quick Start:**
 ```bash
 # Run default benchmark (10,000 operations)
-source .venv/bin/activate
-python scripts/run_storage_benchmark.py
+./.venv/bin/python scripts/run_storage_benchmark.py
 
 # Run quick test (1,000 operations)
-python scripts/run_storage_benchmark.py run --size 1000
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 1000
 
 # Analyze results and generate tables
-python scripts/run_storage_benchmark.py analyze
+./.venv/bin/python scripts/run_storage_benchmark.py analyze
 ```
 
 See [`benchmarks/README.md`](benchmarks/README.md) for complete documentation and [`docs/ADR/002-storage-performance-benchmarking.md`](docs/ADR/002-storage-performance-benchmarking.md) for architectural rationale.
@@ -254,17 +268,17 @@ Comprehensive documentation for our benchmark evaluation approach is available i
 
 - **Evaluation Discussion & Strategy:** [`docs/ADR/discussion-evaluation.md`](docs/ADR/discussion-evaluation.md) - Detailed analysis of benchmark selection rationale and our phased implementation plan
 - **Use Case Specifications:**
-  - [`docs/uc-01.md`](docs/uc-01.md) - GoodAI LTM Benchmark with Full Hybrid System
-  - [`docs/uc-02.md`](docs/uc-02.md) - GoodAI LTM Benchmark with Standard RAG Baseline
-  - [`docs/uc-03.md`](docs/uc-03.md) - GoodAI LTM Benchmark with Full-Context Baseline
+  - [`docs/benchmark_use_cases.md`](docs/benchmark_use_cases.md) - GoodAI LTM Benchmark with Full Hybrid System
+  - [`docs/benchmark_use_cases.md`](docs/benchmark_use_cases.md) - GoodAI LTM Benchmark with Standard RAG Baseline
+  - [`docs/benchmark_use_cases.md`](docs/benchmark_use_cases.md) - GoodAI LTM Benchmark with Full-Context Baseline
 - **Sequence Diagrams:**
-  - [`docs/sd-01.md`](docs/sd-01.md) - Full System execution flow
-  - [`docs/sd-02.md`](docs/sd-02.md) - Standard RAG execution flow
-  - [`docs/sd-03.md`](docs/sd-03.md) - Full-Context execution flow
+  - [`docs/benchmark_sequence_diagrams.md`](docs/benchmark_sequence_diagrams.md) - Full System execution flow
+  - [`docs/benchmark_sequence_diagrams.md`](docs/benchmark_sequence_diagrams.md) - Standard RAG execution flow
+  - [`docs/benchmark_sequence_diagrams.md`](docs/benchmark_sequence_diagrams.md) - Full-Context execution flow
 - **Data Dictionaries:**
-  - [`docs/dd-01.md`](docs/dd-01.md) - Full System data structures
-  - [`docs/dd-02.md`](docs/dd-02.md) - Standard RAG data structures
-  - [`docs/dd-03.md`](docs/dd-03.md) - Full-Context data structures
+  - [`docs/benchmark_data_dictionary.md`](docs/benchmark_data_dictionary.md) - Full System data structures
+  - [`docs/benchmark_data_dictionary.md`](docs/benchmark_data_dictionary.md) - Standard RAG data structures
+  - [`docs/benchmark_data_dictionary.md`](docs/benchmark_data_dictionary.md) - Full-Context data structures
 
 These documents provide detailed specifications of the experimental setup, component interactions, data flows, and success criteria for each benchmark configuration.
 
@@ -381,15 +395,15 @@ See [`docs/metrics_usage.md`](docs/metrics_usage.md) for complete metrics docume
 - Coverage confirmation to ≥80% per component and overall (htmlcov shows remaining adapter gaps)
 - <2s p95 lifecycle batch latency measured against real storage backends (current stage target)
 - Full L1→L4 end-to-end pipeline on Redis/PostgreSQL/Qdrant/Neo4j/Typesense
-- Gemini API key refresh and connectivity re-test (see [LLM Provider Results](docs/LLM_PROVIDER_TEST_RESULTS.md))
+- Gemini API key refresh and connectivity re-test (see [LLM Provider Results](docs/llm_provider_guide.md))
 
 **LLM Infrastructure:**
 - Multi-provider `LLMClient` with Gemini, Groq, and Mistral providers; connectivity scripts in `scripts/test_*`. Gemini currently blocked by API key validity; Groq/Mistral passing.
 
 **See**: 
 - [ADR-006: Free-Tier LLM Provider Strategy](docs/ADR/006-free-tier-llm-strategy.md)
-- [Phase 2 Engine Plan](docs/plan/implementation-plan-2025-12-27-phase2-engines.md)
-- [LLM Provider Test Results](docs/LLM_PROVIDER_TEST_RESULTS.md)
+- [Phase 2 Engine Plan](docs/plan/phase2_3_engineering_plans_version-0.9.md)
+- [LLM Provider Test Results](docs/llm_provider_guide.md)
 
 ### Phase 3: Agent Integration 🔬 Research Validated (Ready for Implementation)
 
@@ -410,7 +424,7 @@ LangGraph agent implementation with full memory system integration:
 
 **Documentation:**
 - [Phase 3 Specification v2.0](docs/specs/spec-phase3-agent-integration.md)
-- [Phase 3 Implementation Plan](docs/plan/phase3-implementation-plan-2025-12-27.md)
+- [Phase 3 Implementation Plan](docs/plan/phase2_3_engineering_plans_version-0.9.md)
 - [Research Validation](docs/research/README.md)
 
 ### Phase 4: Evaluation Framework ❌ Not Started (0%)
@@ -426,11 +440,11 @@ Implementation of GoodAI LTM Benchmark for validation:
 
 *   Python 3.11+ (recommended)
 *   Access to infrastructure services (PostgreSQL, Redis, Qdrant, Neo4j, Typesense)
-*   Python virtual environment (venv recommended - see [`docs/python-environment-setup.md`](docs/python-environment-setup.md))
+*   Python virtual environment (venv recommended - see [`docs/python_environment.md`](docs/python_environment.md))
 
 ### 1. Set Up Backend Services
 
-This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch. 
+This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Typesense. 
 
 **Important:** This project uses a dedicated PostgreSQL database named `mas_memory` to ensure complete isolation from other projects. See [`docs/IAC/database-setup.md`](docs/IAC/database-setup.md) for detailed setup instructions.
 
@@ -442,17 +456,19 @@ This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch.
 docker-compose up -d
 ```
 
-### 2. Create Python Virtual Environment
+### 2. Create Python Virtual Environment (Poetry)
+
+This project uses **Poetry** for dependency management with in-project virtual environments.
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
+# Install Poetry (if not already installed)
+curl -sSL https://install.python-poetry.org | python3 -
 
-# Activate it
-source .venv/bin/activate  # Linux/macOS
-# or: .venv\Scripts\activate  # Windows
+# Add Poetry to PATH (if needed)
+export PATH="$HOME/.local/bin:$PATH"
 
-# Upgrade pip
+# Install dependencies (creates .venv/ in project root)
+poetry install --with test,dev
 ```
 
 ### 3. Environment Bootstrap Checklist (Multi-Host Safe)
@@ -467,49 +483,57 @@ source .venv/bin/activate  # Linux/macOS
   - Remote Ubuntu over SSH → expect `Linux` plus `/home/<user>/code/mas-memory-layer`.
   - Local Ubuntu desktop/RDP → expect `Linux` with `/home/<user>/...` but no SSH hostname suffix.
 
-2. **Create/refresh the virtual environment using a relative path** so the same instructions work on every host:
+2. **Create/refresh the virtual environment using Poetry** so the same instructions work on every host:
   ```bash
-  python3 -m venv .venv
+  # Install Poetry if needed
+  curl -sSL https://install.python-poetry.org | python3 -
+  export PATH="$HOME/.local/bin:$PATH"
+  
+  # Configure Poetry to create .venv in-project
+  poetry config virtualenvs.in-project true
+  
+  # Install dependencies
+  poetry install --with test,dev
   ```
 
-3. **Install primary dependencies explicitly via the venv interpreter.** Avoid `pip` from the system path.
-  ```bash
-  ./.venv/bin/pip install -r requirements.txt
-  ```
-
-4. **Install test and tooling dependencies whenever you plan to run any test suite.**
-  ```bash
-  ./.venv/bin/pip install -r requirements-test.txt
-  ```
-
-5. **Verify the interpreter being used by automation.** The command below must print the absolute path to `.venv/bin/python` on the current host.
+3. **Verify the interpreter being used by automation.** The command below must print the absolute path to `.venv/bin/python` on the current host.
   ```bash
   ./.venv/bin/python -c "import sys; print(sys.executable)"
   ```
 
-6. **Run smoke validations before heavy workflows.**
+4. **Run smoke validations before heavy workflows.**
   ```bash
   ./.venv/bin/python scripts/test_llm_providers.py --help
   ./scripts/run_smoke_tests.sh --summary
   ```
 
-> **Why this sequence?** Contributors regularly switch between a remote Ubuntu VM, a macOS laptop, and containerised CI. Using relative paths plus the explicit interpreter commands prevents accidental invocation of a different Python installation that might live outside the repo.
+> **Why Poetry?** Poetry provides reproducible builds via `poetry.lock`, automatic dependency resolution, and cleaner separation of production vs dev dependencies. Using `virtualenvs.in-project = true` preserves the `.venv/bin/python` path contracts expected by orchestration scripts and agent protocols.
 
 For more detailed troubleshooting guidance, see [`docs/environment-guide.md`](docs/environment-guide.md).
-pip install --upgrade pip
-```
 
-See [`docs/python-environment-setup.md`](docs/python-environment-setup.md) for detailed setup instructions.
+### Two-Environment Architecture
+
+This repository contains two separate Poetry projects with isolated dependencies:
+
+1. **MAS Memory Layer** (root): `poetry install --with test,dev`
+2. **GoodAI Benchmark** (`benchmarks/goodai-ltm-benchmark/`): `poetry install`
+
+These environments are intentionally isolated due to incompatible langchain versions:
+- MAS uses `langchain-core>=0.3.25,<0.4.0`
+- Benchmark uses `langchain==0.1.1`
 
 ### 3. Install Dependencies
 
-Install the required Python packages from `requirements.txt`.
+Dependencies are managed via `pyproject.toml`. Poetry handles installation automatically.
 
 ```bash
-pip install -r requirements.txt
+# Install all dependencies (already done in step 2)
+poetry install --with test,dev
 
-# Optional: Install test dependencies
-pip install -r requirements-test.txt
+# For benchmark environment (if running GoodAI benchmarks)
+cd benchmarks/goodai-ltm-benchmark
+poetry install
+cd ../..  # Return to project root
 ```
 
 ### 4. Run Tests
@@ -521,12 +545,12 @@ Verify the implementation with the comprehensive test suite:
 ./scripts/run_tests.sh
 
 # Run specific test categories
-pytest tests/storage/test_base.py -v           # Base adapter tests
-pytest tests/storage/test_metrics.py -v        # Metrics tests
-pytest tests/storage/test_redis_metrics.py -v  # Redis integration tests
+./.venv/bin/pytest tests/storage/test_base.py -v           # Base adapter tests
+./.venv/bin/pytest tests/storage/test_metrics.py -v        # Metrics tests
+./.venv/bin/pytest tests/storage/test_redis_metrics.py -v  # Redis integration tests
 
 # Run with coverage
-pytest tests/storage/ --cov=src/storage --cov-report=html
+./.venv/bin/pytest tests/storage/ --cov=src/storage --cov-report=html
 ```
 
 ### 5. Verify Infrastructure & Health
@@ -536,17 +560,17 @@ pytest tests/storage/ --cov=src/storage --cov-report=html
 ./scripts/run_smoke_tests.sh --summary
 
 # Check health of all adapters
-python scripts/demo_health_check.py
+./.venv/bin/python scripts/demo_health_check.py
 ```
 
 ### 6. Explore Metrics & Monitoring
 
 ```bash
 # See metrics in action
-python examples/metrics_demo.py
+./.venv/bin/python examples/metrics_demo.py
 
 # Verify metrics implementation
-python scripts/verify_metrics_implementation.py
+./.venv/bin/python scripts/verify_metrics_implementation.py
 ```
 
 ### 7. Run Storage Performance Benchmarks
@@ -555,19 +579,19 @@ Validate storage layer performance with comprehensive micro-benchmarks:
 
 ```bash
 # Run default benchmark (10K operations, ~5-10 minutes)
-python scripts/run_storage_benchmark.py
+./.venv/bin/python scripts/run_storage_benchmark.py
 
 # Quick test (1K operations, ~1-2 minutes)
-python scripts/run_storage_benchmark.py run --size 1000
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 1000
 
 # Stress test (100K operations, ~30-60 minutes)
-python scripts/run_storage_benchmark.py run --size 100000
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 100000
 
 # Benchmark specific adapters
-python scripts/run_storage_benchmark.py run --adapters redis_l1 redis_l2
+./.venv/bin/python scripts/run_storage_benchmark.py run --adapters redis_l1 redis_l2
 
 # Analyze results and generate publication tables
-python scripts/run_storage_benchmark.py analyze
+./.venv/bin/python scripts/run_storage_benchmark.py analyze
 ```
 
 Results are saved to:
@@ -747,7 +771,7 @@ See [`DEVLOG.md`](DEVLOG.md) for complete development history and progress track
 - Baseline comparisons (RAG, full-context)
 - Performance metrics and analysis
 
-**See [Phase 3 Implementation Plan](docs/plan/phase3-implementation-plan-2025-12-27.md)** for detailed week-by-week breakdown.
+**See [Phase 3 Implementation Plan](docs/plan/phase2_3_engineering_plans_version-0.9.md)** for detailed week-by-week breakdown.
 
 ## 10. Contributing
 

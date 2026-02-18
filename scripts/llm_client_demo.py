@@ -30,11 +30,19 @@ def make_client_from_env() -> LLMClient:
     load_dotenv(dotenv_path=project_root / ".env")
     client = LLMClient()
     if os.getenv("GOOGLE_API_KEY"):
-        client.register_provider(GeminiProvider(api_key=os.getenv("GOOGLE_API_KEY")), ProviderConfig(name="gemini", priority=0))
+        client.register_provider(
+            GeminiProvider(api_key=os.getenv("GOOGLE_API_KEY")),
+            ProviderConfig(name="gemini", priority=0),
+        )
     if os.getenv("GROQ_API_KEY"):
-        client.register_provider(GroqProvider(api_key=os.getenv("GROQ_API_KEY")), ProviderConfig(name="groq", priority=1))
+        client.register_provider(
+            GroqProvider(api_key=os.getenv("GROQ_API_KEY")), ProviderConfig(name="groq", priority=1)
+        )
     if os.getenv("MISTRAL_API_KEY"):
-        client.register_provider(MistralProvider(api_key=os.getenv("MISTRAL_API_KEY")), ProviderConfig(name="mistral", priority=2))
+        client.register_provider(
+            MistralProvider(api_key=os.getenv("MISTRAL_API_KEY")),
+            ProviderConfig(name="mistral", priority=2),
+        )
     return client
 
 
@@ -42,23 +50,66 @@ async def demo():
     client = make_client_from_env()
     print("Registered providers:", client.available_providers())
     if not client.available_providers():
-        print("No providers configured in environment. Set GOOGLE_API_KEY, GROQ_API_KEY, or MISTRAL_API_KEY and retry.")
+        print(
+            "No providers configured in environment. Set GOOGLE_API_KEY, GROQ_API_KEY, or MISTRAL_API_KEY and retry."
+        )
         return
 
     # Parse CLI arguments early so we can optionally skip health checks quickly
     parser = argparse.ArgumentParser(description="LLMClient demo - query configured providers")
-    parser.add_argument("--providers", type=str, default=None, help="Comma-separated list of providers to query (e.g., 'gemini,groq')")
-    parser.add_argument("--prompt", type=str, default="What is 2+2? Answer briefly.", help="Prompt to send to providers")
-    parser.add_argument("--json", action="store_true", help="Print JSON output for provider responses and usage")
+    parser.add_argument(
+        "--providers",
+        type=str,
+        default=None,
+        help="Comma-separated list of providers to query (e.g., 'gemini,groq')",
+    )
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default="What is 2+2? Answer briefly.",
+        help="Prompt to send to providers",
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Print JSON output for provider responses and usage"
+    )
     parser.add_argument("--output-file", type=str, default=None, help="Write JSON output to a file")
-    parser.add_argument("--output-format", type=str, choices=["ndjson", "json-array"], default="ndjson", help="Output format when writing to file (ndjson or json-array)")
-    parser.add_argument("--output-mode", type=str, choices=["overwrite", "append"], default="overwrite", help="If writing to a file, whether to overwrite or append to existing file")
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging for the demo (DEBUG level)")
-    parser.add_argument("--skip-health-check", action="store_true", help="Skip provider health checks (faster runs for quick demos)")
-    parser.add_argument("--model", type=str, default=None, help="Default model to use for all providers unless overridden")
-    parser.add_argument("--model-gemini", type=str, default=None, help="Override model for Gemini provider")
-    parser.add_argument("--model-groq", type=str, default=None, help="Override model for Groq provider")
-    parser.add_argument("--model-mistral", type=str, default=None, help="Override model for Mistral provider")
+    parser.add_argument(
+        "--output-format",
+        type=str,
+        choices=["ndjson", "json-array"],
+        default="ndjson",
+        help="Output format when writing to file (ndjson or json-array)",
+    )
+    parser.add_argument(
+        "--output-mode",
+        type=str,
+        choices=["overwrite", "append"],
+        default="overwrite",
+        help="If writing to a file, whether to overwrite or append to existing file",
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", help="Enable verbose logging for the demo (DEBUG level)"
+    )
+    parser.add_argument(
+        "--skip-health-check",
+        action="store_true",
+        help="Skip provider health checks (faster runs for quick demos)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Default model to use for all providers unless overridden",
+    )
+    parser.add_argument(
+        "--model-gemini", type=str, default=None, help="Override model for Gemini provider"
+    )
+    parser.add_argument(
+        "--model-groq", type=str, default=None, help="Override model for Groq provider"
+    )
+    parser.add_argument(
+        "--model-mistral", type=str, default=None, help="Override model for Mistral provider"
+    )
     args = parser.parse_args()
 
     prompt = args.prompt
@@ -80,7 +131,9 @@ async def demo():
         requested_list = [p.strip().lower() for p in requested.split(",") if p.strip()]
         providers_to_run = [p for p in requested_list if p in available]
         if not providers_to_run:
-            print("No requested providers are registered/available; running all registered providers instead.")
+            print(
+                "No requested providers are registered/available; running all registered providers instead."
+            )
             providers_to_run = available
     else:
         providers_to_run = available
@@ -90,7 +143,9 @@ async def demo():
         print("Running health checks...")
         health = await client.health_check()
         for name, report in health.items():
-            print(f" - {name}: healthy={report.healthy}, details={report.details}, last_error={report.last_error}")
+            print(
+                f" - {name}: healthy={report.healthy}, details={report.details}, last_error={report.last_error}"
+            )
     else:
         print("Skipping health checks (--skip-health-check).")
 
@@ -104,6 +159,7 @@ async def demo():
     collected_outputs = [] if json_out and output_format == "json-array" else None
     if args.output_file and json_out:
         from pathlib import Path
+
         output_file_path = Path(project_root) / Path(args.output_file)
         # Ensure parent dirs exist
         output_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,10 +167,9 @@ async def demo():
             if output_mode == "overwrite":
                 output_file_path.write_text("")
             # append mode: leave file as-is
-        elif output_format == "json-array":
+        elif output_format == "json-array" and output_mode == "overwrite":
             # For json-array mode, if overwrite create empty array, if append preserve existing
-            if output_mode == "overwrite":
-                output_file_path.write_text("[]")
+            output_file_path.write_text("[]")
 
     for provider_name in providers_to_run:
         # Allow per-provider model override, fallback to default `--model` arg
@@ -155,6 +210,7 @@ async def demo():
     if output_file_path and json_out and output_format == "json-array":
         try:
             import json as _json
+
             # Read existing array if append mode
             if output_mode == "append" and output_file_path.exists():
                 try:

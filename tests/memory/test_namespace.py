@@ -22,6 +22,7 @@ from src.memory.namespace import NamespaceManager
 
 try:
     import pytest_benchmark  # noqa: F401
+
     BENCHMARK_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dependency
     BENCHMARK_AVAILABLE = False
@@ -42,7 +43,7 @@ def agent_id():
 @pytest_asyncio.fixture
 async def redis_client():
     """Create Redis client for testing (skips if REDIS_URL missing/unavailable)."""
-    redis_url = os.getenv('REDIS_URL')
+    redis_url = os.getenv("REDIS_URL")
     if not redis_url:
         pytest.skip("REDIS_URL environment variable not set")
 
@@ -139,20 +140,20 @@ class TestLifecycleEventPublishing:
         event_id = await namespace_manager.publish_lifecycle_event(
             event_type="promotion",
             session_id=session_id,
-            data={"fact_count": 5, "ciar_threshold": 0.6}
+            data={"fact_count": 5, "ciar_threshold": 0.6},
         )
 
         assert event_id and isinstance(event_id, str)
 
     @pytest.mark.asyncio
-    async def test_event_contains_metadata(self, namespace_manager, redis_client, session_id, cleanup_keys):
+    async def test_event_contains_metadata(
+        self, namespace_manager, redis_client, session_id, cleanup_keys
+    ):
         stream_key = NamespaceManager.lifecycle_stream()
         cleanup_keys(stream_key)
 
         event_id = await namespace_manager.publish_lifecycle_event(
-            event_type="consolidation",
-            session_id=session_id,
-            data={"episodes_created": 3}
+            event_type="consolidation", session_id=session_id, data={"episodes_created": 3}
         )
 
         events = await redis_client.xrange(stream_key, min=event_id, max=event_id)
@@ -177,7 +178,7 @@ class TestLifecycleEventPublishing:
                 event_type="test",
                 session_id=f"session-{i}",
                 data={"index": i},
-                max_length=max_length
+                max_length=max_length,
             )
 
         stream_info = await redis_client.xinfo_stream(stream_key)
@@ -192,9 +193,7 @@ class TestLifecycleEventPublishing:
         bad_manager = NamespaceManager(bad_client)
 
         event_id = await bad_manager.publish_lifecycle_event(
-            event_type="test",
-            session_id=session_id,
-            data={"test": "data"}
+            event_type="test", session_id=session_id, data={"test": "data"}
         )
 
         assert event_id == ""
@@ -272,9 +271,7 @@ class TestNamespacePerformance:
         start = time.time()
         for i in range(100):
             await namespace_manager.publish_lifecycle_event(
-                event_type="benchmark",
-                session_id=f"session-{i}",
-                data={"index": i}
+                event_type="benchmark", session_id=f"session-{i}", data={"index": i}
             )
 
         duration = time.time() - start

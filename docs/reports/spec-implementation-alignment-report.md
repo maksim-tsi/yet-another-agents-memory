@@ -2,7 +2,7 @@
 
 **Document Type:** Comparative Analysis & Update Requirements  
 **Date Created:** November 2, 2025  
-**Purpose:** Identify discrepancies between `spec-phase2-memory-tiers.md` and `implementation-plan-02112025.md` and provide concrete update requirements  
+**Purpose:** Identify discrepancies between `spec-phase2-memory-tiers.md` and `implementation_master_plan_version-0.9.md` and provide concrete update requirements  
 **Status:** In Progress
 
 ---
@@ -60,7 +60,7 @@ This report is organized into sections that can be populated iteratively:
 - **Target Completion**: Week 3-4  
 + **Target Completion**: 11 weeks (Phase 2A-2E)  
 **Branch**: `dev-mas`
-+ **Implementation Plan Reference**: [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md)
++ **Implementation Plan Reference**: [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md)
 ```
 
 **Rationale:** Specification should reflect current date, align status with implementation plan, and correct the unrealistic "Week 3-4" target to match the detailed 11-week Phase 2 breakdown.
@@ -122,7 +122,7 @@ Add a new section after the "Lifecycle Engines" overview in the specification:
 ```markdown
 ### 2.3.1 Implementation Approach (Engineering Details)
 
-**Reference:** See [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2B-2D for detailed task breakdowns.
+**Reference:** See [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2B-2D for detailed task breakdowns.
 
 **Key Implementation Patterns:**
 
@@ -183,7 +183,7 @@ After the "Memory Tier Hierarchy" section in the specification, add:
 ```markdown
 ### 3.1 Memory Tier API Contracts
 
-**Reference:** Full implementation details in [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2A.
+**Reference:** Full implementation details in [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2A.
 
 All memory tier classes implement the `BaseTier` abstract interface:
 
@@ -247,7 +247,7 @@ In the specification's lifecycle engines section, add subsections for resilience
 ```markdown
 ### Lifecycle Engine Resilience Patterns
 
-**Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2B-2D
+**Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2B-2D
 
 #### Promotion Engine Circuit Breaker
 
@@ -353,7 +353,7 @@ Replace the specification's Executive Summary timeline with:
 + **Target Completion**: 11 weeks (Phase 2A-2E)
 + **Detailed Timeline**: See [Implementation Priorities & Milestones](#implementation-priorities--milestones)
 **Branch**: `dev-mas`
-**Implementation Plan Reference**: [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md)
+**Implementation Plan Reference**: [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md)
 ```
 
 **SPEC UPDATE 4.2 - Add Detailed Milestone Section:**
@@ -363,7 +363,7 @@ Add a new section to the specification (after "Implementation Priorities & Roadm
 ```markdown
 ## Implementation Priorities & Milestones
 
-**Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Section 6
+**Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Section 6
 
 ### Phase 2A: Memory Tier Classes (Weeks 1-3)
 
@@ -503,7 +503,7 @@ Add to specification's "Testing & Validation Methodology" section:
 ```markdown
 ### Test Implementation Details
 
-**Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) - Each Phase 2 task includes detailed test specifications
+**Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) - Each Phase 2 task includes detailed test specifications
 
 **Example Test Structure (L1 Active Context):**
 
@@ -590,7 +590,7 @@ Add to specification after "Prerequisites" section:
 ```markdown
 ### Task-Level Dependency Graph
 
-**Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2 detailed breakdown
+**Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2 detailed breakdown
 
 **Week-by-Week Dependencies:**
 
@@ -740,7 +740,7 @@ Below is a conceptual diff showing major sections to add/modify:
 + **Status**: Active - Aligned with Implementation Plan v1.0  
 - **Target Completion**: Week 3-4  
 + **Target Completion**: 11 weeks (Phase 2A-2E)
-+ **Implementation Plan Reference**: [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md)
++ **Implementation Plan Reference**: [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md)
 
 ...
 
@@ -750,7 +750,7 @@ Below is a conceptual diff showing major sections to add/modify:
 
 + ### Lifecycle Engine Resilience Patterns
 + 
-+ **Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2B-2D
++ **Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2B-2D
 + 
 + #### Promotion Engine Circuit Breaker
 + [Content from SPEC UPDATE 2.3]
@@ -765,7 +765,7 @@ Below is a conceptual diff showing major sections to add/modify:
 
 + ## Memory Tier API Contracts
 + 
-+ **Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2A
++ **Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2A
 + 
 + [Content from SPEC UPDATE 3.1]
 
@@ -773,7 +773,7 @@ Below is a conceptual diff showing major sections to add/modify:
 
 + ## Implementation Priorities & Milestones
 + 
-+ **Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Section 6
++ **Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Section 6
 + 
 + [Content from SPEC UPDATE 4.2 - detailed milestone tables and Gantt chart]
 
@@ -781,7 +781,7 @@ Below is a conceptual diff showing major sections to add/modify:
 
 + ## Test Implementation Details
 + 
-+ **Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) - Each Phase 2 task
++ **Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) - Each Phase 2 task
 + 
 + [Content from SPEC UPDATE 5.1]
 
@@ -789,7 +789,7 @@ Below is a conceptual diff showing major sections to add/modify:
 
 + ## Task-Level Dependency Graph
 + 
-+ **Reference:** [implementation-plan-02112025.md](../plan/implementation-plan-02112025.md) Phase 2 breakdown
++ **Reference:** [implementation_master_plan_version-0.9.md](../plan/implementation_master_plan_version-0.9.md) Phase 2 breakdown
 + 
 + [Content from SPEC UPDATE 6.1 - Mermaid diagram and tables]
 ```
@@ -851,7 +851,7 @@ This comparison was conducted using:
 **Author:** AI Assistant (GitHub Copilot)  
 **Documents Compared:**
 - `/Users/max/Documents/code/mas-memory-layer/docs/specs/spec-phase2-memory-tiers.md` (24,005 lines)
-- `/Users/max/Documents/code/mas-memory-layer/docs/plan/implementation-plan-02112025.md` (7,992 lines)
+- `/Users/max/Documents/code/mas-memory-layer/docs/plan/implementation_master_plan_version-0.9.md` (7,992 lines)
 
 **Total Updates Identified:** 7 major updates (SPEC UPDATE 1.1 - 6.1)  
 **Estimated Update Effort:** 4-6 hours to apply all updates

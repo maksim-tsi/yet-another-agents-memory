@@ -9,12 +9,11 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from src.storage.redis_adapter import RedisAdapter
+from src.storage.neo4j_adapter import Neo4jAdapter
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.qdrant_adapter import QdrantAdapter
-from src.storage.neo4j_adapter import Neo4jAdapter
+from src.storage.redis_adapter import RedisAdapter
 from src.storage.typesense_adapter import TypesenseAdapter
-
 
 THRESHOLD_P95_MS = 200.0
 ITERATIONS = 5
@@ -25,12 +24,14 @@ async def redis_adapter():
     url = os.getenv("REDIS_URL")
     if not url:
         pytest.skip("REDIS_URL not set")
-    adapter = RedisAdapter({
-        "url": url,
-        "window_size": 10,
-        "ttl_seconds": 3600,
-        "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
-    })
+    adapter = RedisAdapter(
+        {
+            "url": url,
+            "window_size": 10,
+            "ttl_seconds": 3600,
+            "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
+        }
+    )
     await adapter.connect()
     yield adapter
     await adapter.disconnect()
@@ -41,11 +42,13 @@ async def postgres_adapter():
     url = os.getenv("POSTGRES_URL")
     if not url:
         pytest.skip("POSTGRES_URL not set")
-    adapter = PostgresAdapter({
-        "url": url,
-        "table": "active_context",
-        "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
-    })
+    adapter = PostgresAdapter(
+        {
+            "url": url,
+            "table": "active_context",
+            "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
+        }
+    )
     await adapter.connect()
     yield adapter
     await adapter.disconnect()
@@ -55,12 +58,14 @@ async def postgres_adapter():
 async def qdrant_adapter():
     host = os.getenv("QDRANT_HOST", os.getenv("STG_IP", "localhost"))
     port = os.getenv("QDRANT_PORT", "6333")
-    adapter = QdrantAdapter({
-        "url": f"http://{host}:{port}",
-        "collection_name": "perf_memory_perf",
-        "vector_size": 384,
-        "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
-    })
+    adapter = QdrantAdapter(
+        {
+            "url": f"http://{host}:{port}",
+            "collection_name": "perf_memory_perf",
+            "vector_size": 384,
+            "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
+        }
+    )
     await adapter.connect()
     yield adapter
     await adapter.disconnect()
@@ -74,13 +79,15 @@ async def neo4j_adapter():
     password = os.getenv("NEO4J_PASSWORD")
     if not password:
         pytest.skip("NEO4J_PASSWORD not set")
-    adapter = Neo4jAdapter({
-        "uri": f"bolt://{host}:{port}",
-        "user": user,
-        "password": password,
-        "database": "neo4j",
-        "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
-    })
+    adapter = Neo4jAdapter(
+        {
+            "uri": f"bolt://{host}:{port}",
+            "user": user,
+            "password": password,
+            "database": "neo4j",
+            "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
+        }
+    )
     await adapter.connect()
     yield adapter
     await adapter.disconnect()
@@ -93,12 +100,14 @@ async def typesense_adapter():
     api_key = os.getenv("TYPESENSE_API_KEY")
     if not api_key:
         pytest.skip("TYPESENSE_API_KEY not set")
-    adapter = TypesenseAdapter({
-        "url": f"http://{host}:{port}",
-        "api_key": api_key,
-        "collection_name": "perf_memory_perf",
-        "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
-    })
+    adapter = TypesenseAdapter(
+        {
+            "url": f"http://{host}:{port}",
+            "api_key": api_key,
+            "collection_name": "perf_memory_perf",
+            "metrics": {"enabled": True, "percentiles": [50, 95, 99]},
+        }
+    )
     await adapter.connect()
     yield adapter
     await adapter.disconnect()
@@ -141,7 +150,9 @@ async def test_pipeline_perf_live_backends(
         start = time.perf_counter()
         await redis_adapter.store(payload)
         redis_durations.append((time.perf_counter() - start) * 1000)
-    await redis_adapter.metrics.record_operation("store", sum(redis_durations) / len(redis_durations), True)
+    await redis_adapter.metrics.record_operation(
+        "store", sum(redis_durations) / len(redis_durations), True
+    )
     redis_p95 = await _p95_from_metrics(redis_adapter.metrics, "store")
 
     # Postgres store/query
@@ -157,7 +168,9 @@ async def test_pipeline_perf_live_backends(
         record_id = await postgres_adapter.store(payload)
         pg_durations.append((time.perf_counter() - start) * 1000)
         await postgres_adapter.delete(record_id)
-    await postgres_adapter.metrics.record_operation("store", sum(pg_durations) / len(pg_durations), True)
+    await postgres_adapter.metrics.record_operation(
+        "store", sum(pg_durations) / len(pg_durations), True
+    )
     pg_p95 = await _p95_from_metrics(postgres_adapter.metrics, "store")
 
     # Qdrant upsert/search
@@ -175,22 +188,28 @@ async def test_pipeline_perf_live_backends(
     start = time.perf_counter()
     await qdrant_adapter.search({"vector": vector, "limit": 1})
     qdrant_durations.append((time.perf_counter() - start) * 1000)
-    await qdrant_adapter.metrics.record_operation("qdrant", sum(qdrant_durations) / len(qdrant_durations), True)
+    await qdrant_adapter.metrics.record_operation(
+        "qdrant", sum(qdrant_durations) / len(qdrant_durations), True
+    )
     qdrant_p95 = await _p95_from_metrics(qdrant_adapter.metrics, "qdrant")
 
     # Neo4j write/query
     neo_durations = []
     start = time.perf_counter()
-    node_id = await neo4j_adapter.store({
-        "type": "entity",
-        "label": "PerfNode",
-        "properties": {"session_id": session_id, "value": "perf"},
-    })
+    node_id = await neo4j_adapter.store(
+        {
+            "type": "entity",
+            "label": "PerfNode",
+            "properties": {"session_id": session_id, "value": "perf"},
+        }
+    )
     neo_durations.append((time.perf_counter() - start) * 1000)
     start = time.perf_counter()
     await neo4j_adapter.retrieve(node_id)
     neo_durations.append((time.perf_counter() - start) * 1000)
-    await neo4j_adapter.metrics.record_operation("neo4j", sum(neo_durations) / len(neo_durations), True)
+    await neo4j_adapter.metrics.record_operation(
+        "neo4j", sum(neo_durations) / len(neo_durations), True
+    )
     neo_p95 = await _p95_from_metrics(neo4j_adapter.metrics, "neo4j")
 
     # Typesense index/search
@@ -208,7 +227,9 @@ async def test_pipeline_perf_live_backends(
     start = time.perf_counter()
     await typesense_adapter.search({"q": "perf", "query_by": "content"})
     type_durations.append((time.perf_counter() - start) * 1000)
-    await typesense_adapter.metrics.record_operation("typesense", sum(type_durations) / len(type_durations), True)
+    await typesense_adapter.metrics.record_operation(
+        "typesense", sum(type_durations) / len(type_durations), True
+    )
     type_p95 = await _p95_from_metrics(typesense_adapter.metrics, "typesense")
 
     results = {

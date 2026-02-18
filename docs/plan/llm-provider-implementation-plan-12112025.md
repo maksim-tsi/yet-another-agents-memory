@@ -906,7 +906,7 @@ POSTGRES_URL=postgresql://mas_memory:your_password@192.168.107.172:5432/mas_memo
 ## References
 
 - **ADR-006**: Multi-Provider LLM Strategy (`docs/ADR/006-free-tier-llm-strategy.md`)
-- **Phase 2 Action Plan**: Week-by-week breakdown (`docs/reports/phase-2-action-plan.md`)
+- **Phase 2 Action Plan**: Week-by-week breakdown (`docs/reports/phase2_3_consolidated_version-0.9_upto10feb2026.md`)
 - **Phase 2 Spec**: Memory tiers specification (`docs/specs/spec-phase2-memory-tiers.md`)
 - **CIAR Scorer**: Already implemented (`src/memory/ciar_scorer.py`)
 - **Memory Tiers**: L1-L4 implemented (`src/memory/tiers/`)

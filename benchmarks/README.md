@@ -13,6 +13,29 @@ This benchmark suite measures the performance characteristics of all four storag
 
 The benchmarks use synthetic but realistic workloads that match typical agent memory access patterns.
 
+## GoodAI LTM Benchmark Integration (Phase 5)
+
+The GoodAI LTM Benchmark is executed from `benchmarks/goodai-ltm-benchmark/` using the MAS wrapper
+services defined in [src/evaluation/agent_wrapper.py](src/evaluation/agent_wrapper.py). The benchmark
+interfaces are registered in `model_interfaces/mas_agents.py` and expose the following agents:
+
+- `mas-full` → `http://localhost:8080/run_turn` (default Docker Compose service)
+- `mas-rag` → `http://localhost:8081/run_turn` (**requires manual setup** - see below)
+- `mas-full-context` → `http://localhost:8082/run_turn` (**requires manual setup** - see below)
+
+**Note**: Docker Compose only provisions port 8080 by default. To run A/B comparisons across all three
+agents simultaneously, manually start additional wrapper instances:
+```bash
+# Terminal 1: mas-rag on 8081
+./.venv/bin/python src/evaluation/agent_wrapper.py --agent-type rag --port 8081
+# Terminal 2: mas-full-context on 8082
+./.venv/bin/python src/evaluation/agent_wrapper.py --agent-type full_context --port 8082
+```
+
+Session IDs are prefixed for isolation (e.g., `full:{session_id}`, `rag:{session_id}`) to avoid
+cross-agent contamination. For execution instructions, refer to
+[docs/integrations/goodai-benchmark-setup.md](docs/integrations/goodai-benchmark-setup.md).
+
 ## Quick Start
 
 ### Prerequisites
@@ -26,43 +49,43 @@ redis-server
 # Qdrant
 docker run -p 6333:6333 qdrant/qdrant
 
-# Neo4j
-docker run -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:latest
+# Neo4j (pinned version for reproducibility)
+docker run -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:5.15
 
-# Typesense
-docker run -p 8108:8108 typesense/typesense:latest --data-dir=/data --api-key=xyz
+# Typesense (pinned version for reproducibility)
+docker run -p 8108:8108 typesense/typesense:0.25.2 --data-dir=/data --api-key=xyz
 ```
 
 ### Run Benchmark
 
 ```bash
 # Default: 10,000 operations, all adapters
-python tests/benchmarks/bench_storage_adapters.py
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py
 
 # Small workload (1,000 operations) for quick testing
-python tests/benchmarks/bench_storage_adapters.py --size 1000
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py --size 1000
 
 # Large workload (100,000 operations) for stress testing
-python tests/benchmarks/bench_storage_adapters.py --size 100000
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py --size 100000
 
 # Benchmark specific adapters only
-python tests/benchmarks/bench_storage_adapters.py --adapters redis_l1 redis_l2
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py --adapters redis_l1 redis_l2
 
 # Custom random seed for reproducibility
-python tests/benchmarks/bench_storage_adapters.py --seed 12345
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py --seed 12345
 ```
 
 ### Analyze Results
 
 ```bash
 # Analyze most recent benchmark results
-python tests/benchmarks/results_analyzer.py
+./.venv/bin/python tests/benchmarks/results_analyzer.py
 
 # Analyze specific results file
-python tests/benchmarks/results_analyzer.py --results benchmarks/results/raw/benchmark_20251021_143022.json
+./.venv/bin/python tests/benchmarks/results_analyzer.py --results benchmarks/results/raw/benchmark_20251021_143022.json
 
 # Custom output directory
-python tests/benchmarks/results_analyzer.py --output /path/to/output
+./.venv/bin/python tests/benchmarks/results_analyzer.py --output /path/to/output
 ```
 
 ## Workload Configurations
@@ -284,7 +307,7 @@ Based on architecture design (localhost, adequate resources):
 ## References
 
 - [ADR-002: Storage Performance Benchmarking](../../docs/ADR/002-storage-performance-benchmarking.md)
-- [Metrics Implementation](../../docs/reports/metrics-implementation-final.md)
+- [Metrics Implementation](../../docs/reports/metrics_program_overview_version-0.9_upto10feb2026.md)
 - [Storage Adapter Documentation](../../src/storage/README.md)
 
 ## License

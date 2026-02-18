@@ -153,11 +153,8 @@ All infrastructure services are operational and connectivity has been verified a
 ### Command Line Usage
 
 ```bash
-# Activate virtual environment
-source .venv/bin/activate
-
-# Run all tests
-./scripts/run_smoke_tests.sh
+# Run all tests (using direct executable path)
+./.venv/bin/python -m pytest tests/integration/test_smoke.py -v
 
 # Run with verbose output
 ./scripts/run_smoke_tests.sh --verbose
@@ -243,8 +240,8 @@ pytest tests/test_connectivity.py::test_postgres_connection -v
 
 ### Documentation
 - `tests/README.md` - Test documentation
-- `docs/python-environment-setup.md` - Environment guide
-- `docs/python-3.13-compatibility.md` - Compatibility notes
+- `docs/python_environment.md` - Environment guide
+- `docs/python_environment.md` - Compatibility notes
 - `docs/IAC/database-setup.md` - Database documentation
 
 ---

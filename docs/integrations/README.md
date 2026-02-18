@@ -2,6 +2,17 @@
 
 This directory contains documentation for Large Language Model (LLM) integrations in the Multi-Layered Memory System project.
 
+## GoodAI LTM Benchmark Integration (Phase 5)
+
+The Phase 5 evaluation pipeline integrates the GoodAI LTM Benchmark with the MAS Memory Layer via
+FastAPI wrapper services. The wrapper exposes `/run_turn`, `/sessions`, `/memory_state`, and `/health`
+endpoints and is configured per agent type (full, rag, full_context). Benchmark-facing model
+interfaces are implemented in `benchmarks/goodai-ltm-benchmark/model_interfaces/mas_agents.py` and
+apply session prefixing (`full:`, `rag:`, `full_context:`) for database isolation.
+
+For installation, configuration, and execution guidance, see
+[docs/integrations/goodai-benchmark-setup.md](goodai-benchmark-setup.md).
+
 ## ✅ Provider Status
 
 **Multi-Provider Strategy: SELECTED**
@@ -65,11 +76,11 @@ pip install -r requirements.txt
 ./scripts/test_mistral.py
 ```
 
-**See [LLM Provider Tests Documentation](../LLM_PROVIDER_TESTS.md)** for detailed testing guide.
+**See [LLM Provider Tests Documentation](../llm_provider_guide.md)** for detailed testing guide.
 
 ### 5. Start Implementation
 
-See **Week 4-5** in the [Implementation Plan](../plan/implementation-plan-02112025.md) for CIAR Scorer and Fact Extraction integration
+See **Week 4-5** in the [Implementation Plan](../plan/implementation_master_plan_version-0.9.md) for CIAR Scorer and Fact Extraction integration
 
 ## Provider Selection Quick Reference
 

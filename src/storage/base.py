@@ -7,109 +7,111 @@ for consistent error handling.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Union
+from datetime import UTC
+from typing import Any
 
 
 # Exception hierarchy
 class StorageError(Exception):
     """
     Base exception for all storage-related errors.
-    
+
     This exception should be caught when handling any storage operation
     that might fail. More specific exceptions inherit from this base.
     """
+
     pass
 
 
 class StorageConnectionError(StorageError):
     """
     Raised when connection to storage backend fails.
-    
+
     Examples:
     - Cannot connect to PostgreSQL server
     - Redis connection timeout
     - Qdrant service unavailable
     """
+
     pass
 
 
 class StorageQueryError(StorageError):
     """
     Raised when query execution fails.
-    
+
     Examples:
     - Invalid SQL syntax
     - Malformed search query
     - Query timeout
     """
+
     pass
 
 
 class StorageDataError(StorageError):
     """
     Raised when data validation or integrity errors occur.
-    
+
     Examples:
     - Missing required fields
     - Invalid data types
     - Constraint violations
     """
+
     pass
 
 
 class StorageTimeoutError(StorageError):
     """
     Raised when operation exceeds time limit.
-    
+
     Examples:
     - Connection timeout
     - Query execution timeout
     - Lock acquisition timeout
     """
+
     pass
 
 
 class StorageNotFoundError(StorageError):
     """
     Raised when requested resource is not found.
-    
+
     Examples:
     - Record with given ID doesn't exist
     - Collection/table not found
     """
+
     pass
 
 
 # Helper utilities
-def validate_required_fields(data: Dict[str, Any], required: List[str]) -> None:
+def validate_required_fields(data: dict[str, Any], required: list[str]) -> None:
     """
     Validate that all required fields are present in data.
-    
+
     Args:
         data: Dictionary to validate
         required: List of required field names
-    
+
     Raises:
         StorageDataError: If any required field is missing
     """
     missing = [field for field in required if field not in data]
     if missing:
-        raise StorageDataError(
-            f"Missing required fields: {', '.join(missing)}"
-        )
+        raise StorageDataError(f"Missing required fields: {', '.join(missing)}")
 
 
-def validate_field_types(
-    data: Dict[str, Any],
-    type_specs: Dict[str, type]
-) -> None:
+def validate_field_types(data: dict[str, Any], type_specs: dict[str, type]) -> None:
     """
     Validate that fields have expected types.
-    
+
     Args:
         data: Dictionary to validate
         type_specs: Dict mapping field names to expected types
-    
+
     Raises:
         StorageDataError: If any field has wrong type
     """
@@ -125,16 +127,16 @@ def validate_field_types(
 class StorageAdapter(ABC):
     """
     Abstract base class for all storage backend adapters.
-    
+
     This interface defines the contract that all concrete storage adapters
     must implement. It provides a uniform API for:
     - Connection management
     - CRUD operations (Create, Read, Update, Delete)
     - Search/query operations
     - Resource cleanup
-    
+
     All methods are async to support non-blocking I/O operations.
-    
+
     Usage Example:
         ```python
         adapter = ConcreteAdapter(config)
@@ -145,7 +147,7 @@ class StorageAdapter(ABC):
         finally:
             await adapter.disconnect()
         ```
-    
+
     Context Manager Usage:
         ```python
         async with ConcreteAdapter(config) as adapter:
@@ -153,74 +155,75 @@ class StorageAdapter(ABC):
             data = await adapter.retrieve(id)
         ```
     """
-    
-    def __init__(self, config: Dict[str, Any]):
+
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize adapter with configuration.
-        
+
         Args:
             config: Configuration dictionary with backend-specific settings.
                    Common keys: 'url', 'timeout', 'pool_size', etc.
         """
         self.config = config
         self._connected = False
-        
+
         # Initialize metrics collector
         from .metrics import MetricsCollector
-        metrics_config = config.get('metrics', {})
+
+        metrics_config = config.get("metrics", {})
         self.metrics = MetricsCollector(metrics_config)
-    
+
     @abstractmethod
     async def connect(self) -> None:
         """
         Establish connection to storage backend.
-        
+
         This method should:
         - Initialize connection pools
         - Verify backend is reachable
         - Set up any necessary resources
         - Set self._connected = True on success
-        
+
         Raises:
             StorageConnectionError: If connection fails
             StorageTimeoutError: If connection times out
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def disconnect(self) -> None:
         """
         Close connection and cleanup resources.
-        
+
         This method should:
         - Close connection pools gracefully
         - Release any held resources
         - Flush pending operations if needed
         - Set self._connected = False
-        
+
         Should be safe to call multiple times (idempotent).
         """
         raise NotImplementedError
-    
+
     @abstractmethod
-    async def store(self, data: Dict[str, Any]) -> str:
+    async def store(self, data: dict[str, Any]) -> str:
         """
         Store data in backend and return unique identifier.
-        
+
         Args:
             data: Dictionary containing data to store.
                  Required keys depend on specific adapter implementation.
-        
+
         Returns:
             Unique identifier (ID) for the stored data.
             Format depends on backend (UUID, integer, composite key, etc.)
-        
+
         Raises:
             StorageConnectionError: If not connected to backend
             StorageDataError: If data validation fails
             StorageQueryError: If storage operation fails
             StorageTimeoutError: If operation times out
-        
+
         Example:
             ```python
             data = {
@@ -233,24 +236,24 @@ class StorageAdapter(ABC):
             ```
         """
         raise NotImplementedError
-    
+
     @abstractmethod
-    async def retrieve(self, id: str) -> Optional[Dict[str, Any]]:
+    async def retrieve(self, id: str) -> dict[str, Any] | None:
         """
         Retrieve data by unique identifier.
-        
+
         Args:
             id: Unique identifier returned from store() method
-        
+
         Returns:
             Dictionary containing stored data, or None if not found.
             The structure matches what was passed to store().
-        
+
         Raises:
             StorageConnectionError: If not connected to backend
             StorageQueryError: If retrieval operation fails
             StorageTimeoutError: If operation times out
-        
+
         Example:
             ```python
             data = await adapter.retrieve("550e8400-e29b-41d4-a716-446655440000")
@@ -261,12 +264,12 @@ class StorageAdapter(ABC):
             ```
         """
         raise NotImplementedError
-    
+
     @abstractmethod
-    async def search(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def search(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Search for records matching query criteria.
-        
+
         Args:
             query: Dictionary containing search parameters.
                   Common keys:
@@ -275,18 +278,18 @@ class StorageAdapter(ABC):
                   - 'offset': Number of results to skip (default: 0)
                   - 'sort': Field to sort by (optional)
                   - 'order': 'asc' or 'desc' (default: 'desc')
-                  
+
                   Backend-specific keys may also be supported.
-        
+
         Returns:
             List of dictionaries, each containing matching data.
             Empty list if no matches found.
-        
+
         Raises:
             StorageConnectionError: If not connected to backend
             StorageQueryError: If search query is invalid or fails
             StorageTimeoutError: If operation times out
-        
+
         Example:
             ```python
             results = await adapter.search({
@@ -300,23 +303,23 @@ class StorageAdapter(ABC):
             ```
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def delete(self, id: str) -> bool:
         """
         Delete data by unique identifier.
-        
+
         Args:
             id: Unique identifier of data to delete
-        
+
         Returns:
             True if data was deleted, False if not found.
-        
+
         Raises:
             StorageConnectionError: If not connected to backend
             StorageQueryError: If delete operation fails
             StorageTimeoutError: If operation times out
-        
+
         Example:
             ```python
             success = await adapter.delete("550e8400-e29b-41d4-a716-446655440000")
@@ -327,29 +330,29 @@ class StorageAdapter(ABC):
             ```
         """
         raise NotImplementedError
-    
+
     # Batch operations (optional, with default implementations)
-    
-    async def store_batch(self, items: List[Dict[str, Any]]) -> List[str]:
+
+    async def store_batch(self, items: list[dict[str, Any]]) -> list[str]:
         """
         Store multiple items in a single batch operation.
-        
+
         Default implementation calls store() for each item sequentially.
         Concrete adapters should override this for better performance
         using backend-specific batch operations.
-        
+
         Args:
             items: List of data dictionaries to store
-        
+
         Returns:
             List of unique identifiers for stored items (same order as input)
-        
+
         Raises:
             StorageConnectionError: If not connected to backend
             StorageDataError: If any item validation fails
             StorageQueryError: If batch operation fails
             StorageTimeoutError: If operation times out
-        
+
         Example:
             ```python
             items = [
@@ -366,27 +369,27 @@ class StorageAdapter(ABC):
             id = await self.store(item)
             ids.append(id)
         return ids
-    
-    async def retrieve_batch(self, ids: List[str]) -> List[Optional[Dict[str, Any]]]:
+
+    async def retrieve_batch(self, ids: list[str]) -> list[dict[str, Any] | None]:
         """
         Retrieve multiple items by their identifiers.
-        
+
         Default implementation calls retrieve() for each ID sequentially.
         Concrete adapters should override this for better performance
         using backend-specific batch operations.
-        
+
         Args:
             ids: List of unique identifiers
-        
+
         Returns:
             List of data dictionaries (or None for not found items)
             Results in same order as input IDs
-        
+
         Raises:
             StorageConnectionError: If not connected to backend
             StorageQueryError: If batch operation fails
             StorageTimeoutError: If operation times out
-        
+
         Example:
             ```python
             ids = ['id1', 'id2', 'id3']
@@ -399,26 +402,26 @@ class StorageAdapter(ABC):
             result = await self.retrieve(id)
             results.append(result)
         return results
-    
-    async def delete_batch(self, ids: List[str]) -> Dict[str, bool]:
+
+    async def delete_batch(self, ids: list[str]) -> dict[str, bool]:
         """
         Delete multiple items by their identifiers.
-        
+
         Default implementation calls delete() for each ID sequentially.
         Concrete adapters should override this for better performance
         using backend-specific batch operations.
-        
+
         Args:
             ids: List of unique identifiers to delete
-        
+
         Returns:
             Dictionary mapping IDs to deletion status (True=deleted, False=not found)
-        
+
         Raises:
             StorageConnectionError: If not connected to backend
             StorageQueryError: If batch operation fails
             StorageTimeoutError: If operation times out
-        
+
         Example:
             ```python
             ids = ['id1', 'id2', 'id3']
@@ -431,26 +434,26 @@ class StorageAdapter(ABC):
             success = await self.delete(id)
             results[id] = success
         return results
-    
+
     @property
     def is_connected(self) -> bool:
         """
         Check if adapter is currently connected to backend.
-        
+
         Returns:
             True if connected, False otherwise.
         """
         return self._connected
-    
+
     # Health check and monitoring
-    
-    async def health_check(self) -> Dict[str, Any]:
+
+    async def health_check(self) -> dict[str, Any]:
         """
         Check health and performance of the storage backend.
-        
+
         Default implementation provides basic connectivity check.
         Concrete adapters should override to provide more detailed metrics.
-        
+
         Returns:
             Dictionary with health status information:
             - status: 'healthy', 'degraded', or 'unhealthy'
@@ -458,7 +461,7 @@ class StorageAdapter(ABC):
             - latency_ms: Response time in milliseconds (if available)
             - details: Backend-specific additional information
             - timestamp: ISO timestamp of health check
-        
+
         Example:
             ```python
             health = await adapter.health_check()
@@ -469,47 +472,47 @@ class StorageAdapter(ABC):
             ```
         """
         import time
-        from datetime import datetime, timezone
-        
+        from datetime import datetime
+
         start_time = time.perf_counter()
-        
+
         try:
             # Basic connectivity check
             if not self._connected:
                 return {
-                    'status': 'unhealthy',
-                    'connected': False,
-                    'details': 'Not connected to backend',
-                    'timestamp': datetime.now(timezone.utc).isoformat()
+                    "status": "unhealthy",
+                    "connected": False,
+                    "details": "Not connected to backend",
+                    "timestamp": datetime.now(UTC).isoformat(),
                 }
-            
+
             # Try a simple operation to verify backend is responsive
             # Concrete implementations should override with backend-specific checks
             latency_ms = (time.perf_counter() - start_time) * 1000
-            
+
             return {
-                'status': 'healthy',
-                'connected': True,
-                'latency_ms': round(latency_ms, 2),
-                'details': 'Basic connectivity check passed',
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                "status": "healthy",
+                "connected": True,
+                "latency_ms": round(latency_ms, 2),
+                "details": "Basic connectivity check passed",
+                "timestamp": datetime.now(UTC).isoformat(),
             }
-            
+
         except Exception as e:
             latency_ms = (time.perf_counter() - start_time) * 1000
             return {
-                'status': 'unhealthy',
-                'connected': self._connected,
-                'latency_ms': round(latency_ms, 2),
-                'details': f'Health check failed: {str(e)}',
-                'error': str(e),
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                "status": "unhealthy",
+                "connected": self._connected,
+                "latency_ms": round(latency_ms, 2),
+                "details": f"Health check failed: {e!s}",
+                "error": str(e),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
-    
-    async def get_metrics(self) -> Dict[str, Any]:
+
+    async def get_metrics(self) -> dict[str, Any]:
         """
         Get collected metrics from adapter.
-        
+
         Returns:
             Dictionary with comprehensive metrics including:
             - adapter_type: Adapter class name
@@ -520,21 +523,21 @@ class StorageAdapter(ABC):
             - backend_specific: Adapter-specific metrics
         """
         base_metrics = await self.metrics.get_metrics()
-        
+
         # Add adapter-specific information
-        base_metrics['adapter_type'] = self.__class__.__name__.replace('Adapter', '').lower()
-        
+        base_metrics["adapter_type"] = self.__class__.__name__.replace("Adapter", "").lower()
+
         # Subclasses can override to add backend-specific metrics
         backend_metrics = await self._get_backend_metrics()
         if backend_metrics:
-            base_metrics['backend_specific'] = backend_metrics
-        
+            base_metrics["backend_specific"] = backend_metrics
+
         return base_metrics
-    
-    async def _get_backend_metrics(self) -> Optional[Dict[str, Any]]:
+
+    async def _get_backend_metrics(self) -> dict[str, Any] | None:
         """
         Override in subclasses to provide backend-specific metrics.
-        
+
         Example for Qdrant:
             return {
                 'vector_count': self.collection_info.points_count,
@@ -542,21 +545,21 @@ class StorageAdapter(ABC):
             }
         """
         return None
-    
-    async def export_metrics(self, format: str = 'dict') -> Union[Dict, str]:
+
+    async def export_metrics(self, format: str = "dict") -> dict[str, Any] | str:
         """Export metrics in specified format."""
         return await self.metrics.export_metrics(format)
-    
+
     async def reset_metrics(self) -> None:
         """Reset all collected metrics."""
         await self.metrics.reset_metrics()
-    
-    async def __aenter__(self):
+
+    async def __aenter__(self) -> "StorageAdapter":
         """
         Async context manager entry.
-        
+
         Automatically connects to backend when entering context.
-        
+
         Example:
             ```python
             async with adapter:
@@ -565,11 +568,16 @@ class StorageAdapter(ABC):
         """
         await self.connect()
         return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
         """
         Async context manager exit.
-        
+
         Automatically disconnects from backend when exiting context,
         even if an exception occurred.
         """
@@ -578,16 +586,16 @@ class StorageAdapter(ABC):
 
 
 __all__ = [
-    # Exceptions
-    'StorageError',
-    'StorageConnectionError',
-    'StorageQueryError',
-    'StorageDataError',
-    'StorageTimeoutError',
-    'StorageNotFoundError',
     # Base class
-    'StorageAdapter',
+    "StorageAdapter",
+    "StorageConnectionError",
+    "StorageDataError",
+    # Exceptions
+    "StorageError",
+    "StorageNotFoundError",
+    "StorageQueryError",
+    "StorageTimeoutError",
+    "validate_field_types",
     # Utilities
-    'validate_required_fields',
-    'validate_field_types',
+    "validate_required_fields",
 ]

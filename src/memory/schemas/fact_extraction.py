@@ -1,6 +1,8 @@
 """Fact extraction schema and system instruction for Gemini structured output."""
 
-from google.genai import types
+import importlib
+
+types = importlib.import_module("google.genai.types")
 
 FACT_EXTRACTION_SYSTEM_INSTRUCTION = """You are an expert fact extractor for a supply chain memory system.
 
@@ -12,14 +14,16 @@ For each fact, you must identify:
 - category: One of [personal, business, technical, operational]
 - certainty: Your confidence in this fact's accuracy (0.0-1.0)
 - impact: Estimated importance/urgency (0.0-1.0)
+- justification: A one-sentence explanation of why this fact is significant enough to record.
 
 Guidelines:
 - preference: User likes/dislikes
 - constraint: Limitations or requirements
 - entity: Person, place, thing, or organization
 - mention: Reference to something
-- relationship: Connection between entities
-- event: Something that happened or will happen
+    - relationship: Connection between entities
+    - event: Something that happened or will happen
+    - instruction: Actionable commands, requests for future action, or conditional tasks (NOT immediate requests).
 
 Impact scoring:
 - High (0.7-1.0): Critical decisions, urgent requests, cancellation threats
@@ -35,7 +39,7 @@ FACT_EXTRACTION_SCHEMA = types.Schema(
             description="List of extracted facts from the conversation.",
             items=types.Schema(
                 type=types.Type.OBJECT,
-                required=["content", "type", "category", "certainty", "impact"],
+                required=["content", "type", "category", "certainty", "impact", "justification"],
                 properties={
                     "content": types.Schema(
                         type=types.Type.STRING,
@@ -43,8 +47,16 @@ FACT_EXTRACTION_SCHEMA = types.Schema(
                     ),
                     "type": types.Schema(
                         type=types.Type.STRING,
-                        description="Type of fact: preference (user likes/dislikes), constraint (limitation/requirement), entity (person/place/thing), mention (reference to something), relationship (connection between entities), event (something that happened).",
-                        enum=["preference", "constraint", "entity", "mention", "relationship", "event"],
+                        description="Type of fact: preference (user likes/dislikes), constraint (limitation/requirement), entity (person/place/thing), mention (reference to something), relationship (connection between entities), event (something that happened), instruction (delayed/conditional command).",
+                        enum=[
+                            "preference",
+                            "constraint",
+                            "entity",
+                            "mention",
+                            "relationship",
+                            "event",
+                            "instruction",
+                        ],
                     ),
                     "category": types.Schema(
                         type=types.Type.STRING,
@@ -58,6 +70,10 @@ FACT_EXTRACTION_SCHEMA = types.Schema(
                     "impact": types.Schema(
                         type=types.Type.NUMBER,
                         description="Estimated importance/urgency of this fact, from 0.0 (low) to 1.0 (critical).",
+                    ),
+                    "justification": types.Schema(
+                        type=types.Type.STRING,
+                        description="A one-sentence explanation of why this fact is significant enough to record.",
                     ),
                 },
             ),

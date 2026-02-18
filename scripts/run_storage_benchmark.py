@@ -62,31 +62,31 @@ def print_usage():
 async def main():
     """Main entry point."""
     print_banner()
-    
+
     if len(sys.argv) < 2:
         # Default to run
         await run_benchmark()
         return
-    
+
     command = sys.argv[1]
-    
+
     if command == "help" or command == "--help" or command == "-h":
         print_usage()
-    
+
     elif command == "run":
         # Remove 'run' from argv so argparse in run_benchmark works correctly
         sys.argv.pop(1)
         await run_benchmark()
-    
+
     elif command == "analyze":
         # Remove 'analyze' from argv
         sys.argv.pop(1)
         analyze_results()
-    
+
     elif command.startswith("--"):
         # Assume it's a flag for run command
         await run_benchmark()
-    
+
     else:
         print(f"Unknown command: {command}")
         print()

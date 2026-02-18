@@ -11,14 +11,13 @@ import argparse
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
-
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 HTMLCOV_STATUS = PROJECT_ROOT / "htmlcov" / "status.json"
 
 
-def read_coverage() -> Optional[Dict[str, Any]]:
+def read_coverage() -> dict[str, Any] | None:
     """Return coverage summary if available."""
     if not HTMLCOV_STATUS.exists():
         return None
@@ -28,7 +27,7 @@ def read_coverage() -> Optional[Dict[str, Any]]:
         return None
 
 
-def env_flags() -> Dict[str, bool]:
+def env_flags() -> dict[str, bool]:
     """Flag presence of key environment variables without reading secrets."""
     keys = [
         "GOOGLE_API_KEY",
@@ -39,7 +38,7 @@ def env_flags() -> Dict[str, bool]:
     return {key: bool(os.environ.get(key)) for key in keys}
 
 
-def build_summary() -> Dict[str, Any]:
+def build_summary() -> dict[str, Any]:
     """Assemble readiness summary."""
     return {
         "coverage": read_coverage(),
