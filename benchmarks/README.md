@@ -27,9 +27,9 @@ interfaces are registered in `model_interfaces/mas_agents.py` and expose the fol
 agents simultaneously, manually start additional wrapper instances:
 ```bash
 # Terminal 1: mas-rag on 8081
-python src/evaluation/agent_wrapper.py --agent-type rag --port 8081
+./.venv/bin/python src/evaluation/agent_wrapper.py --agent-type rag --port 8081
 # Terminal 2: mas-full-context on 8082
-python src/evaluation/agent_wrapper.py --agent-type full_context --port 8082
+./.venv/bin/python src/evaluation/agent_wrapper.py --agent-type full_context --port 8082
 ```
 
 Session IDs are prefixed for isolation (e.g., `full:{session_id}`, `rag:{session_id}`) to avoid
@@ -60,32 +60,32 @@ docker run -p 8108:8108 typesense/typesense:0.25.2 --data-dir=/data --api-key=xy
 
 ```bash
 # Default: 10,000 operations, all adapters
-python tests/benchmarks/bench_storage_adapters.py
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py
 
 # Small workload (1,000 operations) for quick testing
-python tests/benchmarks/bench_storage_adapters.py --size 1000
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py --size 1000
 
 # Large workload (100,000 operations) for stress testing
-python tests/benchmarks/bench_storage_adapters.py --size 100000
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py --size 100000
 
 # Benchmark specific adapters only
-python tests/benchmarks/bench_storage_adapters.py --adapters redis_l1 redis_l2
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py --adapters redis_l1 redis_l2
 
 # Custom random seed for reproducibility
-python tests/benchmarks/bench_storage_adapters.py --seed 12345
+./.venv/bin/python tests/benchmarks/bench_storage_adapters.py --seed 12345
 ```
 
 ### Analyze Results
 
 ```bash
 # Analyze most recent benchmark results
-python tests/benchmarks/results_analyzer.py
+./.venv/bin/python tests/benchmarks/results_analyzer.py
 
 # Analyze specific results file
-python tests/benchmarks/results_analyzer.py --results benchmarks/results/raw/benchmark_20251021_143022.json
+./.venv/bin/python tests/benchmarks/results_analyzer.py --results benchmarks/results/raw/benchmark_20251021_143022.json
 
 # Custom output directory
-python tests/benchmarks/results_analyzer.py --output /path/to/output
+./.venv/bin/python tests/benchmarks/results_analyzer.py --output /path/to/output
 ```
 
 ## Workload Configurations

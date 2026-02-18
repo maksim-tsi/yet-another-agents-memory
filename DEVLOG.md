@@ -16,6 +16,51 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-18 - Agent-First Harness + Skills v1 Documentation & Guardrails ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented a repository harness hardening pass aligned with modern harness-engineering principles,
+and documented the Mechanism/Policy split and Skills v1 approach. The changes focus on preventing
+instruction drift and reducing “layer jumping” by coding assistants during development, while
+preparing Skills as policy artifacts for runtime multi-agent systems.
+
+**✅ What's Complete:**
+
+- **Instruction hierarchy alignment:** Reduced `AGENTS.MD` to a map + invariants and aligned
+  `.github/copilot-instructions.md` and `.github/instructions/*` to avoid contradictory defaults.
+- **Mechanical drift prevention:** Added `tests/test_instruction_consistency.py` to fail on
+  reintroducing banned copy-pastable patterns in instruction code blocks (e.g., `unittest.mock`,
+  `pip install`, `.env` parsing, and output redirection patterns).
+- **Mechanism freeze readiness:** Authored a normative specification defining Connector/Adapter
+  Contract v1 and maturity criteria for freezing the mechanism layer (`src/storage/`).
+- **Skill-Based Architecture planning:** Authored an RFP, ADR-010, and an implementation plan for
+  “Repository harness + Skills v1” with an explicit “benchmark feedback-only” posture.
+- **ADR consistency:** Updated ADR-007 and ADR-009 to reference Skills-based policy packaging and
+  to document benchmark usage as feedback-only (avoid train-on-test).
+
+**Key Artifacts (Added/Updated):**
+
+- **Specification:** `docs/specs/spec-mechanism-maturity-and-freeze.md`
+- **RFP:** `docs/plan/rfp-repository-harness-and-skills-v1.md`
+- **ADR:** `docs/ADR/010-mechanism-policy-split-and-skills-v1.md`
+- **Plan:** `docs/plan/adr010-implementation-plan-repository-harness-and-skills-v1.md`
+- **Indexes:** `docs/plan/README.md`, `docs/specs/README.md`
+- **Harness:** `AGENTS.MD`, `.github/copilot-instructions.md`, `.github/instructions/*`
+- **Guardrails:** `tests/test_instruction_consistency.py`
+
+**Verification:**
+```bash
+./.venv/bin/ruff check .
+./.venv/bin/pytest tests/test_instruction_consistency.py -v
+```
+
+**Notes:**
+This milestone is documentation-and-harness focused. It does not change core memory tier behavior
+or storage adapter implementations. Subsequent milestones will operationalize Skills v1 and
+mechanism maturity evidence per ADR-010.
+
 ### 2026-02-11 - Documentation Accuracy Update: Project Status Correction ✅
 
 **Status:** ✅ Complete

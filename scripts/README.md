@@ -43,29 +43,29 @@ scripts/
 
 Script inventory
 # Run demo with flags (run subset of providers and custom prompt):
-./venv/bin/python scripts/llm_client_demo.py --providers=gemini,groq --prompt "Explain memory systems in one sentence."
+./.venv/bin/python scripts/llm_client_demo.py --providers=gemini,groq --prompt "Explain memory systems in one sentence."
  
 # Run demo with JSON output (good for scripting/CI output):
-./venv/bin/python scripts/llm_client_demo.py --providers=groq --prompt "Explain the CIAR scoring briefly" --json
+./.venv/bin/python scripts/llm_client_demo.py --providers=groq --prompt "Explain the CIAR scoring briefly" --json
 
 # Use a default model for all providers --model or override per-provider:
-./venv/bin/python scripts/llm_client_demo.py --providers=gemini,groq --model "gemini-2.5-flash" --prompt "Explain memory systems" --json
-./venv/bin/python scripts/llm_client_demo.py --providers=gemini --model-gemini "gemini-2.0-flash-exp" --prompt "Explain the CIAR scoring briefly" --json
+./.venv/bin/python scripts/llm_client_demo.py --providers=gemini,groq --model "gemini-2.5-flash" --prompt "Explain memory systems" --json
+./.venv/bin/python scripts/llm_client_demo.py --providers=gemini --model-gemini "gemini-2.0-flash-exp" --prompt "Explain the CIAR scoring briefly" --json
 
 # Increase demo verbosity (set logging level to DEBUG):
-./venv/bin/python scripts/llm_client_demo.py --providers=mistral --prompt "Summarize the project in one sentence" --verbose
+./.venv/bin/python scripts/llm_client_demo.py --providers=mistral --prompt "Summarize the project in one sentence" --verbose
 
 # Skip provider health checks (faster demos):
-./venv/bin/python scripts/llm_client_demo.py --providers=groq --skip-health-check --prompt "Explain the CIAR scoring briefly" --json
+./.venv/bin/python scripts/llm_client_demo.py --providers=groq --skip-health-check --prompt "Explain the CIAR scoring briefly" --json
 
 # Write JSON NDJSON output to file
-./venv/bin/python scripts/llm_client_demo.py --providers=groq --skip-health-check --prompt "Explain the CIAR scoring briefly" --json --output-file="/tmp/llm_demo_out.ndjson"
-
+./.venv/bin/python scripts/llm_client_demo.py --providers=groq --skip-health-check --prompt "Explain the CIAR scoring briefly" --json --output-file="/tmp/llm_demo_out.ndjson"
+ 
 # JSON array output (overwrite existing file)
-./venv/bin/python scripts/llm_client_demo.py --providers=gemini --prompt "Explain memory" --json --output-format=json-array --output-mode=overwrite --output-file="/tmp/llm_demo_array.json"
+./.venv/bin/python scripts/llm_client_demo.py --providers=gemini --prompt "Explain memory" --json --output-format=json-array --output-mode=overwrite --output-file="/tmp/llm_demo_array.json"
 
 # JSON array output (append to existing array)
-./venv/bin/python scripts/llm_client_demo.py --providers=gemini --prompt "Explain memory" --json --output-format=json-array --output-mode=append --output-file="/tmp/llm_demo_array.json"
+./.venv/bin/python scripts/llm_client_demo.py --providers=gemini --prompt "Explain memory" --json --output-format=json-array --output-mode=append --output-file="/tmp/llm_demo_array.json"
 ----------------
 New File Output Behavior (ndjson vs json-array)
 --------------------------------------------
