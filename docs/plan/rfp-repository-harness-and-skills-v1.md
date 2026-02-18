@@ -5,11 +5,27 @@
 **Owner:** YAAM maintainers  
 **Audience:** Maintainers, coding assistants, contributors  
 
+## 0. Terminology (to avoid ambiguity)
+
+YAAM interacts with **two distinct classes of “agents/assistants”**:
+
+1. **Development-time coding assistants** (used to build YAAM): GitHub Copilot, Codex CLI, Claude Code,
+   Gemini CLI, etc. These assistants read `AGENTS.MD` / `.github/*` and modify this repository.
+2. **Runtime MAS agents** (YAAM’s users): multi-agent systems built with frameworks like LangGraph,
+   AutoGen, CrewAI, and also external desktop/CLI assistants (e.g., Claude Desktop) that can consume
+   YAAM skills and call YAAM’s capabilities in production-like scenarios.
+
+Some product names overlap across contexts (e.g., “Codex” can be a coding assistant and also an agent
+platform). Unless stated otherwise:
+- “Harness” refers to **development-time** workflows and guardrails.
+- “Skills” refer to **runtime** policy artifacts for agents using YAAM.
+
 ## 1. Problem Statement
 
-YAAM is developed with multiple coding assistants (Codex, GitHub Copilot, Claude Code, Gemini CLI).
-This increases throughput but also increases the risk of architectural drift, “layer jumping” (agents
-modifying stable mechanism code to improve a policy-level outcome), and instruction inconsistency.
+YAAM is developed with multiple development-time coding assistants (Codex, GitHub Copilot, Claude
+Code, Gemini CLI). This increases throughput but also increases the risk of architectural drift,
+“layer jumping” (assistants modifying stable mechanism code to improve a higher-level policy
+outcome), and instruction inconsistency.
 
 In parallel, YAAM is adopting a **Skill-Based Architecture** to enable progressive disclosure of
 capabilities and to keep the mechanism layer stable while iterating on policy.
@@ -19,12 +35,12 @@ high-velocity iteration without overfitting to benchmarks.
 
 ## 2. Goals
 
-1. **Harness consistency:** Ensure a single coherent set of agent instructions and mechanically
-   prevent instruction drift.
+1. **Harness consistency:** Ensure a single coherent set of coding-assistant instructions and
+   mechanically prevent instruction drift.
 2. **Boundary safety:** Reduce “layer jumping” by clearly separating **Mechanism** from **Policy** and
    defaulting the mechanism layer to frozen-by-default.
 3. **Skills v1 (policy-first):** Introduce a small set (10–20) of project-specific skills expressed
-   primarily as `SKILL.md` instructions that teach agents how to correctly use YAAM’s mechanism.
+   primarily as `SKILL.md` instructions that teach runtime agents how to correctly use YAAM’s mechanism.
 4. **Progressive disclosure:** Make skills discoverable by name and load their full instructions only
    when needed (initially via manual selection; orchestration/routers are future work).
 5. **Benchmark as feedback:** Use the GoodAI benchmark as a **feedback loop** for system behavior,
@@ -50,8 +66,9 @@ high-velocity iteration without overfitting to benchmarks.
   - Optional `skills/<skill_name>/tools/` *only if needed later* (v1 assumes tools live in `src/`)
 - Skills reference YAAM’s mechanism layer, primarily `src/storage/` adapters and stable public
   interfaces (see `docs/specs/spec-mechanism-maturity-and-freeze.md`).
-- Skills are optimized for YAAM’s internal agents first (LangGraph / AutoGen), with an explicit
-  decision to generalize for external assistants (Codex/Claude Desktop) in a later version.
+- Skills are optimized for YAAM’s internal runtime agents first (LangGraph / AutoGen / CrewAI), with
+  an explicit decision to generalize for external runtime assistants (e.g., Claude Desktop) in a
+  later version.
 
 ### 3.3 Benchmark Feedback Loop (GoodAI)
 

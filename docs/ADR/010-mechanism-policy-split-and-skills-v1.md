@@ -6,15 +6,23 @@
 
 ## 1. Context
 
-YAAM is developed in an agent-first workflow where coding assistants (Codex, GitHub Copilot, Claude
-Code, Gemini CLI) can increase engineering throughput substantially. This workflow introduces a
-distinct failure mode: assistants may “layer jump” by modifying stable, low-level mechanism code in
-order to improve a higher-level behavior (e.g., a prompt, agent orchestration outcome, or benchmark
-score). In practice, this can regress reliability and increase maintenance cost.
+YAAM concerns **two distinct classes of “agents/assistants”** that must not be conflated:
+
+1. **Development-time coding assistants** (used to build YAAM): GitHub Copilot, Codex CLI, Claude Code,
+   Gemini CLI, etc. These assistants read repository harness instructions and modify this codebase.
+2. **Runtime MAS agents** (YAAM’s users): multi-agent systems built with frameworks like LangGraph,
+   AutoGen, CrewAI, and also external desktop/CLI assistants (e.g., Claude Desktop) that can consume
+   YAAM skills and call YAAM’s capabilities.
+
+YAAM is developed in an agent-first workflow where development-time coding assistants can increase
+engineering throughput substantially. This workflow introduces a distinct failure mode: assistants
+may “layer jump” by modifying stable, low-level mechanism code in order to improve a higher-level
+policy outcome (e.g., a prompt, agent orchestration outcome, or benchmark score). In practice, this
+can regress reliability and increase maintenance cost.
 
 In addition, YAAM’s memory stack spans multiple storage backends (Redis, PostgreSQL, Qdrant, Neo4j,
-Typesense). Exposing all operational details to an agent simultaneously creates “tool bloat” and
-context pollution, which ADR-007 already identifies as a major source of degraded reasoning and
+Typesense). Exposing all operational details to a runtime agent simultaneously creates “tool bloat”
+and context pollution, which ADR-007 already identifies as a major source of degraded reasoning and
 token inefficiency.
 
 We therefore need:
@@ -68,7 +76,7 @@ changing the mechanism contract.
 
 Skills are intended to support progressive disclosure:
 
-- Agents should initially see a small inventory (10–20 skills).
+- Runtime agents should initially see a small inventory (10–20 skills).
 - Only the selected skill’s full instruction payload should be injected into context.
 
 In v1, skill selection may be manual or minimally automated. A dedicated skill orchestration router
@@ -84,7 +92,7 @@ observability. It must not be treated as an optimization target for encoding ben
 scripts inside skills.
 
 Benchmark integration continues to follow ADR-009 (“API Wall”) so that the benchmark remains a
-black-box evaluator of the agent system.
+black-box evaluator of the runtime agent system.
 
 ## 3. Consequences
 
@@ -95,7 +103,7 @@ black-box evaluator of the agent system.
 - **Higher iteration velocity:** Policy (skills/prompts/orchestration) becomes the primary surface
   for experimentation.
 - **Improved agent legibility:** Skills provide a structured, discoverable knowledge store for
-  assistants without overwhelming them with global instruction blobs.
+  runtime agents (and their operators) without overwhelming them with global instruction blobs.
 - **Scientific validity:** Explicit “feedback-only” benchmark usage reduces the risk of
   train-on-test artifacts that invalidate evaluation claims.
 
@@ -147,4 +155,3 @@ black-box evaluator of the agent system.
 **Pros:** fully automated progressive disclosure; dynamic tool exposure.  
 **Cons:** high complexity; premature optimization; increases the surface area for failure.  
 **Why deferred:** v1 focuses on stable skill packaging and boundary discipline first.
-

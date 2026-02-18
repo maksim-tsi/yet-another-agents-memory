@@ -6,11 +6,24 @@
 **Spec:** `docs/specs/spec-mechanism-maturity-and-freeze.md`  
 **RFP:** `docs/plan/rfp-repository-harness-and-skills-v1.md`  
 
+## 0. Terminology (to avoid ambiguity)
+
+YAAM interacts with two distinct classes of “agents/assistants”:
+
+1. **Development-time coding assistants** (used to build YAAM): GitHub Copilot, Codex CLI, Claude Code,
+   Gemini CLI, etc. These assistants read repository harness instructions and modify this repository.
+2. **Runtime MAS agents** (YAAM’s users): systems built with LangGraph/AutoGen/CrewAI and external
+   assistants (e.g., Claude Desktop) that can consume YAAM skills and call YAAM’s capabilities.
+
+Unless stated otherwise in this plan:
+- “Harness” refers to development-time guardrails for coding assistants.
+- “Skills” refer to runtime policy artifacts.
+
 ## 1. Objective
 
 Implement ADR-010 by establishing:
 
-1. A coherent **repository harness** (agent instruction hierarchy + mechanical drift checks),
+1. A coherent **repository harness** (coding-assistant instruction hierarchy + mechanical drift checks),
 2. A **Skills v1** store (policy-first, progressive disclosure oriented), and
 3. An evidence-based pathway to **freeze-by-default** the mechanism layer (`src/storage/`) while
    preserving the ability to evolve it under explicit change control.
@@ -20,7 +33,7 @@ Implement ADR-010 by establishing:
 1. **Mechanism vs Policy separation:** Mechanism provides stable capabilities; Policy governs usage.
 2. **Frozen-by-default mechanism:** `src/storage/` changes require explicit authorization and
    evidence-driven justification.
-3. **Progressive disclosure:** Agents should not ingest a global “everything manual” by default.
+3. **Progressive disclosure:** Runtime agents should not ingest a global “everything manual” by default.
 4. **No train-on-test:** The GoodAI benchmark is a feedback signal, not an optimization target for
    embedding benchmark-specific scripts in skills or prompts.
 5. **Mechanical enforcement over social enforcement:** Prefer structural tests/linters over “please
