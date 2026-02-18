@@ -9,18 +9,17 @@ from typing import Any, Literal
 import redis
 from pydantic import BaseModel, Field, ValidationError
 
-# Import the facade for the persistent knowledge layer
-from knowledge_store_manager import KnowledgeStoreManager
 from src.memory.engines.consolidation_engine import ConsolidationEngine
 from src.memory.engines.distillation_engine import DistillationEngine
-
-# Import lifecycle engines
 from src.memory.engines.promotion_engine import PromotionEngine
-
-# Import data models
-from src.memory.models import ContextBlock, Episode, Fact, KnowledgeDocument, SearchWeights
-
-# Import tier classes
+from src.memory.knowledge_store_manager import KnowledgeStoreManager
+from src.memory.models import (
+    ContextBlock,
+    Episode,
+    Fact,
+    KnowledgeDocument,
+    SearchWeights,
+)
 from src.memory.tiers import (
     ActiveContextTier,
     EpisodicMemoryTier,

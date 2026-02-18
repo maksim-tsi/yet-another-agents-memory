@@ -190,7 +190,7 @@ graph TD
             direction LR
             VEC[(Qdrant)]
             GPH[(Neo4j)]
-            SRCH[(Meilisearch)]
+            SRCH[(Typesense)]
             REL[(PostgreSQL)]
         end
     end
@@ -208,7 +208,7 @@ graph TD
 *   **Persistent Knowledge Layer (Specialized Databases):** The system's long-term memory, where distilled knowledge is archived.
     *   **Qdrant (Vector Store):** Stores experiential patterns for semantic similarity search.
     *   **Neo4j (Graph Store):** Stores entities and relationships for causal and relational analysis.
-    *   **Meilisearch (Search Store):** Stores operational knowledge (e.g., protocols, documents) for fast full-text search.
+    *   **Typesense (Search Store):** Stores operational knowledge (e.g., protocols, documents) for fast full-text search. *Note: The project migrated from Meilisearch to Typesense for better performance and feature set.*
     *   **PostgreSQL (Relational Store):** Stores structured metrics and auditable event logs.
 
 *   **Unified Memory System (`UnifiedMemorySystem`):** A single, clean facade that provides agents with a unified interface for all memory operations, intelligently routing requests to the appropriate underlying layer.
@@ -235,14 +235,13 @@ We have implemented a comprehensive micro-benchmark suite that measures the perf
 **Quick Start:**
 ```bash
 # Run default benchmark (10,000 operations)
-source .venv/bin/activate
-python scripts/run_storage_benchmark.py
+./.venv/bin/python scripts/run_storage_benchmark.py
 
 # Run quick test (1,000 operations)
-python scripts/run_storage_benchmark.py run --size 1000
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 1000
 
 # Analyze results and generate tables
-python scripts/run_storage_benchmark.py analyze
+./.venv/bin/python scripts/run_storage_benchmark.py analyze
 ```
 
 See [`benchmarks/README.md`](benchmarks/README.md) for complete documentation and [`docs/ADR/002-storage-performance-benchmarking.md`](docs/ADR/002-storage-performance-benchmarking.md) for architectural rationale.
@@ -445,7 +444,7 @@ Implementation of GoodAI LTM Benchmark for validation:
 
 ### 1. Set Up Backend Services
 
-This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Meilisearch. 
+This project requires Redis, PostgreSQL, Qdrant, Neo4j, and Typesense. 
 
 **Important:** This project uses a dedicated PostgreSQL database named `mas_memory` to ensure complete isolation from other projects. See [`docs/IAC/database-setup.md`](docs/IAC/database-setup.md) for detailed setup instructions.
 
@@ -546,12 +545,12 @@ Verify the implementation with the comprehensive test suite:
 ./scripts/run_tests.sh
 
 # Run specific test categories
-pytest tests/storage/test_base.py -v           # Base adapter tests
-pytest tests/storage/test_metrics.py -v        # Metrics tests
-pytest tests/storage/test_redis_metrics.py -v  # Redis integration tests
+./.venv/bin/pytest tests/storage/test_base.py -v           # Base adapter tests
+./.venv/bin/pytest tests/storage/test_metrics.py -v        # Metrics tests
+./.venv/bin/pytest tests/storage/test_redis_metrics.py -v  # Redis integration tests
 
 # Run with coverage
-pytest tests/storage/ --cov=src/storage --cov-report=html
+./.venv/bin/pytest tests/storage/ --cov=src/storage --cov-report=html
 ```
 
 ### 5. Verify Infrastructure & Health
@@ -561,17 +560,17 @@ pytest tests/storage/ --cov=src/storage --cov-report=html
 ./scripts/run_smoke_tests.sh --summary
 
 # Check health of all adapters
-python scripts/demo_health_check.py
+./.venv/bin/python scripts/demo_health_check.py
 ```
 
 ### 6. Explore Metrics & Monitoring
 
 ```bash
 # See metrics in action
-python examples/metrics_demo.py
+./.venv/bin/python examples/metrics_demo.py
 
 # Verify metrics implementation
-python scripts/verify_metrics_implementation.py
+./.venv/bin/python scripts/verify_metrics_implementation.py
 ```
 
 ### 7. Run Storage Performance Benchmarks
@@ -580,19 +579,19 @@ Validate storage layer performance with comprehensive micro-benchmarks:
 
 ```bash
 # Run default benchmark (10K operations, ~5-10 minutes)
-python scripts/run_storage_benchmark.py
+./.venv/bin/python scripts/run_storage_benchmark.py
 
 # Quick test (1K operations, ~1-2 minutes)
-python scripts/run_storage_benchmark.py run --size 1000
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 1000
 
 # Stress test (100K operations, ~30-60 minutes)
-python scripts/run_storage_benchmark.py run --size 100000
+./.venv/bin/python scripts/run_storage_benchmark.py run --size 100000
 
 # Benchmark specific adapters
-python scripts/run_storage_benchmark.py run --adapters redis_l1 redis_l2
+./.venv/bin/python scripts/run_storage_benchmark.py run --adapters redis_l1 redis_l2
 
 # Analyze results and generate publication tables
-python scripts/run_storage_benchmark.py analyze
+./.venv/bin/python scripts/run_storage_benchmark.py analyze
 ```
 
 Results are saved to:

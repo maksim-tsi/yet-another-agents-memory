@@ -16,6 +16,234 @@ Each entry should include:
 
 ## Log Entries
 
+### 2026-02-18 - Agent-First Harness + Skills v1 Documentation & Guardrails ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Implemented a repository harness hardening pass aligned with modern harness-engineering principles,
+and documented the Mechanism/Policy split and Skills v1 approach. The changes focus on preventing
+instruction drift and reducing “layer jumping” by coding assistants during development, while
+preparing Skills as policy artifacts for runtime multi-agent systems.
+
+**✅ What's Complete:**
+
+- **Instruction hierarchy alignment:** Reduced `AGENTS.MD` to a map + invariants and aligned
+  `.github/copilot-instructions.md` and `.github/instructions/*` to avoid contradictory defaults.
+- **Mechanical drift prevention:** Added `tests/test_instruction_consistency.py` to fail on
+  reintroducing banned copy-pastable patterns in instruction code blocks (e.g., `unittest.mock`,
+  `pip install`, `.env` parsing, and output redirection patterns).
+- **Mechanism freeze readiness:** Authored a normative specification defining Connector/Adapter
+  Contract v1 and maturity criteria for freezing the mechanism layer (`src/storage/`).
+- **Skill-Based Architecture planning:** Authored an RFP, ADR-010, and an implementation plan for
+  “Repository harness + Skills v1” with an explicit “benchmark feedback-only” posture.
+- **ADR consistency:** Updated ADR-007 and ADR-009 to reference Skills-based policy packaging and
+  to document benchmark usage as feedback-only (avoid train-on-test).
+
+**Key Artifacts (Added/Updated):**
+
+- **Specification:** `docs/specs/spec-mechanism-maturity-and-freeze.md`
+- **RFP:** `docs/plan/rfp-repository-harness-and-skills-v1.md`
+- **ADR:** `docs/ADR/010-mechanism-policy-split-and-skills-v1.md`
+- **Plan:** `docs/plan/adr010-implementation-plan-repository-harness-and-skills-v1.md`
+- **Indexes:** `docs/plan/README.md`, `docs/specs/README.md`
+- **Harness:** `AGENTS.MD`, `.github/copilot-instructions.md`, `.github/instructions/*`
+- **Guardrails:** `tests/test_instruction_consistency.py`
+
+**Verification:**
+```bash
+./.venv/bin/ruff check .
+./.venv/bin/pytest tests/test_instruction_consistency.py -v
+```
+
+**Notes:**
+This milestone is documentation-and-harness focused. It does not change core memory tier behavior
+or storage adapter implementations. Subsequent milestones will operationalize Skills v1 and
+mechanism maturity evidence per ADR-010.
+
+### 2026-02-11 - Documentation Accuracy Update: Project Status Correction ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Corrected outdated implementation status indicators in project documentation. The codebase analysis revealed that lifecycle engines, unified interface, and all core memory components are fully implemented (~98% functionally complete), contradicting documentation that stated these were "not yet implemented" or "missing."
+
+**Documentation Updates:**
+
+| File | Section | Old Status | New Status |
+|------|---------|------------|------------|
+| `.github/copilot-instructions.md` | Architecture Overview | "43% complete, lifecycle engines not yet implemented" | "~98% functionally complete, lifecycle engines complete" |
+| `.github/copilot-instructions.md` | What's Complete ✅ | 8 completed items | 18 completed items (added engines, unified interface, agent tools, FastAPI integration) |
+| `.github/copilot-instructions.md` | What's Missing ❌ | Listed lifecycle engines, fact extraction, autonomous flow | **Section replaced with "What's In Progress 🚧"** (Phase 5 benchmarking, baseline agents) |
+| `AGENTS.MD` | Repository Manifest | Basic /src/ description | Expanded with `/src/memory/engines/`, `/src/memory/tiers/`, `/src/storage/` directories with line counts |
+
+**Actual Implementation Status (Verified):**
+
+| Component | Files | Lines | Status |
+|-----------|-------|-------|--------|
+| Storage Adapters | 5 adapters in `src/storage/` | ~4091 | ✅ Complete |
+| Memory Tiers | 4 tiers in `src/memory/tiers/` | ~2437 | ✅ Complete |
+| Lifecycle Engines | 3 engines + 3 helpers in `src/memory/engines/` | ~1895 | ✅ Complete |
+| Unified Interface | `UnifiedMemorySystem`, `HybridMemorySystem` | ~608 | ✅ Complete |
+| Data Models | 10+ Pydantic models in `src/memory/models.py` | ~400+ | ✅ Complete |
+| Agent Tools | MASToolRuntime with 12+ tools | ~500+ | ✅ Complete |
+| FastAPI Routes | 2 servers (main + benchmark wrapper) | ~600+ | ✅ Complete |
+
+**Key Findings:**
+
+1. **PromotionEngine (L1→L2)**: Fully implemented with LLM-based fact extraction, rule-based fallback, and topic segmentation (~417 lines)
+2. **ConsolidationEngine (L2→L3)**: Complete with time-windowed clustering, embedding generation, and LLM summarization (~658 lines)
+3. **DistillationEngine (L3→L4)**: Implemented with knowledge synthesis and domain-specific configuration loading (~603 lines)
+4. **FactExtractor**: LLM extraction with rule-based fallback (~170 lines)
+5. **TopicSegmenter**: Batch compression via LLM (~247 lines)
+6. **UnifiedMemorySystem**: Single interface exposing `query_memory()`, `get_context_block()`, lifecycle orchestration methods (~608 lines)
+
+**Test Coverage:**
+- Full test suite: **580 passed, 12 skipped, 0 failed** (592 total) in 2m 23s
+- All lifecycle integration tests passing (L1→L2→L3→L4)
+- Real LLM provider connectivity validated (Gemini structured output)
+
+**Root Cause:**
+Documentation was not updated after Phase 2 and Phase 3 completion. README.md correctly showed "Phase 2: ✅ 100% Complete" and "Phase 3: ✅ 100% Complete," but AI agent instruction files (.github/copilot-instructions.md, AGENTS.MD) retained outdated "43% complete" and "not yet implemented" language from early development phases.
+
+**Impact:**
+- AI agents were operating with outdated context, potentially misunderstanding system capabilities
+- Human developers might have been confused about actual project readiness
+- Documentation now accurately reflects the advanced implementation state (~98% functionally complete)
+
+**Next Steps:**
+Continue Phase 5 benchmarking and baseline agent implementations. Core memory architecture is production-ready.
+
+---
+
+### 2026-02-10 - Repository Root Cleanup: File Reorganization ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Reorganized 12 files from the repository root into appropriate directories based on their purpose. This cleanup improves the repository structure and separates concerns between documentation, scripts, debug utilities, archived legacy code, and core application code.
+
+**Files Moved:**
+
+| Original Location | New Location | Rationale |
+|-------------------|--------------|-----------|
+| `benchmark_implementation.md` | `docs/reports/storage-benchmark-implementation.md` | Documentation belongs in docs/ |
+| `check_l2_roundtrip.py` | `scripts/debug/` | Debug verification script |
+| `check_tier_collection.py` | `scripts/debug/` | Debug verification script |
+| `debug_qdrant_dump.py` | `scripts/debug/` | Debug diagnostic tool |
+| `manual_l3_store.py` | `scripts/debug/` | Debug test script |
+| `create_qdrant_index.py` | `scripts/` | Database infrastructure script |
+| `ensure_episodes_collection.py` | `scripts/` | Database infrastructure script |
+| `graph_store_client.py` | `scripts/archive/` | Legacy: superseded by async `src/storage/neo4j_adapter.py` |
+| `vector_store_client.py` | `scripts/archive/` | Legacy: superseded by async `src/storage/qdrant_adapter.py` |
+| `search_store_client.py` | `scripts/archive/` | Legacy: uses Meilisearch (project uses Typesense per ADR-003) |
+| `knowledge_store_manager.py` | `scripts/archive/` | Legacy: facade using archived sync clients |
+| `memory_system.py` | `src/memory/unified_memory_system.py` | Core module belongs in src/memory/ |
+
+**New Directory Structure:**
+
+```
+scripts/
+├── archive/          # Archived legacy code (preserved for reference)
+│   ├── README.md
+│   ├── graph_store_client.py
+│   ├── knowledge_store_manager.py
+│   ├── search_store_client.py
+│   └── vector_store_client.py
+├── debug/            # One-off debug and verification scripts
+│   ├── README.md
+│   ├── check_l2_roundtrip.py
+│   ├── check_tier_collection.py
+│   ├── debug_qdrant_dump.py
+│   └── manual_l3_store.py
+├── create_qdrant_index.py      # Database infrastructure
+├── ensure_episodes_collection.py
+└── ...
+```
+
+**Import Updates:**
+- Updated `src/evaluation/agent_wrapper.py`: `from memory_system import UnifiedMemorySystem` → `from src.memory.unified_memory_system import UnifiedMemorySystem`
+- Updated `src/memory/unified_memory_system.py`: Added path manipulation to import `knowledge_store_manager` from `scripts/archive/` for backward compatibility
+
+**Documentation Updates:**
+- Created `scripts/debug/README.md` documenting debug scripts
+- Created `scripts/archive/README.md` explaining why files are archived and their replacements
+- Updated `scripts/README.md` with new directory structure and database infrastructure scripts
+
+**Architectural Notes:**
+The archived files use synchronous APIs and Meilisearch instead of the project-standard async APIs and Typesense (per ADR-003). They are preserved for historical reference but should not be used for new development.
+
+---
+
+### 2026-02-10 - pymemgpt Removal and Benchmark Docker Fixes ✅
+
+**Status:** ✅ Complete
+
+**Summary:**
+Removed `pymemgpt` dependency from GoodAI benchmark and suspended MemGPT baseline comparisons. Fixed multiple Docker containerization issues preventing benchmark execution.
+
+**pymemgpt Analysis:**
+- **Finding**: `pymemgpt` IS actively used as a baseline competitor agent in the benchmark, not vestigial
+- **Implementation**: 3 files (`memgpt_interface.py`, `memgpt_proxy.py`, `run_benchmark.py`) totaling ~200 lines
+- **Problem**: Enforces Python `<3.13` constraint, conflicts with modern dependency versions
+- **Decision**: Removed from `pyproject.toml` and suspended MemGPT baseline runs
+- **Documentation**: Created comprehensive analysis in `benchmarks/goodai-ltm-benchmark/docs/pymemgpt-analysis.md`
+- **Migration Path**: Optional dependency pattern documented for future Letta migration
+
+**Docker Build Issues Fixed:**
+
+1. **Broken Virtual Environment**
+   - **Symptom**: `The virtual environment found in /app/.venv seems to be broken`
+   - **Cause**: Local `.venv/` copied into container with incompatible Python paths
+   - **Fix**: Created `.dockerignore` excluding `.venv/`, `__pycache__/`, test artifacts, data/results
+
+2. **Missing Project Packages**
+   - **Symptom**: `ModuleNotFoundError: No module named 'dataset_interfaces'`
+   - **Cause**: Dockerfile used `--no-root` flag skipping local package installation
+   - **Fix**: Changed to `RUN poetry install --no-ansi` (includes local packages)
+
+3. **Tkinter Import Error**
+   - **Symptom**: `ImportError: libtk8.6.so: cannot open shared object file`
+   - **Cause**: `runner/progress.py` caught only `ModuleNotFoundError`, not `ImportError`
+   - **Fix**: Updated exception handler to `except (ModuleNotFoundError, ImportError)` for headless compatibility
+
+4. **Package Name Collision**
+   - **Symptom**: `ModuleNotFoundError: No module named 'datasets.instruction_recall'`
+   - **Root Cause**: Running `python runner/run_benchmark.py` sets `sys.path[0]=/app/runner`, causing HuggingFace `datasets` (4.5.0) to shadow local `datasets/` package
+   - **Fix**: Execute as module: `python -m runner.run_benchmark` to keep `/app` in `sys.path[0]`
+
+**Files Modified:**
+- `benchmarks/goodai-ltm-benchmark/.dockerignore` (created)
+- `benchmarks/goodai-ltm-benchmark/Dockerfile` (removed `--no-root`)
+- `benchmarks/goodai-ltm-benchmark/runner/progress.py` (catch `ImportError`)
+- `benchmarks/goodai-ltm-benchmark/runner/run_benchmark.py` (removed MemGPT import/case)
+- `benchmarks/goodai-ltm-benchmark/pyproject.toml` (removed `pymemgpt`)
+- `benchmarks/goodai-ltm-benchmark/README.md` (updated agent list and instructions)
+
+**Execution Command (Docker):**
+```bash
+# Build and run
+docker-compose build benchmark-runner
+docker-compose up -d benchmark-runner
+
+# Execute benchmark (note: module execution, not script path)
+docker exec -w /app mas-memory-layer-benchmark-runner-1 \
+  python -m runner.run_benchmark \
+  -c configurations/mas_remote_test.yml \
+  -a mas-remote
+```
+
+**Benchmark Progress:**
+- Successfully executed 100-turn prospective memory test against `mas-remote` agent
+- Confirmed end-to-end Docker workflow operational
+- Memory span warnings observed (47.4k-47.7k tokens vs 32k threshold) - expected for long tests
+
+**References:**
+- Analysis: `benchmarks/goodai-ltm-benchmark/docs/pymemgpt-analysis.md`
+- Session: 2026-02-10 debugging log
+
+---
+
 ### 2026-02-10 - Typesense Document Archive Script ✅
 
 **Status:** ✅ Complete

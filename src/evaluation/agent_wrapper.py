@@ -18,7 +18,6 @@ import redis
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 
-from memory_system import UnifiedMemorySystem
 from src.agents.base_agent import BaseAgent
 from src.agents.full_context_agent import FullContextAgent
 from src.agents.memory_agent import MemoryAgent
@@ -31,6 +30,7 @@ from src.memory.engines.promotion_engine import PromotionEngine
 from src.memory.engines.topic_segmenter import TopicSegmenter
 from src.memory.models import TurnData
 from src.memory.tiers import ActiveContextTier, WorkingMemoryTier
+from src.memory.unified_memory_system import UnifiedMemorySystem
 from src.storage.postgres_adapter import PostgresAdapter
 from src.storage.redis_adapter import RedisAdapter
 
@@ -327,7 +327,13 @@ def create_app(config: WrapperConfig) -> FastAPI:
             t0 = time.perf_counter()
             await _store_turn(state, updated_request, role=updated_request.role)
             t1 = time.perf_counter()
-            response = await state.agent.run_turn(updated_request)
+            if updated_request.history:
+                response = await state.agent.run_turn(
+                    updated_request,
+                    history=updated_request.history,
+                )
+            else:
+                response = await state.agent.run_turn(updated_request)
             t2 = time.perf_counter()
             await _store_turn(state, response, role=response.role)
             t3 = time.perf_counter()

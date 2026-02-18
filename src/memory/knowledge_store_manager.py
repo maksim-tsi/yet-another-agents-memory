@@ -4,9 +4,9 @@ from typing import Any, Literal
 
 from qdrant_client import models as qdrant_models
 
-from graph_store_client import Neo4jGraphStore
-from search_store_client import MeilisearchStore
-from vector_store_client import QdrantVectorStore
+from src.storage.graph_store_client import Neo4jGraphStore
+from src.storage.search_store_client import MeilisearchStore
+from src.storage.vector_store_client import QdrantVectorStore
 
 
 class KnowledgeStoreManager:

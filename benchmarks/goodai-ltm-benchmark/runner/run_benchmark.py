@@ -23,7 +23,7 @@ from model_interfaces.interface import ChatSession
 from model_interfaces.length_bias_agent import LengthBiasAgent
 from model_interfaces.llm_interface import LLMChatSession, TimestampLLMChatSession
 from model_interfaces.mas_agents import MASFullContextSession, MASFullSession, MASRAGSession
-from model_interfaces.memgpt_interface import MemGPTChatSession
+from model_interfaces.remote_agent import RemoteMASAgentSession
 from utils.constants import MAIN_DIR, TESTS_DIR
 from utils.files import (
     gather_persistence_files,
@@ -67,9 +67,6 @@ def get_chat_session(
     if name == "gemini":
         return GeminiProInterface(run_name=run_name)
 
-    if name == "memgpt":
-        return MemGPTChatSession(run_name=run_name)
-
     if name == "mas-full":
         return MASFullSession(**kwargs)
 
@@ -78,6 +75,9 @@ def get_chat_session(
 
     if name == "mas-full-context":
         return MASFullContextSession(**kwargs)
+
+    if name == "mas-remote":
+        return RemoteMASAgentSession(**kwargs)
 
     if name.startswith("ltm_agent_"):
         from model_interfaces.ltm_agent_wrapper import LTMAgentVariant, LTMAgentWrapper
