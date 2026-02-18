@@ -26,6 +26,11 @@ We will transition from a Monolithic Import architecture to a **Two-Container Mi
 
 This decision enforces a "Share Nothing" architecture. The Benchmark will treat the Agent as a Black Box.
 
+**Evaluation posture (Update Feb 18, 2026):** The benchmark is used as a **feedback loop** for system
+behavior and regression detection. It is not treated as an optimization target for encoding
+benchmark-specific scripts in policy artifacts (e.g., skills/prompts). This constraint is required to
+preserve methodological validity and avoid “train-on-test” behavior (see ADR-010).
+
 ## 3. Technical Specification ("The API Wall")
 
 Since developers do not have access to the preliminary research reports, this section defines the mandatory interface requirements.
