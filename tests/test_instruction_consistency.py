@@ -109,4 +109,3 @@ def test_instruction_files_do_not_contain_banned_snippets() -> None:
                 )
 
     assert not violations, "Instruction drift detected:\n" + "\n".join(sorted(violations))
-
