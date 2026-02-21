@@ -59,6 +59,7 @@ class ChatCompletionResponse(BaseModel):
     model: str
     choices: list[ChatCompletionChoice]
     usage: dict[str, int] | None = None
+    metadata: dict[str, Any] | None = None
 
 
 def _parse_mock_time(value: str | None) -> datetime | None:
@@ -100,11 +101,19 @@ def create_app(config: agent_wrapper.WrapperConfig) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        logger.info("Initializing API Wall for '%s'", config.agent_type)
+        logger.info(
+            "Initializing API Wall for agent_type=%s agent_variant=%s",
+            config.agent_type,
+            config.agent_variant,
+        )
         state = await agent_wrapper.initialize_state(config)
         app.state.wrapper = state
         yield
-        logger.info("Shutting down API Wall for '%s'", config.agent_type)
+        logger.info(
+            "Shutting down API Wall for agent_type=%s agent_variant=%s",
+            config.agent_type,
+            config.agent_variant,
+        )
         await agent_wrapper.shutdown_state(state)
 
     app = FastAPI(title="MAS API Wall", version="1.0", lifespan=lifespan)
@@ -200,6 +209,7 @@ def create_app(config: agent_wrapper.WrapperConfig) -> FastAPI:
                 "completion_tokens": completion_tokens,
                 "total_tokens": estimated_total_tokens,
             },
+            metadata=response_metadata,
         )
 
     @app.post("/control/session/reset")
@@ -223,6 +233,8 @@ def create_app(config: agent_wrapper.WrapperConfig) -> FastAPI:
             redis_ok = False
         return {
             "status": "ok" if redis_ok else "degraded",
+            "agent_type": state.agent_type,
+            "agent_variant": state.agent_variant,
             "redis": redis_ok,
             "l1": await state.l1_tier.health_check(),
             "l2": await state.l2_tier.health_check(),
@@ -236,10 +248,11 @@ def build_config_from_env() -> agent_wrapper.WrapperConfig:
     """Build wrapper configuration from environment variables."""
     agent_type = os.environ.get("MAS_AGENT_TYPE") or os.environ.get("AGENT_TYPE") or "full"
     os.environ["AGENT_TYPE"] = agent_type
+    agent_variant = os.environ.get("MAS_AGENT_VARIANT", "baseline")
 
     redis_url = agent_wrapper._read_env_or_raise("REDIS_URL")
     postgres_url = agent_wrapper._read_env_or_raise("POSTGRES_URL")
-    session_prefix = agent_wrapper.SESSION_PREFIXES[agent_type]
+    session_prefix = f"{agent_wrapper.SESSION_PREFIXES[agent_type]}__{agent_variant}"
 
     window_size = int(os.environ.get("MAS_L1_WINDOW", "20"))
     ttl_hours = int(os.environ.get("MAS_L1_TTL_HOURS", "24"))
@@ -249,6 +262,7 @@ def build_config_from_env() -> agent_wrapper.WrapperConfig:
 
     return agent_wrapper.WrapperConfig(
         agent_type=agent_type,
+        agent_variant=agent_variant,
         port=port,
         model=model,
         redis_url=redis_url,

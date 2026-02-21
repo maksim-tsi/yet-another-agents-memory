@@ -65,7 +65,23 @@ AutoGen-based runtimes can treat each skill as:
 - `skill-selection`
 - `retrieval-reasoning-gap-mitigation`
 - `knowledge-lifecycle-distillation`
+- `roleplay-instruction-following`
+- `prospective-memory-followthrough`
+- `instruction-recall-and-formatting`
+- `triggered-response-conditions`
+- `clandestine-message-synthesis`
 
 ## Development-Time Skills
 
 - `dev/skillbuilder`
+
+## Next Steps (Skills v1 Roadmap)
+
+**2026-02-21 (v1.1 plan):**
+
+- Wire the minimal loader (`src/skills/`) into a runtime agent path to support manual selection of
+  a single skill per turn and strict tool gating via `allowed-tools` (no router).
+- Add 3–5 additional runtime skills focused on lifecycle operations (promotion/consolidation/
+  distillation) and observability-safe workflows, keeping each skill single-intent.
+- Add lightweight references under `skills/<slug>/references/` only when required (schemas,
+  invariants, or long examples), preserving progressive disclosure.
