@@ -145,6 +145,7 @@ def create_app(config: agent_wrapper.WrapperConfig) -> FastAPI:
             metadata["traceparent"] = traceparent
         if x_mock_time:
             metadata["mock_time"] = x_mock_time
+        metadata.setdefault("skip_l1_write", True)
 
         run_request = RunTurnRequest(
             session_id=session_id,
@@ -257,7 +258,7 @@ def build_config_from_env() -> agent_wrapper.WrapperConfig:
     window_size = int(os.environ.get("MAS_L1_WINDOW", "20"))
     ttl_hours = int(os.environ.get("MAS_L1_TTL_HOURS", "24"))
     min_ciar = float(os.environ.get("MAS_MIN_CIAR", "0.6"))
-    model = os.environ.get("MAS_MODEL", "gemini-2.5-flash-lite")
+    model = os.environ.get("MAS_MODEL", "gemini-3-flash-preview")
     port = int(os.environ.get("MAS_PORT", "8080"))
 
     return agent_wrapper.WrapperConfig(
@@ -282,7 +283,7 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="MAS API Wall Service")
     parser.add_argument("--agent-type", choices=agent_wrapper.AGENT_TYPES.keys(), required=True)
     parser.add_argument("--port", type=int, required=True)
-    parser.add_argument("--model", type=str, default="gemini-2.5-flash-lite")
+    parser.add_argument("--model", type=str, default="gemini-3-flash-preview")
     return parser.parse_args(argv)
 
 
